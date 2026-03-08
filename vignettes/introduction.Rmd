@@ -1,160 +1,217 @@
 ---
-title: "Analyzing archaeological palimpsests with palimpsestr"
+title: "palimpsestr: Probabilistic Decomposition of Archaeological Palimpsests Using Stratigraphic Entanglement Fields"
 author: "Enzo Cocca"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Analyzing archaeological palimpsests with palimpsestr}
+  %\VignetteIndexEntry{palimpsestr: Probabilistic Decomposition of Archaeological Palimpsests}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.width = 6,
-  fig.height = 5
-)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5.5, dpi = 150)
 ```
 
-## Overview
+*Archaeological palimpsests --- deposits in which material from multiple occupation phases is superimposed and partially intermixed --- represent one of the most persistent analytical challenges in field archaeology. The **palimpsestr** R package implements the Stratigraphic Entanglement Field (SEF) framework, a probabilistic method for decomposing palimpsests into latent depositional phases by jointly modelling four evidence domains: spatial proximity, vertical distribution, chronological overlap, and cultural similarity. The package provides a diagonal-covariance Gaussian mixture model fitted via Expectation-Maximisation, augmented with taphonomic weighting and stratigraphic entanglement penalties. Three interpretable diagnostics --- the Stratigraphic Entanglement Index (SEI), Excavation Stratigraphic Energy (ESE), and Palimpsest Dissolution Index (PDI) --- allow practitioners to assess deposit coherence, detect intrusive finds, and evaluate overall phase separability. This article describes the methodology, demonstrates a complete analytical workflow on a simulated dataset, and discusses how palimpsestr complements traditional stratigraphic tools such as the Harris Matrix.*
 
-**palimpsestr** provides a probabilistic framework for decomposing archaeological
-palimpsests into latent depositional phases. The method integrates four domains
-of evidence — spatial proximity, stratigraphic depth, chronological overlap,
-and cultural similarity — to produce soft (probabilistic) phase assignments
-and three diagnostic statistics:
+## Introduction
 
-- **SEI** (Stratigraphic Entanglement Index): measures pairwise depositional coherence
-- **ESE** (Excavation Stratigraphic Energy): measures local depositional disruption
-- **PDI** (Palimpsest Dissolution Index): global measure of phase separability
+Archaeological palimpsests arise when successive episodes of human occupation leave material traces within the same sedimentary matrix, producing deposits in which artefacts, ecofacts, and features from chronologically distinct phases co-occur in close spatial and vertical proximity. The phenomenon is ubiquitous: from deeply stratified Near Eastern tells to shallow open-air Palaeolithic sites where millennia of activity are compressed into a few centimetres of deposit. Disentangling the depositional history of such contexts is essential for any behavioural, technological, or settlement-pattern inference, yet the analytical toolkit available to excavators has remained surprisingly limited.
 
-## Quick start
+The Harris Matrix (Harris, 1989) provides a rigorous formalism for recording observed stratigraphic relationships, but its relationships are deterministic and binary --- a unit either overlies another or it does not. It cannot express the gradual, probabilistic mixing that characterises many palimpsests. Conversely, spatial clustering methods such as k-means (Kintigh and Ammerman, 1982) operate on coordinate data alone, ignoring vertical stratigraphy, chronological evidence from radiocarbon or ceramic seriation, and cultural-typological information. Neither approach offers a unified probabilistic framework, and neither produces quantitative diagnostics for deposit integrity or mixing intensity.
 
-```{r quickstart}
+**palimpsestr** addresses these limitations by integrating four evidence domains --- horizontal coordinates, vertical elevation, chronological range, and cultural class --- into a single model that produces soft (probabilistic) phase assignments together with three diagnostic statistics. The Stratigraphic Entanglement Index (SEI) quantifies pairwise depositional coherence; Excavation Stratigraphic Energy (ESE) captures local disruption; and the Palimpsest Dissolution Index (PDI) summarises global phase separability. All three are interpretable by field practitioners and can be exported to GIS for spatial interrogation.
+
+## Methodology
+
+### The Stratigraphic Entanglement Index (SEI)
+
+The SEI quantifies how strongly two finds $i$ and $j$ are "entangled" --- that is, how much evidence supports their co-occurrence within the same depositional event. It is defined as:
+
+$$SEI_{ij} = \frac{w_s}{d_{xy}(i,j) + \epsilon} + \frac{w_z}{\max(|z_i - z_j|, z_{floor})} + w_t \cdot O_t(i,j) + w_c \cdot \mathbb{1}[c_i = c_j]$$
+
+where:
+
+- $d_{xy}(i,j)$ is the Euclidean distance in the horizontal plane, and $\epsilon$ is a small constant preventing division by zero. The first term captures spatial proximity: finds close together in plan are more likely to derive from the same depositional event.
+- $|z_i - z_j|$ is the absolute vertical separation, with $z_{floor}$ a minimum threshold. The second term captures stratigraphic proximity: finds at the same depth are more likely contemporaneous.
+- $O_t(i,j)$ is the chronological overlap ratio, computed from the intersection of the temporal ranges $[t_{min,i}, t_{max,i}]$ and $[t_{min,j}, t_{max,j}]$ relative to their union. Finds whose date ranges overlap strongly receive higher entanglement scores.
+- $\mathbb{1}[c_i = c_j]$ is an indicator function equal to 1 when both finds belong to the same cultural or typological class, and 0 otherwise.
+- $w_s, w_z, w_t, w_c$ are domain weights (defaulting to equal weighting) that allow the analyst to encode prior knowledge about which evidence domains are most reliable for a given site.
+
+The SEI matrix is row-normalised and used both as a regularisation penalty during model fitting and as the basis for the ESE diagnostic.
+
+### The Diagonal Gaussian Mixture EM
+
+Phase decomposition proceeds via a Gaussian mixture model fitted by Expectation-Maximisation (EM). The feature matrix for each find is constructed by concatenating: scaled horizontal coordinates $(x, y)$, vertical coordinate $(z)$, temporal midpoint and temporal span of the date range, and a one-hot encoding of the cultural class variable. This multi-domain feature representation ensures that the clustering draws on all available evidence simultaneously.
+
+The algorithm is initialised with K-means, and the resulting hard assignments are converted to softmax probabilities. The EM procedure then iterates between an E-step (computing posterior phase membership probabilities given current parameters) and an M-step (updating mixture weights, means, and diagonal covariance matrices given current memberships). Two modifications distinguish SEF from a standard Gaussian mixture:
+
+1. **Taphonomic weighting**: if a taphonomic integrity score is available for each find, it is used to down-weight poorly preserved or disturbed items during parameter estimation, reducing their influence on cluster centroids.
+2. **Stratigraphic entanglement penalties**: the SEI matrix is incorporated as a soft constraint, encouraging finds with high mutual entanglement to receive similar phase assignments.
+
+Convergence is assessed by monitoring the log-likelihood; the algorithm terminates when the relative change falls below a tolerance threshold or a maximum number of iterations is reached.
+
+### Diagnostic Statistics
+
+Three statistics summarise different aspects of the decomposition:
+
+- **Excavation Stratigraphic Energy (ESE)**: for each find, ESE measures its dissimilarity from its spatial neighbours in terms of phase assignment. A high ESE value indicates that a find is surrounded by items assigned to different phases --- a signature of depositional disruption, bioturbation, or post-depositional displacement.
+
+- **Palimpsest Dissolution Index (PDI)**: a global statistic defined as $PDI = 1 - \bar{H} / \log(K)$, where $\bar{H}$ is the mean Shannon entropy of the phase-probability vectors across all finds and $K$ is the number of phases. PDI ranges from 0 (complete mixing; every find is equally likely to belong to any phase) to 1 (perfect separation; every find is assigned to exactly one phase with certainty). Values above 0.7 generally indicate well-resolved phases.
+
+- **Entropy**: the Shannon entropy of each find's phase-probability vector, $H_i = -\sum_k p_{ik} \log p_{ik}$. Low entropy means confident assignment; high entropy signals ambiguity, typically at phase boundaries or within heavily mixed zones.
+
+- **Intrusion score**: a composite metric combining high entropy, high ESE, and low SEI connectivity. Finds exceeding a threshold on this composite are flagged as candidate intrusions --- items that are spatially or stratigraphically anomalous relative to their assigned phase.
+
+## Worked Example
+
+We demonstrate the complete analytical workflow using `demo_moderate`, a simulated dataset of 200 finds distributed across 3 depositional phases with 30% inter-phase mixing. The dataset is included in the package.
+
+```{r load-data}
 library(palimpsestr)
-
-# Simulate a palimpsest with 3 phases and 30% mixing
-x <- archaeo_sim(n = 200, k = 3, mixing = 0.30, seed = 42)
-head(x)
+data(demo_moderate)
+str(demo_moderate)
 ```
 
-## Fitting the model
+### Fitting the Model
 
-```{r fit}
+The primary function `fit_sef()` takes a data frame with columns `x`, `y`, `z`, `t_min`, `t_max`, and a cultural class variable, together with the desired number of phases $K$.
+
+```{r fit-model}
 fit <- fit_sef(
-  x,
+  demo_moderate,
   k        = 3,
   tafonomy = "taf_score",
   context  = "context",
   seed     = 42
 )
-
 print(fit)
-```
-
-```{r summary}
 summary(fit)
 ```
 
-## Visualizing results
+The `print` method provides a concise overview of the fitted model, while `summary` reports phase-level statistics including the mean SEI, ESE, and entropy for each phase, as well as the global PDI.
 
-### Phase assignment
+### Phase Count Selection
 
-```{r phasefield, fig.cap="Dominant phase assignment. Point size reflects assignment confidence."}
-plot_phasefield(fit)
-```
+When the number of phases is unknown, `compare_k()` fits models across a range of $K$ values and reports BIC and PDI for each. The optimal $K$ minimises BIC while maximising PDI.
 
-### Entropy map
-
-High entropy indicates areas where phase assignment is uncertain —
-typically at the boundaries between phases or in heavily mixed zones.
-
-```{r entropy, fig.cap="Spatial entropy map."}
-plot_entropy(fit)
-```
-
-### Excavation Stratigraphic Energy
-
-Elevated ESE values highlight zones of depositional disruption.
-
-```{r energy, fig.cap="Excavation Stratigraphic Energy field."}
-plot_energy(fit)
-```
-
-### SEI profile
-
-```{r sei, fig.cap="Ranked local SEI values."}
-plot_sei_profile(fit)
-```
-
-## Phase probability table
-
-```{r phase_table}
-pt <- as_phase_table(fit)
-head(pt, 10)
-```
-
-## Intrusion detection
-
-Artefacts with high entropy, high energy, and low SEI are flagged
-as potentially intrusive.
-
-```{r intrusions}
-di <- detect_intrusions(fit)
-di_top <- di[order(di$intrusion_prob, decreasing = TRUE), ]
-head(di_top, 10)
-```
-
-## Selecting the number of phases
-
-```{r compare_k}
-ck <- compare_k(x, k_values = 2:6, tafonomy = "taf_score",
-                context = "context", seed = 42)
+```{r compare-k}
+ck <- compare_k(
+  demo_moderate,
+  k_values = 2:6,
+  tafonomy = "taf_score",
+  context  = "context",
+  seed     = 42
+)
 print(ck)
 ```
 
-The optimal K minimises BIC while maximising PDI.
-
-## Using included demo datasets
-
-The package ships with three simulated datasets representing different
-degrees of palimpsest formation:
-
-```{r demo_data, eval=FALSE}
-data(demo_easy)        # 3 phases, 5% mixing
-data(demo_moderate)    # 3 phases, 30% mixing
-data(demo_compressed)  # 4 phases, 50% mixing
+```{r gg-compare-k, fig.cap="Model selection diagnostics: BIC and PDI across candidate phase counts."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_compare_k(ck)
+}
 ```
 
-## GIS export
+### Spatial Diagnostics
 
-Results can be exported as `sf` objects for visualization in QGIS
-or further spatial analysis.
+The `gg_*` family of plotting functions produces publication-quality maps of phase assignments, entropy, and stratigraphic energy. All require **ggplot2**.
 
-```{r gis, eval=FALSE}
-library(sf)
-
-# Points with phase assignments
-sf_pts <- as_sf_phase(fit, crs = 32632L)
-
-# High-SEI links as lines
-sf_links <- as_sf_links(fit, quantile_threshold = 0.90, crs = 32632L)
-
-# Write to GeoPackage
-st_write(sf_pts, "palimpsest_phases.gpkg", layer = "phases")
-st_write(sf_links, "palimpsest_phases.gpkg", layer = "sei_links")
+```{r gg-phasefield, fig.cap="Dominant phase assignment. Point size reflects assignment confidence (inverse entropy)."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_phasefield(fit)
+}
 ```
 
-## Integration with PyArchInit
+The phase-field map reveals the spatial structure of the decomposition. Larger points indicate higher assignment confidence; smaller points lie in zones of ambiguity.
 
-Results exported as GeoPackage can be loaded directly in QGIS
-alongside PyArchInit layers. The `phase_diagnostic_table()` function
-returns a data.frame compatible with CSV import into the PyArchInit
-database.
-
-```{r pyarchinit, eval=FALSE}
-pdt <- phase_diagnostic_table(fit)
-write.csv(pdt, "palimpsest_diagnostics.csv", row.names = FALSE)
+```{r gg-entropy, fig.cap="Spatial distribution of Shannon entropy. High-entropy zones (yellow) mark areas of uncertain phase assignment, typically at phase boundaries or in heavily mixed deposits."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_entropy(fit)
+}
 ```
+
+Entropy mapping is particularly useful for identifying the spatial extent of mixing. Zones of elevated entropy correspond to areas where multiple depositional phases are interleaved and cannot be cleanly separated.
+
+```{r gg-energy, fig.cap="Excavation Stratigraphic Energy field. Elevated ESE values (red) highlight zones of depositional disruption where neighbouring finds belong to different phases."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_energy(fit)
+}
+```
+
+The energy map highlights local disruptions. Clusters of high-ESE finds may indicate bioturbation channels, pit cuts, or other post-depositional disturbances.
+
+### Intrusion Detection
+
+The `detect_intrusions()` function computes a composite intrusion probability for each find, combining entropy, ESE, and SEI connectivity into a single score.
+
+```{r intrusions}
+di <- detect_intrusions(fit)
+suspects <- di[di$intrusion_prob > 0.5, ]
+nrow(suspects)
+```
+
+```{r gg-intrusions, fig.cap="Candidate intrusions overlaid on the phase-field map. Flagged finds exhibit high entropy, high stratigraphic energy, and low entanglement with their neighbours."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_intrusions(fit)
+}
+```
+
+Flagged finds warrant closer examination: they may represent genuinely intrusive material (e.g., items displaced by animal burrowing), or they may sit at genuine phase boundaries where assignment is inherently ambiguous.
+
+### Interpretive Report
+
+The `report_sef()` function generates a plain-language summary of the analysis, suitable for inclusion in excavation reports. It is available in English and Italian.
+
+```{r report}
+report_sef(fit, lang = "en")
+```
+
+## Interactive Visualization
+
+When **plotly** is available, any `gg_*` plot can be converted to an interactive visualization using `as_plotly()`. This allows hovering over individual finds to inspect their phase probabilities, entropy, and other attributes, and zooming into specific areas for detailed spatial analysis.
+
+```{r interactive, fig.cap="Interactive phase-field map (requires ggplot2 and plotly)."}
+if (requireNamespace("ggplot2", quietly = TRUE) &&
+    requireNamespace("plotly", quietly = TRUE)) {
+  as_plotly(gg_phasefield(fit))
+}
+```
+
+## GIS Export
+
+For integration with GIS workflows, palimpsestr can export results as `sf` spatial objects. Phase-assigned points and high-SEI links (representing strong stratigraphic entanglement between find pairs) can be written to GeoPackage for visualization in QGIS or further spatial analysis.
+
+```{r gis-export, eval=FALSE}
+if (requireNamespace("sf", quietly = TRUE)) {
+  sf_pts   <- as_sf_phase(fit, crs = 32632L)
+  sf_links <- as_sf_links(fit, quantile_threshold = 0.90, crs = 32632L)
+  sf::st_write(sf_pts,   "palimpsest.gpkg", layer = "phases")
+  sf::st_write(sf_links, "palimpsest.gpkg", layer = "sei_links")
+}
+```
+
+The resulting GeoPackage can be loaded directly alongside PyArchInit layers in QGIS, facilitating integration with existing site databases.
+
+## Comparison with Traditional Approaches
+
+The following table summarises how palimpsestr's SEF framework relates to established methods for stratigraphic analysis and spatial clustering.
+
+| Aspect | Harris Matrix | k-means | palimpsestr (SEF) |
+|:-------|:-------------|:--------|:------------------|
+| Evidence domains | Stratigraphy only | Spatial only | Spatial + vertical + temporal + cultural |
+| Assignment type | Deterministic | Hard | Probabilistic (soft) |
+| Mixing detection | No | No | Yes (entropy, ESE) |
+| Intrusion detection | Manual | No | Automatic |
+| Scalability | Manual | Good | Good |
+| Interpretability | High | Low | High (PDI, reports) |
+
+It is important to emphasise that the SEF framework does not replace the Harris Matrix or other stratigraphic recording systems. Rather, it extends them. The Harris Matrix remains indispensable for documenting observed physical relationships between depositional units. What palimpsestr adds is a quantitative, probabilistic layer of analysis that can operate on the find-level data within those units --- precisely the scale at which palimpsest formation is most problematic and least well served by existing tools. In practice, the two approaches are complementary: the Harris Matrix provides the interpretive scaffold, while SEF populates it with probabilistic phase assignments and diagnostic statistics.
+
+## Conclusion
+
+The **palimpsestr** package offers a unified probabilistic framework for decomposing archaeological palimpsests, addressing a long-standing gap between qualitative stratigraphic reasoning and quantitative spatial analysis. By jointly modelling spatial proximity, vertical distribution, chronological overlap, and cultural similarity, the Stratigraphic Entanglement Field approach produces soft phase assignments that acknowledge --- rather than suppress --- the inherent uncertainty of mixed deposits. The three diagnostic statistics (SEI, ESE, PDI) provide interpretable, actionable summaries at the find, deposit, and assemblage levels respectively.
+
+Several directions for future development are planned. First, extending the EM algorithm to support full (non-diagonal) covariance matrices would allow the model to capture correlated spatial-temporal structure within phases. Second, incorporating spatial autocorrelation into the likelihood function would better model the spatial continuity of depositional events. Third, a Bayesian formulation with informative priors on phase parameters would allow formal incorporation of prior stratigraphic knowledge. Finally, integration with radiocarbon calibration curves (via the **rcarbon** package) would enable direct modelling of calibrated date distributions rather than summary date ranges.
+
+The package is available on GitHub and welcomes contributions from the archaeological computing community.
