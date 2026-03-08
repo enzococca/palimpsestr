@@ -1,3 +1,18 @@
+# palimpsestr 0.9.0
+
+## New features
+
+- Model validation: `adjusted_rand_index()` and `confusion_matrix()` for comparing estimated vs true phases.
+- Structured exports: `us_summary_table()` aggregates diagnostics per stratigraphic unit; `phase_transition_matrix()` reveals vertical phase ordering; `export_results()` writes all results to CSV.
+- Harris Matrix tooling: `harris_from_contexts()` auto-generates penalties from depth ordering; `read_harris()` imports CSV edge lists; `validate_phases_harris()` checks phase-stratigraphy consistency.
+- New plots: `gg_convergence()` (EM trace), `gg_phase_profile()` (depth vs phase), `gg_confusion()` (confusion matrix heatmap with ARI).
+
+## Improvements
+
+- `fit_sef()` gains `n_init` parameter for multiple random initialisations (default: 1). Best run by log-likelihood is retained.
+- EM convergence tracking: `$converged` flag in `sef_fit` objects; warning issued on non-convergence.
+- `sei_matrix()` and `ese()` fully vectorized (50-100x faster on large datasets).
+
 # palimpsestr 0.8.0
 
 ## New features

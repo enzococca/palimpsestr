@@ -16,7 +16,8 @@ fit_sef(
   weights = c(ws = 1, wz = 1, wt = 1, wc = 1),
   seed = 1,
   em_iter = 25,
-  em_tol = 1e-05
+  em_tol = 1e-05,
+  n_init = 1
 )
 }
 \arguments{
@@ -43,6 +44,9 @@ fit_sef(
 \item{em_iter}{Maximum number of EM iterations.}
 
 \item{em_tol}{Convergence tolerance on the log-likelihood.}
+
+\item{n_init}{Number of random initialisations. The run with the
+highest log-likelihood is retained (default: 1).}
 }
 \value{
 An S3 object of class \code{sef_fit}.

@@ -37,10 +37,13 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
 
 Other plotting: 
 \code{\link{gg_compare_k}()},
+\code{\link{gg_confusion}()},
+\code{\link{gg_convergence}()},
 \code{\link{gg_energy}()},
 \code{\link{gg_entropy}()},
 \code{\link{gg_intrusions}()},
 \code{\link{gg_map}()},
+\code{\link{gg_phase_profile}()},
 \code{\link{gg_phasefield}()},
 \code{\link{plot_energy}()},
 \code{\link{plot_entropy}()},
