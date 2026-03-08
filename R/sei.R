@@ -12,6 +12,11 @@
 #'   weighting, so the weights represent relative importance.
 #' @param eps Small value to avoid division by zero in spatial distance.
 #' @param z_floor Minimum vertical denominator.
+#' @param max_dist Maximum spatial distance for pair inclusion. When
+#'   \code{NULL} (default), all pairs are computed. For large datasets
+#'   (n > 2000), setting this to a reasonable neighbourhood radius
+#'   dramatically reduces memory and computation time. The result is
+#'   a sparse-like matrix with zeros for distant pairs.
 #' @return A symmetric numeric matrix with zero diagonal.
 #' @seealso \code{\link{local_sei}}, \code{\link{fit_sef}}
 #' @family SEI
@@ -26,7 +31,8 @@ sei_matrix <- function(data,
                        class_col = "class",
                        weights = c(ws = 1, wz = 1, wt = 1, wc = 1),
                        eps = 1e-9,
-                       z_floor = 0.25) {
+                       z_floor = 0.25,
+                       max_dist = NULL) {
   check_required_columns(data, c(coords, chrono, class_col))
   n <- nrow(data)
 
@@ -70,6 +76,10 @@ sei_matrix <- function(data,
          weights[["wt"]] * ot +
          weights[["wc"]] * oc
 
+  if (!is.null(max_dist)) {
+    out[ds > max_dist] <- 0
+  }
+
   diag(out) <- 0
   out
 }
@@ -92,4 +102,41 @@ sei_matrix <- function(data,
 local_sei <- function(sei_mat) {
   if (!is.matrix(sei_mat)) stop("sei_mat must be a matrix", call. = FALSE)
   rowSums(sei_mat, na.rm = TRUE)
+}
+
+#' Compute SEI matrix with automatic sparsification
+#'
+#' Wrapper around \code{\link{sei_matrix}} that automatically sets
+#' \code{max_dist} when the dataset exceeds a size threshold,
+#' using the 25th percentile of pairwise distances as the cutoff.
+#'
+#' @inheritParams sei_matrix
+#' @param n_threshold Datasets larger than this trigger sparse mode (default: 1000).
+#' @return A numeric matrix (same as \code{sei_matrix}).
+#' @seealso \code{\link{sei_matrix}}
+#' @family SEI
+#' @examples
+#' x <- archaeo_sim(n = 50, k = 2, seed = 1)
+#' S <- sei_sparse(x)
+#' @export
+sei_sparse <- function(data,
+                       coords = c("x", "y", "z"),
+                       chrono = c("date_min", "date_max"),
+                       class_col = "class",
+                       weights = c(ws = 1, wz = 1, wt = 1, wc = 1),
+                       eps = 1e-9,
+                       z_floor = 0.25,
+                       n_threshold = 1000) {
+  md <- NULL
+  if (nrow(data) > n_threshold) {
+    xy <- as.matrix(data[, coords[1:2], drop = FALSE])
+    # Sample 500 pairs to estimate distance quantile
+    n <- nrow(data)
+    idx <- sample.int(n, min(500, n))
+    sample_dist <- as.numeric(dist(xy[idx, , drop = FALSE]))
+    md <- quantile(sample_dist, 0.25, na.rm = TRUE)
+    message(sprintf("Sparse mode: n=%d > %d, using max_dist=%.1f", n, n_threshold, md))
+  }
+  sei_matrix(data, coords = coords, chrono = chrono, class_col = class_col,
+             weights = weights, eps = eps, z_floor = z_floor, max_dist = md)
 }
