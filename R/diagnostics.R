@@ -31,6 +31,7 @@ compare_k <- function(data, k_values = 2:6, ...) {
       mean_energy = mean(fit$energy, na.rm = TRUE),
       loglik = fit$model_stats$loglik,
       bic = fit$model_stats$bic,
+      icl = fit$model_stats$icl,
       tot_withinss = fit$model_stats$tot_withinss,
       pseudo_bic = fit$model_stats$pseudo_bic,
       stringsAsFactors = FALSE

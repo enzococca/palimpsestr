@@ -20,3 +20,10 @@ test_that("fit_sef warns on non-convergence", {
     "did not converge"
   )
 })
+
+test_that("fit_sef ICL is computed correctly", {
+  x <- archaeo_sim(n = 40, k = 2, seed = 1)
+  fit <- fit_sef(x, k = 2)
+  expected_icl <- fit$model_stats$bic - 2 * sum(fit$entropy)
+  expect_equal(fit$model_stats$icl, expected_icl, tolerance = 1e-10)
+})
