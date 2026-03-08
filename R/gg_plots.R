@@ -381,3 +381,55 @@ gg_map <- function(object, geometries,
   if (!requireNamespace("ggplot2", quietly = TRUE))
     stop("Package 'ggplot2' is required for gg_* functions.", call. = FALSE)
 }
+
+.check_plotly <- function() {
+  if (!requireNamespace("plotly", quietly = TRUE))
+    stop("Package 'plotly' is required for as_plotly().", call. = FALSE)
+}
+
+.build_tooltip <- function(object) {
+  di <- detect_intrusions(object)
+  prob_max <- apply(object$phase_prob, 1, max)
+  sprintf(
+    "ID: %s\nContext: %s\nPhase: %d (prob: %.1f%%)\nDating: %.0f\u2013%.0f\nClass: %s\nEntropy: %.3f\nEnergy: %.3f\nIntrusion: %.1f%%",
+    if ("id" %in% names(object$data)) object$data$id else seq_len(nrow(object$data)),
+    if (!is.null(object$context)) object$data[[object$context]] else "\u2014",
+    object$phase,
+    prob_max * 100,
+    object$data[[object$chrono[1]]],
+    object$data[[object$chrono[2]]],
+    object$data[[object$class_col]],
+    object$entropy,
+    object$energy,
+    di$intrusion_prob * 100
+  )
+}
+
+#' Convert a ggplot to an interactive plotly widget
+#'
+#' Wraps \code{\link[plotly]{ggplotly}} with archaeological tooltips showing
+#' find ID, context, phase probability, dating, class, entropy, and energy.
+#'
+#' @param gg A ggplot object produced by any \code{gg_*} function.
+#' @param tooltip Character vector of aesthetics to show. Defaults to
+#'   \code{"text"} which displays the enriched archaeological tooltip.
+#' @param ... Additional arguments passed to \code{\link[plotly]{ggplotly}}.
+#' @return A \code{plotly} htmlwidget object.
+#' @seealso \code{\link{gg_phasefield}}, \code{\link{gg_entropy}},
+#'   \code{\link{gg_energy}}, \code{\link{gg_intrusions}}
+#' @family plotting
+#' @examples
+#' \donttest{
+#' x <- archaeo_sim(n = 80, k = 3, seed = 1)
+#' fit <- fit_sef(x, k = 3)
+#' if (requireNamespace("ggplot2", quietly = TRUE) &&
+#'     requireNamespace("plotly", quietly = TRUE)) {
+#'   p <- as_plotly(gg_phasefield(fit))
+#' }
+#' }
+#' @export
+as_plotly <- function(gg, tooltip = "text", ...) {
+  .check_plotly()
+  if (!inherits(gg, "gg")) stop("gg must be a ggplot object", call. = FALSE)
+  plotly::ggplotly(gg, tooltip = tooltip, ...)
+}
