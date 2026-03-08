@@ -8,7 +8,8 @@
 #' @param chrono Character vector with minimum and maximum dating columns.
 #' @param class_col Class column name.
 #' @param weights Named numeric vector with components \code{ws}, \code{wz},
-#'   \code{wt}, \code{wc}.
+#'   \code{wt}, \code{wc}.  Each component is normalised to \eqn{[0, 1]} before
+#'   weighting, so the weights represent relative importance.
 #' @param eps Small value to avoid division by zero in spatial distance.
 #' @param z_floor Minimum vertical denominator.
 #' @return A symmetric numeric matrix with zero diagonal.
@@ -54,9 +55,18 @@ sei_matrix <- function(data,
   # Class match
   oc <- outer(cl, cl, "==") * 1
 
-  # SEI
-  out <- weights[["ws"]] / (ds + eps) +
-         weights[["wz"]] / dz +
+  # Normalize each component to [0, 1]
+  sp_comp <- 1 / (ds + eps)
+  sp_comp <- sp_comp / max(sp_comp[sp_comp < Inf], na.rm = TRUE)
+
+  vt_comp <- 1 / dz
+  vt_comp <- vt_comp / max(vt_comp[vt_comp < Inf], na.rm = TRUE)
+
+  # ot and oc are already in [0, 1]
+
+  # Weighted combination
+  out <- weights[["ws"]] * sp_comp +
+         weights[["wz"]] * vt_comp +
          weights[["wt"]] * ot +
          weights[["wc"]] * oc
 
