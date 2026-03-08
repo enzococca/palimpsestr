@@ -148,11 +148,48 @@ fit_sef <- function(data,
       tot_withinss = km$tot.withinss,
       loglik = loglik,
       bic = bic,
+      icl = bic - 2 * sum(ent),
       pseudo_bic = nrow(data) * log(km$tot.withinss / max(nrow(data), 1)) + log(max(nrow(data), 1)) * k * ncol(feat)
     )
   )
   class(out) <- "sef_fit"
   out
+}
+
+#' Reorder phases by mean depth
+#'
+#' Relabels phases so that phase 1 corresponds to the deepest (oldest)
+#' stratum and phase K to the shallowest (most recent). This ensures
+#' consistent, interpretable phase numbering across different runs.
+#'
+#' @param object A \code{sef_fit} object.
+#' @return A \code{sef_fit} object with reordered phases.
+#' @seealso \code{\link{fit_sef}}
+#' @family fitting
+#' @examples
+#' x <- archaeo_sim(n = 80, k = 3, seed = 1)
+#' fit <- fit_sef(x, k = 3)
+#' fit <- reorder_phases(fit)
+#' @export
+reorder_phases <- function(object) {
+  if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
+  z <- object$data[[object$coords[3]]]
+  k <- object$k
+  # Mean depth per phase (deeper = larger z typically, but could be inverted)
+  phase_mean_z <- tapply(z, object$phase, mean, na.rm = TRUE)
+  # Order by decreasing depth (deepest first = phase 1)
+  new_order <- order(phase_mean_z, decreasing = TRUE)
+  # Build mapping: old -> new
+  mapping <- integer(k)
+  mapping[new_order] <- seq_len(k)
+  # Apply
+  object$phase <- mapping[object$phase]
+  object$phase_prob <- object$phase_prob[, new_order, drop = FALSE]
+  colnames(object$phase_prob) <- paste0("phase", seq_len(k))
+  object$centroids <- object$centroids[new_order, , drop = FALSE]
+  object$variances <- object$variances[new_order, , drop = FALSE]
+  object$mixture_weights <- object$mixture_weights[new_order]
+  object
 }
 
 #' @export
