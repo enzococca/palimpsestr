@@ -1,7 +1,13 @@
-#' Plot dominant phase assignment
+#' Plot dominant phase assignment (base R)
 #'
-#' @param object A `sef_fit` object.
+#' @param object A \code{sef_fit} object.
 #' @return Invisibly returns the object.
+#' @seealso \code{\link{gg_phasefield}} for the ggplot2/plotly version.
+#' @family plotting
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' plot_phasefield(fit)
 #' @export
 plot_phasefield <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -21,10 +27,16 @@ plot_phasefield <- function(object) {
   invisible(object)
 }
 
-#' Plot entropy across space
+#' Plot entropy across space (base R)
 #'
-#' @param object A `sef_fit` object.
+#' @param object A \code{sef_fit} object.
 #' @return Invisibly returns the object.
+#' @seealso \code{\link{gg_entropy}} for the ggplot2/plotly version.
+#' @family plotting
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' plot_entropy(fit)
 #' @export
 plot_entropy <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -41,10 +53,16 @@ plot_entropy <- function(object) {
   invisible(object)
 }
 
-#' Plot ordered SEI profile
+#' Plot ordered SEI profile (base R)
 #'
-#' @param object A `sef_fit` object.
+#' @param object A \code{sef_fit} object.
 #' @return Invisibly returns the object.
+#' @seealso \code{\link{sei_matrix}}, \code{\link{local_sei}}
+#' @family plotting
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' plot_sei_profile(fit)
 #' @export
 plot_sei_profile <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)

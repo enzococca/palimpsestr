@@ -1,11 +1,17 @@
-#' Read archaeological data from any SQL database
-#' @param conn A DBI connection object.
-#' @param query SQL query returning data with required columns.
-#' @param table Table name (alternative to query).
+#' Read archaeological data from a SQL database
+#'
+#' Loads find data from any DBI-compatible database and maps columns
+#' to the format expected by \code{\link{fit_sef}}.
+#'
+#' @param conn A \code{\link[DBI]{DBIConnection}} object.
+#' @param query SQL query returning data with the required columns.
+#' @param table Table name (alternative to \code{query}).
 #' @param col_id,col_x,col_y,col_z,col_context,col_date_min,col_date_max,col_class,col_taf Column name mappings.
-#' @param schema Use "pyarchinit" for automatic PyArchInit mapping.
+#' @param schema Use \code{"pyarchinit"} for automatic PyArchInit mapping.
 #' @param sito Site filter for PyArchInit schema.
-#' @return A data.frame ready for fit_sef().
+#' @return A data.frame ready for \code{\link{fit_sef}}.
+#' @seealso \code{\link{fit_sef}}, \code{\link{load_geometries}}
+#' @family data-import
 #' @export
 read_db <- function(conn, query = NULL, table = NULL,
                     col_id = "id", col_x = "x", col_y = "y", col_z = "z",
@@ -43,12 +49,18 @@ read_db <- function(conn, query = NULL, table = NULL,
 }
 
 #' Load excavation geometries from file or database
-#' @param source File path (shp, gpkg, geojson) or DBI connection.
+#'
+#' Reads stratigraphic unit polygons from Shapefile, GeoPackage,
+#' GeoJSON, or a PostGIS database for use with \code{\link{gg_map}}.
+#'
+#' @param source File path or \code{\link[DBI]{DBIConnection}}.
 #' @param layer Layer name for multi-layer sources.
 #' @param query SQL query for database connections.
 #' @param us_column Column containing US/context identifiers.
 #' @param crs Target CRS for reprojection (optional).
-#' @return An sf object with a 'us' column.
+#' @return An \code{sf} object with a \code{us} column.
+#' @seealso \code{\link{gg_map}}, \code{\link{read_db}}
+#' @family data-import
 #' @export
 load_geometries <- function(source, layer = NULL, query = NULL,
                              us_column = "us", crs = NULL) {

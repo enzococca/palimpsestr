@@ -1,9 +1,21 @@
 #' Generate a textual interpretive report for a SEF model
 #'
+#' Produces a structured Markdown report covering phase composition,
+#' intrusion detection, stratigraphic unit purity, and recommendations.
+#' Available in English and Italian.
+#'
 #' @param object A \code{sef_fit} object.
 #' @param lang Language: \code{"en"} (English) or \code{"it"} (Italian).
-#' @param file Optional file path to save the report (.md or .txt).
+#' @param file Optional file path to save the report.
 #' @return Character string with the report text (invisibly).
+#' @seealso \code{\link{fit_sef}}, \code{\link{sef_summary}}
+#' @family reporting
+#' @examples
+#' \donttest{
+#' x <- archaeo_sim(n = 100, k = 3, seed = 1)
+#' fit <- fit_sef(x, k = 3)
+#' report_sef(fit, lang = "en")
+#' }
 #' @export
 report_sef <- function(object, lang = c("en", "it"), file = NULL) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)

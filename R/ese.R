@@ -1,12 +1,23 @@
 #' Compute Excavation Stratigraphic Energy
 #'
+#' Measures local depositional disruption for each find by summing
+#' weighted dissimilarities with neighbours.
+#'
 #' @param data Input data.frame.
 #' @param coords Character vector of coordinate column names.
 #' @param chrono Character vector with minimum and maximum dating columns.
 #' @param class_col Class column name.
-#' @param beta Numeric vector of weights for spatial, vertical, temporal and class mismatch.
-#' @param neighbourhood Optional maximum XY distance. When set, only nearby observations contribute.
-#' @return A numeric vector with local energy values.
+#' @param beta Numeric vector of length 4: weights for spatial, vertical,
+#'   temporal, and class mismatch.
+#' @param neighbourhood Maximum XY distance for neighbour inclusion.
+#'   When \code{NULL}, all observations contribute.
+#' @return A numeric vector of local energy values.
+#' @seealso \code{\link{fit_sef}}, \code{\link{gg_energy}}
+#' @family diagnostics
+#' @examples
+#' x <- archaeo_sim(n = 30, k = 2, seed = 1)
+#' e <- ese(x)
+#' summary(e)
 #' @export
 ese <- function(data,
                 coords = c("x", "y", "z"),

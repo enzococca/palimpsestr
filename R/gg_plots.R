@@ -58,6 +58,9 @@ NULL
 #' @param object A \code{sef_fit} object.
 #' @param xlabel,ylabel Axis labels (default: "Easting (m)" / "Northing (m)").
 #' @return A ggplot object.
+#' @seealso \code{\link{plot_phasefield}} for base R version,
+#'   \code{\link{as_plotly}} for interactive version.
+#' @family plotting
 #' @export
 gg_phasefield <- function(object, xlabel = "Easting (m)", ylabel = "Northing (m)") {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -102,6 +105,9 @@ gg_phasefield <- function(object, xlabel = "Easting (m)", ylabel = "Northing (m)
 #' @param object A \code{sef_fit} object.
 #' @param xlabel,ylabel Axis labels.
 #' @return A ggplot object.
+#' @seealso \code{\link{plot_entropy}} for base R version,
+#'   \code{\link{as_plotly}} for interactive version.
+#' @family plotting
 #' @export
 gg_entropy <- function(object, xlabel = "Easting (m)", ylabel = "Northing (m)") {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -137,6 +143,9 @@ gg_entropy <- function(object, xlabel = "Easting (m)", ylabel = "Northing (m)") 
 #' @param object A \code{sef_fit} object.
 #' @param xlabel,ylabel Axis labels.
 #' @return A ggplot object.
+#' @seealso \code{\link{gg_entropy}},
+#'   \code{\link{as_plotly}} for interactive version.
+#' @family plotting
 #' @export
 gg_energy <- function(object, xlabel = "Easting (m)", ylabel = "Northing (m)") {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -173,6 +182,9 @@ gg_energy <- function(object, xlabel = "Easting (m)", ylabel = "Northing (m)") {
 #' @param top_n Number of top intrusions to label.
 #' @param xlabel,ylabel Axis labels.
 #' @return A ggplot object.
+#' @seealso \code{\link{detect_intrusions}},
+#'   \code{\link{as_plotly}} for interactive version.
+#' @family plotting
 #' @export
 gg_intrusions <- function(object, top_n = 5,
                            xlabel = "Easting (m)", ylabel = "Northing (m)") {
@@ -216,6 +228,8 @@ gg_intrusions <- function(object, top_n = 5,
 #'
 #' @param ck Data.frame from \code{compare_k()}.
 #' @return A ggplot object.
+#' @seealso \code{\link{compare_k}}
+#' @family plotting
 #' @export
 gg_compare_k <- function(ck) {
   .check_ggplot()
@@ -268,6 +282,8 @@ gg_compare_k <- function(ck) {
 #' @param show_points Overlay individual finds as points.
 #' @param xlabel,ylabel Axis labels (default: NULL = use CRS units).
 #' @return A ggplot object.
+#' @seealso \code{\link{load_geometries}}, \code{\link{as_sf_phase}}
+#' @family plotting
 #' @export
 gg_map <- function(object, geometries,
                    layer = c("phase", "entropy", "energy", "intrusion"),

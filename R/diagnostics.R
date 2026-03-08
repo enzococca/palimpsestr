@@ -1,9 +1,20 @@
 #' Compare multiple candidate phase counts
 #'
+#' Fits the SEF model for each value of K and returns a summary table
+#' with BIC, PDI, entropy, energy, and other diagnostics.
+#'
 #' @param data Input data.frame.
 #' @param k_values Integer vector of candidate phase counts.
-#' @param ... Additional arguments passed to `fit_sef()`.
-#' @return A data.frame with exploratory fit diagnostics.
+#' @param ... Additional arguments passed to \code{\link{fit_sef}}.
+#' @return A data.frame with one row per K value.
+#' @seealso \code{\link{fit_sef}}, \code{\link{gg_compare_k}}
+#' @family fitting
+#' @examples
+#' \donttest{
+#' x <- archaeo_sim(n = 100, k = 3, seed = 1)
+#' ck <- compare_k(x, k_values = 2:4)
+#' print(ck)
+#' }
 #' @export
 compare_k <- function(data, k_values = 2:6, ...) {
   k_values <- unique(as.integer(k_values))
@@ -28,12 +39,25 @@ compare_k <- function(data, k_values = 2:6, ...) {
   do.call(rbind, out)
 }
 
-#' Convert a fitted model to an sf point object
+#' Convert a fitted model to an sf point layer
 #'
-#' @param object A `sef_fit` object.
-#' @param crs Optional CRS passed to `sf::st_as_sf()`.
-#' @param dims Either `"XY"` or `"XYZ"`.
-#' @return An `sf` object.
+#' Creates an \code{sf} point object with phase assignments and diagnostics
+#' for use in QGIS or spatial analysis.
+#'
+#' @param object A \code{sef_fit} object.
+#' @param crs CRS passed to \code{\link[sf]{st_as_sf}}.
+#' @param dims Either \code{"XY"} or \code{"XYZ"}.
+#' @return An \code{sf} object.
+#' @seealso \code{\link{as_sf_links}}, \code{\link{phase_diagnostic_table}}
+#' @family GIS
+#' @examples
+#' \donttest{
+#' if (requireNamespace("sf", quietly = TRUE)) {
+#'   x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#'   fit <- fit_sef(x, k = 2)
+#'   pts <- as_sf_phase(fit)
+#' }
+#' }
 #' @export
 as_sf_phase <- function(object, crs = NA_integer_, dims = c("XY", "XYZ")) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -48,10 +72,23 @@ as_sf_phase <- function(object, crs = NA_integer_, dims = c("XY", "XYZ")) {
 
 #' Export high-SEI links as an sf LINESTRING layer
 #'
-#' @param object A `sef_fit` object.
-#' @param quantile_threshold Quantile used to retain only the strongest links.
-#' @param crs Optional CRS for the output geometry.
-#' @return An `sf` object with one line per retained pair.
+#' Extracts the strongest pairwise SEI connections as \code{sf} line geometries.
+#'
+#' @param object A \code{sef_fit} object.
+#' @param quantile_threshold Quantile for retaining strongest links (default: 0.9).
+#' @param crs CRS for the output geometry.
+#' @return An \code{sf} object with columns \code{from}, \code{to},
+#'   \code{sei}, and \code{geometry}.
+#' @seealso \code{\link{as_sf_phase}}, \code{\link{sei_matrix}}
+#' @family GIS
+#' @examples
+#' \donttest{
+#' if (requireNamespace("sf", quietly = TRUE)) {
+#'   x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#'   fit <- fit_sef(x, k = 2)
+#'   links <- as_sf_links(fit)
+#' }
+#' }
 #' @export
 as_sf_links <- function(object, quantile_threshold = 0.9, crs = NA_integer_) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -81,8 +118,18 @@ as_sf_links <- function(object, quantile_threshold = 0.9, crs = NA_integer_) {
 
 #' Return a compact diagnostic table
 #'
-#' @param object A `sef_fit` object.
-#' @return A data.frame.
+#' Combines the input data with dominant phase, phase probabilities,
+#' entropy, local SEI, and energy in a single data.frame.
+#'
+#' @param object A \code{sef_fit} object.
+#' @return A data.frame with all input columns plus diagnostics.
+#' @seealso \code{\link{as_phase_table}}, \code{\link{as_sf_phase}}
+#' @family diagnostics
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' pdt <- phase_diagnostic_table(fit)
+#' names(pdt)
 #' @export
 phase_diagnostic_table <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -97,10 +144,16 @@ phase_diagnostic_table <- function(object) {
   )
 }
 
-#' Plot local Excavation Stratigraphic Energy
+#' Plot local Excavation Stratigraphic Energy (base R)
 #'
-#' @param object A `sef_fit` object.
+#' @param object A \code{sef_fit} object.
 #' @return Invisibly returns the object.
+#' @seealso \code{\link{gg_energy}} for the ggplot2 version.
+#' @family plotting
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' plot_energy(fit)
 #' @export
 plot_energy <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)

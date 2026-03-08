@@ -1,10 +1,24 @@
 #' Simulate an archaeological palimpsest dataset
 #'
-#' @param n Number of observations.
-#' @param k Number of latent phases.
-#' @param seed Optional random seed.
-#' @param mixing Proportion of observations to perturb as mixed finds.
-#' @return A data.frame with simulated archaeological observations.
+#' Generates a synthetic excavation dataset with known latent phases,
+#' controlled spatial clustering, and configurable inter-phase mixing.
+#'
+#' @param n Number of observations (finds).
+#' @param k Number of latent depositional phases.
+#' @param seed Optional random seed for reproducibility.
+#' @param mixing Proportion of observations to perturb spatially and
+#'   taphonomically, simulating post-depositional disturbance (0--1).
+#' @return A data.frame with columns: \code{id}, \code{x}, \code{y}, \code{z},
+#'   \code{context}, \code{date_min}, \code{date_max}, \code{class},
+#'   \code{taf_score}, \code{true_phase}.
+#' @seealso \code{\link{fit_sef}} for fitting the SEF model to the output.
+#' @family simulation
+#' @examples
+#' easy <- archaeo_sim(n = 100, k = 3, mixing = 0.05, seed = 1)
+#' table(easy$true_phase)
+#'
+#' hard <- archaeo_sim(n = 200, k = 4, mixing = 0.50, seed = 1)
+#' table(hard$true_phase)
 #' @export
 archaeo_sim <- function(n = 150, k = 3, seed = NULL, mixing = 0.08) {
   if (!is.null(seed)) set.seed(seed)

@@ -1,18 +1,34 @@
 #' Fit the Stratigraphic Entanglement Field model
 #'
-#' @param data Input data.frame.
-#' @param coords Character vector of coordinate column names.
-#' @param chrono Character vector with minimum and maximum dating columns.
-#' @param class Character scalar with the class/material column name.
-#' @param tafonomy Optional tafonomy score column.
-#' @param context Optional context/SU column used for a simple stratigraphic penalty.
-#' @param harris Optional n x n matrix of pairwise penalties or distances aligned to `data`.
-#' @param k Number of phases.
-#' @param weights Named numeric vector used by `sei_matrix()`.
-#' @param seed Optional seed for reproducibility.
-#' @param em_iter Number of EM refinement iterations.
-#' @param em_tol Convergence tolerance on the log-likelihood trace.
-#' @return An object of class `sef_fit`.
+#' Estimates latent depositional phases from spatial, stratigraphic,
+#' chronological, and cultural evidence using diagonal Gaussian mixture EM.
+#'
+#' @param data A data.frame with archaeological find data.
+#' @param coords Character vector of length 3 naming the x, y, z coordinate columns.
+#' @param chrono Character vector of length 2 naming the min and max dating columns.
+#' @param class Character scalar naming the material class column.
+#' @param tafonomy Optional column name for taphonomic disturbance scores (0--1).
+#' @param context Optional column name for stratigraphic unit labels.
+#' @param harris Optional \eqn{n \times n}{n x n} matrix of pairwise stratigraphic penalties.
+#' @param k Integer number of phases to estimate.
+#' @param weights Named numeric vector with components \code{ws}, \code{wz}, \code{wt}, \code{wc}.
+#' @param seed Random seed for reproducibility.
+#' @param em_iter Maximum number of EM iterations.
+#' @param em_tol Convergence tolerance on the log-likelihood.
+#' @return An S3 object of class \code{sef_fit}.
+#' @seealso \code{\link{archaeo_sim}}, \code{\link{compare_k}},
+#'   \code{\link{pdi}}, \code{\link{detect_intrusions}}
+#' @family fitting
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' print(fit)
+#'
+#' \donttest{
+#' x <- archaeo_sim(n = 150, k = 3, seed = 42)
+#' fit <- fit_sef(x, k = 3, tafonomy = "taf_score", context = "context")
+#' summary(fit)
+#' }
 #' @export
 fit_sef <- function(data,
                     coords = c("x", "y", "z"),
@@ -148,8 +164,16 @@ summary.sef_fit <- function(object, ...) {
 
 #' Compact summary for a fitted SEF model
 #'
-#' @param object A `sef_fit` object.
-#' @return A named list with global diagnostics and phase counts.
+#' Returns a named list with global diagnostics and phase counts.
+#'
+#' @param object A \code{sef_fit} object.
+#' @return A named list.
+#' @seealso \code{\link{fit_sef}}, \code{\link{pdi}}
+#' @family fitting
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' sef_summary(fit)
 #' @export
 sef_summary <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -167,8 +191,17 @@ sef_summary <- function(object) {
 
 #' Extract phase probability table
 #'
-#' @param object A `sef_fit` object.
-#' @return A data.frame.
+#' Returns a data.frame combining dominant phase assignments,
+#' membership probabilities, entropy, local SEI, and energy.
+#'
+#' @param object A \code{sef_fit} object.
+#' @return A data.frame with one row per find.
+#' @seealso \code{\link{predict_phase}}, \code{\link{phase_diagnostic_table}}
+#' @family diagnostics
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' head(as_phase_table(fit))
 #' @export
 as_phase_table <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -185,8 +218,16 @@ as_phase_table <- function(object) {
 
 #' Predict phase probabilities
 #'
-#' @param object A `sef_fit` object.
+#' Convenience alias for \code{\link{as_phase_table}}.
+#'
+#' @param object A \code{sef_fit} object.
 #' @return A data.frame with probabilities and diagnostics.
+#' @seealso \code{\link{as_phase_table}}
+#' @family diagnostics
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' head(predict_phase(fit))
 #' @export
 predict_phase <- function(object) {
   as_phase_table(object)
@@ -194,8 +235,18 @@ predict_phase <- function(object) {
 
 #' Detect potentially intrusive observations
 #'
-#' @param object A `sef_fit` object.
-#' @return A data.frame with intrusion probabilities.
+#' Combines rescaled entropy, energy, and inverse local SEI into a composite
+#' intrusion probability score.
+#'
+#' @param object A \code{sef_fit} object.
+#' @return A data.frame with columns \code{id} and \code{intrusion_prob}.
+#' @seealso \code{\link{gg_intrusions}}, \code{\link{fit_sef}}
+#' @family diagnostics
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' di <- detect_intrusions(fit)
+#' head(di[order(di$intrusion_prob, decreasing = TRUE), ])
 #' @export
 detect_intrusions <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
@@ -211,8 +262,18 @@ detect_intrusions <- function(object) {
 
 #' Compute Palimpsest Dissolution Index
 #'
-#' @param object A `sef_fit` object.
-#' @return A single numeric value.
+#' Measures global phase separability as \eqn{1 - \bar{H} / \log(K)}.
+#' Values close to 1 indicate well-separated phases; values near 0 indicate
+#' a compressed palimpsest.
+#'
+#' @param object A \code{sef_fit} object.
+#' @return A single numeric value between 0 and 1.
+#' @seealso \code{\link{fit_sef}}, \code{\link{compare_k}}
+#' @family diagnostics
+#' @examples
+#' x <- archaeo_sim(n = 60, k = 2, seed = 1)
+#' fit <- fit_sef(x, k = 2)
+#' pdi(fit)
 #' @export
 pdi <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
