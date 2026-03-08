@@ -13,7 +13,7 @@
 #' @param k Integer number of phases to estimate.
 #' @param weights Named numeric vector with components \code{ws}, \code{wz}, \code{wt}, \code{wc}.
 #' @param seed Random seed for reproducibility.
-#' @param em_iter Maximum number of EM iterations.
+#' @param em_iter Maximum number of EM iterations (default: 100).
 #' @param em_tol Convergence tolerance on the log-likelihood.
 #' @param n_init Number of random initialisations. The run with the
 #'   highest log-likelihood is retained (default: 1).
@@ -42,7 +42,7 @@ fit_sef <- function(data,
                     k = 3,
                     weights = c(ws = 1, wz = 1, wt = 1, wc = 1),
                     seed = 1,
-                    em_iter = 25,
+                    em_iter = 100,
                     em_tol = 1e-5,
                     n_init = 1) {
   check_required_columns(data, c(coords, chrono, class))

@@ -1,0 +1,509 @@
+---
+title: "palimpsestr: User Manual"
+subtitle: "Complete Reference Guide v0.9.0"
+author: "Enzo Cocca"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    fig_caption: true
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5, dpi = 120,
+                      warning = FALSE, message = FALSE)
+library(palimpsestr)
+```
+
+# Introduction
+
+**palimpsestr** is an R package for the probabilistic decomposition of archaeological palimpsests using the Stratigraphic Entanglement Field (SEF) framework. It integrates spatial proximity, vertical distribution, chronological overlap, and cultural similarity to estimate latent depositional phases.
+
+## Installation
+
+```{r eval=FALSE}
+# From GitHub
+devtools::install_github("enzococca/palimpsestr")
+
+# From local source
+install.packages("palimpsestr_0.9.0.tar.gz", repos = NULL, type = "source")
+```
+
+## Required and optional packages
+
+| Package | Status | Purpose |
+|---------|--------|---------|
+| stats, utils, graphics, grDevices | Required | Core R |
+| ggplot2 | Suggested | Publication-quality plots (`gg_*` functions) |
+| plotly | Suggested | Interactive visualization (`as_plotly()`) |
+| sf | Suggested | GIS export (`as_sf_phase()`, `as_sf_links()`) |
+| DBI, RSQLite, RPostgres | Suggested | Database import (`read_db()`) |
+
+# Data Preparation
+
+## Required columns
+
+Every dataset must contain:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `x` | numeric | Easting coordinate (metres) |
+| `y` | numeric | Northing coordinate (metres) |
+| `z` | numeric | Depth or elevation (metres) |
+| `date_min` | numeric | Start of chronological interval |
+| `date_max` | numeric | End of chronological interval |
+| `class` | character | Material class (ceramic, lithic, bone, metal, etc.) |
+
+## Optional columns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | any | Unique identifier for each find |
+| `context` | character | Stratigraphic unit label (e.g., "SU_1") |
+| `taf_score` | numeric (0--1) | Taphonomic disturbance score |
+| `true_phase` | integer | Known phase (for validation only) |
+
+## Notes on Z coordinates
+
+**Each artifact needs its own z value.** If you don't have point-level depth measurements, you can assign the mean depth of the stratigraphic unit (US) to all finds within it:
+
+```{r eval=FALSE}
+# Example: assign US mean depth to finds
+data$z <- ave(data$z_us, data$context, FUN = mean)
+```
+
+## Simulating test data
+
+```{r}
+# Well-separated phases (low mixing)
+easy <- archaeo_sim(n = 150, k = 3, seed = 1, mixing = 0.05)
+
+# Moderate palimpsest
+moderate <- archaeo_sim(n = 200, k = 3, seed = 1, mixing = 0.30)
+
+# Compressed palimpsest (hard to resolve)
+compressed <- archaeo_sim(n = 250, k = 4, seed = 1, mixing = 0.50)
+```
+
+Parameters:
+
+- `n`: number of artifacts
+- `k`: number of phases
+- `seed`: random seed for reproducibility
+- `mixing`: proportion of inter-phase mixing (0 = none, 1 = complete)
+
+# Core Analysis
+
+## Fitting the SEF model: `fit_sef()`
+
+```{r}
+fit <- fit_sef(
+  data     = moderate,
+  coords   = c("x", "y", "z"),       # coordinate columns
+  chrono   = c("date_min", "date_max"), # chronological range columns
+  class    = "class",                  # material class column
+  tafonomy = "taf_score",             # optional: taphonomic score
+  context  = "context",               # optional: stratigraphic unit
+  harris   = NULL,                    # optional: Harris Matrix penalty
+  k        = 3,                       # number of phases
+  weights  = c(ws = 1, wz = 1, wt = 1, wc = 1), # domain weights
+  seed     = 42,                      # random seed
+  em_iter  = 100,                     # max EM iterations
+  em_tol   = 1e-5,                    # convergence tolerance
+  n_init   = 5                        # number of random initialisations
+)
+print(fit)
+```
+
+### Parameters explained
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `k` | 3 | Number of depositional phases to estimate |
+| `weights` | `c(ws=1, wz=1, wt=1, wc=1)` | Relative weights for spatial (`ws`), vertical (`wz`), temporal (`wt`), and cultural (`wc`) evidence |
+| `em_iter` | 100 | Maximum EM iterations |
+| `em_tol` | 1e-5 | Convergence tolerance (log-likelihood change) |
+| `n_init` | 1 | Number of random initialisations (higher = more robust, slower) |
+| `tafonomy` | NULL | Column name for taphonomic disturbance (0--1) |
+| `context` | NULL | Column name for stratigraphic unit labels |
+| `harris` | NULL | $n \times n$ penalty matrix (from `harris_from_contexts()` or `read_harris()`) |
+
+### Output: the `sef_fit` object
+
+The returned object contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `$phase` | integer vector | Dominant phase assignment per find |
+| `$phase_prob` | matrix | $n \times k$ matrix of phase membership probabilities |
+| `$entropy` | numeric vector | Shannon entropy per find |
+| `$energy` | numeric vector | ESE per find |
+| `$local_sei` | numeric vector | Local SEI per find |
+| `$converged` | logical | Whether EM converged |
+| `$n_init` | integer | Number of initialisations used |
+| `$em_loglik` | numeric vector | Log-likelihood trace across iterations |
+| `$model_stats` | list | Summary statistics (PDI, BIC, loglik, etc.) |
+
+## Phase count selection: `compare_k()`
+
+When $K$ is unknown, compare multiple values:
+
+```{r}
+ck <- compare_k(moderate, k_values = 2:5, seed = 42,
+                tafonomy = "taf_score", context = "context")
+print(ck)
+```
+
+The optimal $K$ minimises BIC while maximising PDI.
+
+## Key diagnostics
+
+```{r}
+# Palimpsest Dissolution Index (global separability, 0--1)
+pdi(fit)
+
+# Compact summary
+sef_summary(fit)
+
+# Phase probability table
+head(as_phase_table(fit))
+
+# Full diagnostic table (input + diagnostics)
+head(phase_diagnostic_table(fit))
+```
+
+# Intrusion Detection
+
+```{r}
+di <- detect_intrusions(fit)
+suspects <- di[di$intrusion_prob > 0.5, ]
+cat("Suspected intrusions:", nrow(suspects), "\n")
+head(suspects[order(suspects$intrusion_prob, decreasing = TRUE), ])
+```
+
+# Model Validation
+
+When true phase labels are known:
+
+```{r}
+# Adjusted Rand Index (-1 to 1, 1 = perfect)
+adjusted_rand_index(fit, moderate$true_phase)
+
+# Confusion matrix (auto-reordered for best diagonal match)
+confusion_matrix(fit, moderate$true_phase)
+```
+
+# Structured Exports
+
+## Summary per stratigraphic unit
+
+```{r}
+us_summary_table(fit)
+```
+
+Columns: `context`, `n_finds`, `dominant_phase`, `purity`, `mean_entropy`, `mean_energy`, `mean_local_sei`, `n_intrusions`.
+
+## Phase transition matrix
+
+Shows how often finds from phase $i$ sit directly above finds from phase $j$:
+
+```{r}
+phase_transition_matrix(fit)
+```
+
+## Export all results to CSV
+
+```{r eval=FALSE}
+export_results(fit, dir = "results/", format = "csv", prefix = "site_X")
+```
+
+Creates 4 files:
+
+- `site_X_phases.csv` --- phase assignments and diagnostics per find
+- `site_X_intrusions.csv` --- intrusion probabilities
+- `site_X_us_summary.csv` --- per-US aggregated statistics
+- `site_X_model_summary.csv` --- model-level metrics (n, k, PDI, BIC, etc.)
+
+# Harris Matrix Integration
+
+## Auto-generate from depth ordering
+
+```{r}
+H <- harris_from_contexts(moderate, z_col = "z", context_col = "context",
+                           penalty_scale = 0.5)
+dim(H)
+```
+
+## Import from CSV
+
+The CSV must have columns `from`, `to`, and optionally `weight`:
+
+```
+from,to,weight
+SU_1,SU_2,1
+SU_2,SU_3,1
+SU_1,SU_3,0.5
+```
+
+```{r eval=FALSE}
+H <- read_harris("harris_matrix.csv", contexts = data$context)
+fit <- fit_sef(data, k = 3, harris = H, context = "context")
+```
+
+## Validate phases against stratigraphy
+
+```{r}
+validate_phases_harris(fit)
+```
+
+The `consistent` column flags whether the dominant phase ordering respects stratigraphic depth. `FALSE` indicates an inversion that may warrant investigation.
+
+# Visualization
+
+## ggplot2 plots (static)
+
+All `gg_*` functions require **ggplot2** and return ggplot objects.
+
+```{r fig.height=5}
+library(ggplot2)
+
+# Phase assignment map
+gg_phasefield(fit)
+```
+
+```{r fig.height=5}
+# Entropy map (uncertainty)
+gg_entropy(fit)
+```
+
+```{r fig.height=5}
+# Energy map (local disruption)
+gg_energy(fit)
+```
+
+```{r fig.height=5}
+# Intrusion detection map
+gg_intrusions(fit, top_n = 5)
+```
+
+```{r fig.height=4}
+# Phase count selection diagnostics
+gg_compare_k(ck)
+```
+
+```{r fig.height=4}
+# EM convergence trace
+gg_convergence(fit)
+```
+
+```{r fig.height=5}
+# Vertical phase profile (depth vs horizontal)
+gg_phase_profile(fit)
+```
+
+```{r fig.height=5}
+# Confusion matrix heatmap
+gg_confusion(fit, moderate$true_phase)
+```
+
+## Interactive plots (plotly)
+
+```{r eval=FALSE}
+library(plotly)
+
+# Convert any gg_* plot to interactive
+as_plotly(gg_phasefield(fit))
+as_plotly(gg_entropy(fit))
+as_plotly(gg_intrusions(fit))
+```
+
+Hover tooltips show: ID, context, phase probability, dating, class, entropy, energy, intrusion score.
+
+## Base R plots
+
+For environments without ggplot2:
+
+```{r fig.height=5}
+plot_phasefield(fit)
+plot_entropy(fit)
+plot_energy(fit)
+plot_sei_profile(fit)
+```
+
+## GIS export
+
+```{r eval=FALSE}
+library(sf)
+
+# Point layer with phase assignments
+sf_pts <- as_sf_phase(fit, crs = 32632L, dims = "XYZ")
+st_write(sf_pts, "results.gpkg", layer = "phases")
+
+# High-SEI links as lines
+sf_links <- as_sf_links(fit, quantile_threshold = 0.9, crs = 32632L)
+st_write(sf_links, "results.gpkg", layer = "sei_links")
+```
+
+# Interpretive Report
+
+Generate a plain-language report for inclusion in excavation documentation:
+
+```{r}
+report_sef(fit, lang = "en")
+```
+
+```{r}
+report_sef(fit, lang = "it")
+```
+
+# Database Import
+
+Import data from SQLite or PostgreSQL:
+
+```{r eval=FALSE}
+# SQLite
+data <- read_db(
+  con = DBI::dbConnect(RSQLite::SQLite(), "excavation.sqlite"),
+  table = "finds"
+)
+
+# PostgreSQL (PyArchInit)
+data <- read_db(
+  con = DBI::dbConnect(RPostgres::Postgres(), dbname = "pyarchinit", host = "localhost"),
+  table = "finds_table"
+)
+```
+
+# Complete Workflow Example
+
+```{r eval=FALSE}
+library(palimpsestr)
+
+# 1. Load data
+data <- read.csv("site_data.csv")
+
+# 2. Select optimal K
+ck <- compare_k(data, k_values = 2:6, context = "context",
+                tafonomy = "taf_score", n_init = 3)
+gg_compare_k(ck)
+best_k <- ck$k[which.min(ck$bic)]
+
+# 3. Fit with optimal K and multiple inits
+fit <- fit_sef(data, k = best_k, context = "context",
+               tafonomy = "taf_score", n_init = 5, seed = 42)
+
+# 4. Inspect results
+print(fit)
+gg_phasefield(fit)
+gg_entropy(fit)
+gg_convergence(fit)
+gg_phase_profile(fit)
+
+# 5. Intrusion detection
+gg_intrusions(fit, top_n = 10)
+
+# 6. Harris validation
+validate_phases_harris(fit)
+
+# 7. Export
+export_results(fit, dir = "results/")
+report_sef(fit, lang = "en")
+
+# 8. GIS
+sf_pts <- as_sf_phase(fit, crs = 32632L)
+sf::st_write(sf_pts, "results.gpkg", layer = "phases")
+```
+
+# Function Reference
+
+## Core
+
+| Function | Description |
+|----------|-------------|
+| `fit_sef()` | Fit the SEF model |
+| `compare_k()` | Compare multiple K values |
+| `archaeo_sim()` | Simulate archaeological data |
+
+## Diagnostics
+
+| Function | Description |
+|----------|-------------|
+| `pdi()` | Palimpsest Dissolution Index |
+| `sef_summary()` | Compact model summary |
+| `as_phase_table()` | Phase probability table |
+| `predict_phase()` | Alias for `as_phase_table()` |
+| `phase_diagnostic_table()` | Full diagnostic table |
+| `detect_intrusions()` | Intrusion detection |
+
+## Validation
+
+| Function | Description |
+|----------|-------------|
+| `adjusted_rand_index()` | Adjusted Rand Index |
+| `confusion_matrix()` | Confusion matrix (auto-reordered) |
+
+## Export
+
+| Function | Description |
+|----------|-------------|
+| `us_summary_table()` | Per-US summary statistics |
+| `phase_transition_matrix()` | Vertical transition counts |
+| `export_results()` | Export all results to CSV |
+
+## Harris Matrix
+
+| Function | Description |
+|----------|-------------|
+| `harris_from_contexts()` | Auto-generate penalty from depths |
+| `read_harris()` | Import Harris Matrix from CSV |
+| `validate_phases_harris()` | Check phase--stratigraphy consistency |
+
+## SEI / ESE
+
+| Function | Description |
+|----------|-------------|
+| `sei_matrix()` | Stratigraphic Entanglement Index matrix |
+| `local_sei()` | Row sums of SEI matrix |
+| `ese()` | Excavation Stratigraphic Energy |
+
+## Plots (ggplot2)
+
+| Function | Description |
+|----------|-------------|
+| `gg_phasefield()` | Phase assignment map |
+| `gg_entropy()` | Entropy map |
+| `gg_energy()` | ESE energy map |
+| `gg_intrusions()` | Intrusion detection map |
+| `gg_compare_k()` | K selection diagnostics |
+| `gg_convergence()` | EM convergence trace |
+| `gg_phase_profile()` | Vertical depth profile |
+| `gg_confusion()` | Confusion matrix heatmap |
+| `gg_map()` | Overlay on excavation plan |
+| `as_plotly()` | Convert any gg_* to interactive |
+
+## Plots (base R)
+
+| Function | Description |
+|----------|-------------|
+| `plot_phasefield()` | Phase map |
+| `plot_entropy()` | Entropy map |
+| `plot_energy()` | Energy map |
+| `plot_sei_profile()` | SEI profile |
+
+## GIS
+
+| Function | Description |
+|----------|-------------|
+| `as_sf_phase()` | Export as sf point layer |
+| `as_sf_links()` | Export SEI links as sf lines |
+| `load_geometries()` | Load excavation plan geometries |
+
+## Other
+
+| Function | Description |
+|----------|-------------|
+| `report_sef()` | Interpretive report (en/it) |
+| `read_db()` | Import from SQLite/PostgreSQL |

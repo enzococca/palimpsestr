@@ -171,11 +171,9 @@ report_sef(fit, lang = "en")
 
 When **plotly** is available, any `gg_*` plot can be converted to an interactive visualization using `as_plotly()`. This allows hovering over individual finds to inspect their phase probabilities, entropy, and other attributes, and zooming into specific areas for detailed spatial analysis.
 
-```{r interactive, fig.cap="Interactive phase-field map (requires ggplot2 and plotly)."}
-if (requireNamespace("ggplot2", quietly = TRUE) &&
-    requireNamespace("plotly", quietly = TRUE)) {
-  as_plotly(gg_phasefield(fit))
-}
+```{r interactive, eval=FALSE}
+# Interactive plot (requires ggplot2 and plotly, only works in HTML output)
+as_plotly(gg_phasefield(fit))
 ```
 
 ## GIS Export
@@ -207,6 +205,79 @@ The following table summarises how palimpsestr's SEF framework relates to establ
 | Interpretability | High | Low | High (PDI, reports) |
 
 It is important to emphasise that the SEF framework does not replace the Harris Matrix or other stratigraphic recording systems. Rather, it extends them. The Harris Matrix remains indispensable for documenting observed physical relationships between depositional units. What palimpsestr adds is a quantitative, probabilistic layer of analysis that can operate on the find-level data within those units --- precisely the scale at which palimpsest formation is most problematic and least well served by existing tools. In practice, the two approaches are complementary: the Harris Matrix provides the interpretive scaffold, while SEF populates it with probabilistic phase assignments and diagnostic statistics.
+
+## Model Validation
+
+When true phase assignments are known (e.g., from simulation or from independently dated contexts), palimpsestr provides two validation metrics:
+
+- **Adjusted Rand Index (ARI)**: measures agreement between estimated and true phases, corrected for chance. Values near 1 indicate perfect agreement; values near 0 indicate random agreement.
+- **Confusion matrix**: cross-tabulates estimated versus true phases, with automatic reordering to maximise diagonal agreement.
+
+```{r validation}
+ari <- adjusted_rand_index(fit, demo_moderate$true_phase)
+cat("Adjusted Rand Index:", round(ari, 3), "\n")
+confusion_matrix(fit, demo_moderate$true_phase)
+```
+
+```{r gg-confusion, fig.cap="Confusion matrix heatmap with ARI."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_confusion(fit, demo_moderate$true_phase)
+}
+```
+
+## EM Convergence and Multiple Initialisations
+
+The `fit_sef()` function supports multiple random initialisations via the `n_init` parameter. Each initialisation starts from a different K-means seed, and the run with the highest log-likelihood is retained. The convergence trace can be inspected with `gg_convergence()`.
+
+```{r convergence, fig.cap="EM convergence trace showing log-likelihood stabilisation."}
+fit_multi <- fit_sef(demo_moderate, k = 3, seed = 1, n_init = 5,
+                     tafonomy = "taf_score", context = "context")
+cat("Converged:", fit_multi$converged, "\n")
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_convergence(fit_multi)
+}
+```
+
+## Structured Exports
+
+The `us_summary_table()` function aggregates diagnostics per stratigraphic unit, reporting dominant phase, purity, mean entropy, energy, and intrusion count. The `phase_transition_matrix()` reveals vertical phase ordering. All results can be exported to CSV with `export_results()`.
+
+```{r exports}
+us_summary_table(fit)
+phase_transition_matrix(fit)
+```
+
+```{r export-csv, eval=FALSE}
+export_results(fit, dir = "results/", format = "csv")
+```
+
+## Vertical Phase Profile
+
+The `gg_phase_profile()` function plots finds along the depth axis, coloured by phase, to visualise the stratigraphic ordering of estimated phases.
+
+```{r gg-phase-profile, fig.cap="Vertical phase profile: depth vs horizontal position."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_phase_profile(fit)
+}
+```
+
+## Harris Matrix Integration
+
+palimpsestr can incorporate stratigraphic information from a Harris Matrix as a penalty during model fitting. The `harris_from_contexts()` function auto-generates a penalty matrix from the mean depth of finds in each context. Alternatively, `read_harris()` imports an external Harris Matrix from a CSV edge list with columns `from`, `to`, and optionally `weight`.
+
+```{r harris}
+H <- harris_from_contexts(demo_moderate, z_col = "z", context_col = "context")
+dim(H)
+
+# Validate estimated phases against stratigraphic ordering
+validate_phases_harris(fit)
+```
+
+```{r harris-import, eval=FALSE}
+# Import an external Harris Matrix (CSV format: from,to,weight)
+H_ext <- read_harris("harris_matrix.csv", contexts = data$context)
+fit <- fit_sef(data, k = 3, harris = H_ext, context = "context")
+```
 
 ## Conclusion
 

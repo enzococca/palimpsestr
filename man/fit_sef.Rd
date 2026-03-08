@@ -15,7 +15,7 @@ fit_sef(
   k = 3,
   weights = c(ws = 1, wz = 1, wt = 1, wc = 1),
   seed = 1,
-  em_iter = 25,
+  em_iter = 100,
   em_tol = 1e-05,
   n_init = 1
 )
@@ -41,7 +41,7 @@ fit_sef(
 
 \item{seed}{Random seed for reproducibility.}
 
-\item{em_iter}{Maximum number of EM iterations.}
+\item{em_iter}{Maximum number of EM iterations (default: 100).}
 
 \item{em_tol}{Convergence tolerance on the log-likelihood.}
 
