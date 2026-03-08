@@ -1,0 +1,78 @@
+url: https://enzococca.github.io/palimpsestr/
+
+template:
+  bootstrap: 5
+
+reference:
+  - title: Fitting
+    desc: Core model fitting and summary
+    contents:
+      - fit_sef
+      - print.sef_fit
+      - summary.sef_fit
+      - sef_summary
+      - compare_k
+
+  - title: Diagnostics
+    desc: Phase diagnostics and intrusion detection
+    contents:
+      - pdi
+      - detect_intrusions
+      - as_phase_table
+      - predict_phase
+      - phase_diagnostic_table
+      - ese
+
+  - title: SEI
+    desc: Stratigraphic Entanglement Index
+    contents:
+      - sei_matrix
+      - local_sei
+
+  - title: Plotting (ggplot2)
+    desc: Publication-quality ggplot2 visualizations
+    contents:
+      - gg_phasefield
+      - gg_entropy
+      - gg_energy
+      - gg_intrusions
+      - gg_compare_k
+      - gg_map
+      - as_plotly
+
+  - title: Plotting (base R)
+    desc: Quick base R plots
+    contents:
+      - plot_phasefield
+      - plot_entropy
+      - plot_energy
+      - plot_sei_profile
+
+  - title: GIS Export
+    desc: Export to sf for QGIS
+    contents:
+      - as_sf_phase
+      - as_sf_links
+
+  - title: Reporting
+    desc: Text reports
+    contents:
+      - report_sef
+
+  - title: Data Import
+    desc: Database and file import
+    contents:
+      - read_db
+      - load_geometries
+
+  - title: Simulation
+    desc: Synthetic data generation
+    contents:
+      - archaeo_sim
+
+  - title: Data
+    desc: Demo datasets
+    contents:
+      - demo_easy
+      - demo_moderate
+      - demo_compressed

@@ -1,3 +1,17 @@
+# palimpsestr 0.8.0
+
+## New features
+
+- Interactive plotly support via `as_plotly()` with enriched archaeological tooltips (ID, context, phase, dating, class, entropy, energy, intrusion probability).
+- All `gg_*` functions now embed tooltip data for seamless plotly conversion.
+
+## Documentation
+
+- Complete roxygen documentation with `@examples`, `@family`, and `@seealso` for all exported functions.
+- Vignette rewritten as paper-ready methodological article with formal SEI/ESE/PDI definitions, worked example, and comparison with traditional approaches.
+- Added `_pkgdown.yml` for documentation website.
+- Added `cran-comments.md` for CRAN submission.
+
 # palimpsestr 0.6.0
 
 ## New features
