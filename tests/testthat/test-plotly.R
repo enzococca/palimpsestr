@@ -21,3 +21,39 @@ test_that(".build_tooltip returns character vector", {
   expect_length(tt, 20)
   expect_true(all(grepl("Phase:", tt)))
 })
+
+test_that("gg_phasefield includes text aesthetic for plotly", {
+  skip_if_not_installed("ggplot2")
+  x <- archaeo_sim(n = 40, k = 2, seed = 1)
+  fit <- fit_sef(x, k = 2)
+  gg <- gg_phasefield(fit)
+  build <- ggplot2::ggplot_build(gg)
+  expect_true("text" %in% names(build$data[[1]]))
+})
+
+test_that("gg_entropy includes text aesthetic for plotly", {
+  skip_if_not_installed("ggplot2")
+  x <- archaeo_sim(n = 40, k = 2, seed = 1)
+  fit <- fit_sef(x, k = 2)
+  gg <- gg_entropy(fit)
+  build <- ggplot2::ggplot_build(gg)
+  expect_true("text" %in% names(build$data[[1]]))
+})
+
+test_that("gg_energy includes text aesthetic for plotly", {
+  skip_if_not_installed("ggplot2")
+  x <- archaeo_sim(n = 40, k = 2, seed = 1)
+  fit <- fit_sef(x, k = 2)
+  gg <- gg_energy(fit)
+  build <- ggplot2::ggplot_build(gg)
+  expect_true("text" %in% names(build$data[[1]]))
+})
+
+test_that("gg_intrusions includes text aesthetic for plotly", {
+  skip_if_not_installed("ggplot2")
+  x <- archaeo_sim(n = 40, k = 2, seed = 1)
+  fit <- fit_sef(x, k = 2)
+  gg <- gg_intrusions(fit)
+  build <- ggplot2::ggplot_build(gg)
+  expect_true("text" %in% names(build$data[[1]]))
+})

@@ -69,13 +69,15 @@ gg_phasefield <- function(object, xlabel = "Easting (m)", ylabel = "Northing (m)
     x = object$data[[object$coords[1]]],
     y = object$data[[object$coords[2]]],
     phase = factor(object$phase),
-    confidence = apply(object$phase_prob, 1, max)
+    confidence = apply(object$phase_prob, 1, max),
+    tooltip = .build_tooltip(object)
   )
   k <- object$k
   n <- nrow(df)
 
   ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = .data$y,
-                                    colour = .data$phase, size = .data$confidence)) +
+                                    colour = .data$phase, size = .data$confidence,
+                                    text = .data$tooltip)) +
     ggplot2::geom_point(alpha = 0.8, stroke = 0.3) +
     ggplot2::scale_colour_manual(
       values = .phase_colours(k), name = "Depositional\nPhase",
@@ -115,10 +117,12 @@ gg_entropy <- function(object, xlabel = "Easting (m)", ylabel = "Northing (m)") 
   df <- data.frame(
     x = object$data[[object$coords[1]]],
     y = object$data[[object$coords[2]]],
-    entropy = object$entropy
+    entropy = object$entropy,
+    tooltip = .build_tooltip(object)
   )
 
-  ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = .data$y, colour = .data$entropy)) +
+  ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = .data$y, colour = .data$entropy,
+                                    text = .data$tooltip)) +
     ggplot2::geom_point(size = 3.5, alpha = 0.85) +
     .viridis_c("Shannon\nEntropy H", option = "inferno") +
     ggplot2::coord_equal() +
@@ -153,10 +157,12 @@ gg_energy <- function(object, xlabel = "Easting (m)", ylabel = "Northing (m)") {
   df <- data.frame(
     x = object$data[[object$coords[1]]],
     y = object$data[[object$coords[2]]],
-    energy = object$energy
+    energy = object$energy,
+    tooltip = .build_tooltip(object)
   )
 
-  ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = .data$y, colour = .data$energy)) +
+  ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = .data$y, colour = .data$energy,
+                                    text = .data$tooltip)) +
     ggplot2::geom_point(size = 3.5, alpha = 0.85) +
     .viridis_c("ESE\n(Energy)", option = "magma") +
     ggplot2::coord_equal() +
@@ -196,11 +202,13 @@ gg_intrusions <- function(object, top_n = 5,
     x = object$data[[object$coords[1]]],
     y = object$data[[object$coords[2]]],
     intr = di$intrusion_prob,
-    id = di$id
+    id = di$id,
+    tooltip = .build_tooltip(object)
   )
   top <- df[order(df$intr, decreasing = TRUE), ][seq_len(min(top_n, nrow(df))), ]
 
-  p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = .data$y, colour = .data$intr)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = .data$y, colour = .data$intr,
+                                          text = .data$tooltip)) +
     ggplot2::geom_point(size = 3, alpha = 0.8) +
     .viridis_c("Intrusion\nProbability", option = "rocket", direction = -1) +
     ggplot2::geom_point(data = top, shape = 1, size = 6, colour = "black", stroke = 1.2) +
