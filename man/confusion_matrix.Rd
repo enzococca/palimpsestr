@@ -27,6 +27,9 @@ confusion_matrix(fit, x$true_phase)
 \code{\link{adjusted_rand_index}}
 
 Other validation: 
-\code{\link{adjusted_rand_index}()}
+\code{\link{adjusted_rand_index}()},
+\code{\link{bootstrap_sef}()},
+\code{\link{cv_sef}()},
+\code{\link{optimize_weights}()}
 }
 \concept{validation}

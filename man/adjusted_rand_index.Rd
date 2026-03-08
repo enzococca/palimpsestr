@@ -29,6 +29,9 @@ adjusted_rand_index(fit, x$true_phase)
 \code{\link{confusion_matrix}}, \code{\link{fit_sef}}
 
 Other validation: 
-\code{\link{confusion_matrix}()}
+\code{\link{bootstrap_sef}()},
+\code{\link{confusion_matrix}()},
+\code{\link{cv_sef}()},
+\code{\link{optimize_weights}()}
 }
 \concept{validation}

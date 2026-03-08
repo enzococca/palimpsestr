@@ -32,6 +32,7 @@ print(ck)
 
 Other fitting: 
 \code{\link{fit_sef}()},
+\code{\link{reorder_phases}()},
 \code{\link{sef_summary}()}
 }
 \concept{fitting}
