@@ -318,17 +318,41 @@ print(bs)
 
 This returns percentile confidence intervals for PDI, mean entropy, mean energy, log-likelihood, and ARI.
 
-## Model Limitations
+## Model Limitations and Methodological Notes
 
-Several methodological choices warrant discussion:
+Several methodological choices warrant discussion. We address them transparently to facilitate informed use and critical evaluation.
 
-1. **Diagonal covariance**: the EM uses diagonal Gaussians, assuming conditional independence between features within each phase. This is a deliberate parsimony choice suitable for archaeological datasets with modest sample sizes (n = 50--500). Full covariance would require substantially more data to estimate reliably.
+### Diagonal Covariance Assumption
 
-2. **SEI component normalisation**: since v0.9.0, each SEI component is normalised to [0, 1] before weighting, making the weights directly interpretable as relative importance. Earlier versions summed raw values on incomparable scales.
+The EM uses diagonal Gaussians, assuming conditional independence between features within each phase. This means the model cannot capture within-phase correlations (e.g., deeper finds that are also older). This is a deliberate parsimony choice: for $p$ features and $k$ phases, diagonal covariance requires $k(2p+1)-1$ parameters versus $k(p(p+3)/2+1)-1$ for full covariance. With typical archaeological datasets (n = 50--500, p = 7--10), full covariance risks overfitting. The BIC penalty naturally favours diagonal when data is limited. Users with large datasets should compare BIC values between diagonal and full-covariance implementations to assess whether the simplification is justified.
 
-3. **Phase labelling**: phase numbers are arbitrary in mixture models. Use `reorder_phases()` to ensure phase 1 = deepest (oldest) stratum. This is recommended before reporting results.
+### SEI Component Normalisation
 
-4. **Scalability**: the SEI and ESE matrices are $O(n^2)$ in memory. For datasets exceeding ~2000 finds, use `sei_sparse()` or the `max_dist` parameter in `sei_matrix()` to limit computation to spatial neighbours.
+Each SEI component (spatial proximity, vertical proximity, temporal overlap, class match) is normalised to [0, 1] by dividing by its within-dataset maximum. This makes weights directly interpretable as relative importance, but has an important consequence: **absolute SEI values are not comparable across datasets**. The same pair of finds at the same distance will receive different SEI contributions depending on the closest pair in the entire dataset. SEI should therefore be used for within-dataset ranking and relative comparison only. Cross-site comparisons should use derived statistics (PDI, mean entropy) which are scale-invariant.
+
+### Taphonomic Weighting
+
+The EM incorporates taphonomic disturbance scores via two mechanisms: (i) down-weighting disturbed observations in the M-step responsibility calculation (default weight 0.5), and (ii) an additive log-posterior penalty in the E-step (default weight 0.15). These values were chosen empirically to provide moderate penalisation without overwhelming the data-driven clustering. Users can adjust these via the internal `taf_weight_m` and `taf_weight_e` parameters. A sensitivity analysis comparing results across a range of taphonomic weights (0.1--0.8) is recommended for publications.
+
+### PDI Interpretation
+
+The Palimpsest Dissolution Index $PDI = 1 - \bar{H}/\log(K)$ is a descriptive measure of phase separability, not a formal test statistic. It has no asymptotic distribution under any null hypothesis. The interpretive guideline (PDI > 0.7 = well-resolved) is empirically derived from simulation studies with known phase structure and should not be treated as a formal decision boundary. Bootstrap confidence intervals (`bootstrap_sef()`) provide uncertainty quantification for PDI.
+
+### Intrusion Detection
+
+The intrusion probability score is a heuristic combining rescaled entropy, ESE, and inverse local SEI with equal weights and no probabilistic interpretation. It identifies finds that are simultaneously uncertain (high entropy), locally anomalous (high energy), and weakly connected (low SEI). The 0.5 threshold is an exploratory guideline, not a calibrated decision boundary. Users should examine flagged observations individually using domain knowledge.
+
+### Phase Labelling
+
+Phase numbers are arbitrary in mixture models (label switching). Use `reorder_phases()` to ensure phase 1 = deepest (oldest) stratum. The bootstrap procedure (`bootstrap_sef()`) applies phase reordering to each replicate to ensure consistent ARI computation.
+
+### Cross-Validation
+
+The `cv_sef()` and `optimize_weights()` functions standardise test data using the training set's center and scale, ensuring consistent feature scales across folds. Note that the feature matrix includes one-hot encoded class dummies which are not standardised, reflecting their natural [0, 1] scale.
+
+### Scalability
+
+The SEI and ESE matrices are $O(n^2)$ in memory. For datasets exceeding ~2000 finds, use `sei_sparse()` or the `max_dist` parameter in `sei_matrix()` to limit computation to spatial neighbours.
 
 ## Conclusion
 
