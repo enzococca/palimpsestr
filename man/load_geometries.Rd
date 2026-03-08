@@ -13,7 +13,7 @@ load_geometries(
 )
 }
 \arguments{
-\item{source}{File path or \code{\link[DBI]{DBIConnection}}.}
+\item{source}{File path or \code{DBIConnection}.}
 
 \item{layer}{Layer name for multi-layer sources.}
 

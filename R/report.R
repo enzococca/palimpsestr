@@ -85,10 +85,10 @@ report_sef <- function(object, lang = c("en", "it"), file = NULL) {
 
     # Date description
     if (dmid < 0) {
-      .add(sprintf("- **Dating**: average %.0f BCE (range: %d to %d)", abs(dmid),
+      .add(sprintf("- **Dating**: average %.0f BCE (range: %.0f to %.0f)", abs(dmid),
                     drange_min, drange_max))
     } else {
-      .add(sprintf("- **Dating**: average %.0f CE (range: %d to %d)", dmid,
+      .add(sprintf("- **Dating**: average %.0f CE (range: %.0f to %.0f)", dmid,
                     drange_min, drange_max))
     }
 

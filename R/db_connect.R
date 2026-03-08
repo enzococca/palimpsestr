@@ -3,7 +3,7 @@
 #' Loads find data from any DBI-compatible database and maps columns
 #' to the format expected by \code{\link{fit_sef}}.
 #'
-#' @param conn A \code{\link[DBI]{DBIConnection}} object.
+#' @param conn A \code{DBIConnection} object.
 #' @param query SQL query returning data with the required columns.
 #' @param table Table name (alternative to \code{query}).
 #' @param col_id,col_x,col_y,col_z,col_context,col_date_min,col_date_max,col_class,col_taf Column name mappings.
@@ -53,7 +53,7 @@ read_db <- function(conn, query = NULL, table = NULL,
 #' Reads stratigraphic unit polygons from Shapefile, GeoPackage,
 #' GeoJSON, or a PostGIS database for use with \code{\link{gg_map}}.
 #'
-#' @param source File path or \code{\link[DBI]{DBIConnection}}.
+#' @param source File path or \code{DBIConnection}.
 #' @param layer Layer name for multi-layer sources.
 #' @param query SQL query for database connections.
 #' @param us_column Column containing US/context identifiers.

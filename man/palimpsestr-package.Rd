@@ -6,7 +6,8 @@
 \alias{palimpsestr-package}
 \title{palimpsestr: Probabilistic Decomposition of Archaeological Palimpsests}
 \description{
-Experimental tools for archaeological palimpsest analysis.
+Probabilistic framework for the analysis of archaeological palimpsests
+based on the Stratigraphic Entanglement Field (SEF).
 }
 \seealso{
 Useful links:

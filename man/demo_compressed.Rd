@@ -18,7 +18,9 @@ to separate.
 }
 \examples{
 data(demo_compressed)
+\donttest{
 ck <- compare_k(demo_compressed, k_values = 2:6)
 print(ck)
+}
 }
 \keyword{datasets}

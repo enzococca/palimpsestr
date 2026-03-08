@@ -1,6 +1,12 @@
 #' palimpsestr: Probabilistic Decomposition of Archaeological Palimpsests
 #'
-#' Experimental tools for archaeological palimpsest analysis.
+#' Probabilistic framework for the analysis of archaeological palimpsests
+#' based on the Stratigraphic Entanglement Field (SEF).
 #'
+#' @importFrom stats complete.cases dist kmeans median quantile rbeta rnorm runif
+#' @importFrom utils tail
 #' @keywords internal
 "_PACKAGE"
+
+# Suppress R CMD check NOTEs for ggplot2 .data pronoun
+utils::globalVariables(".data")

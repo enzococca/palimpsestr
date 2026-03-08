@@ -4,7 +4,7 @@ NULL
 # ── Professional theme ──────────────────────────────────────
 
 .theme_sef <- function(base_size = 11) {
-  ggplot2::theme_minimal(base_size = base_size) %+replace%
+  ggplot2::theme_minimal(base_size = base_size) +
     ggplot2::theme(
       plot.title = ggplot2::element_text(face = "bold", size = base_size + 3, hjust = 0),
       plot.subtitle = ggplot2::element_text(colour = "grey40", size = base_size, hjust = 0,

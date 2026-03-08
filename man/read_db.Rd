@@ -22,7 +22,7 @@ read_db(
 )
 }
 \arguments{
-\item{conn}{A \code{\link[DBI]{DBIConnection}} object.}
+\item{conn}{A \code{DBIConnection} object.}
 
 \item{query}{SQL query returning data with the required columns.}
 
