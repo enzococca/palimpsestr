@@ -6,11 +6,20 @@
 - Structured exports: `us_summary_table()` aggregates diagnostics per stratigraphic unit; `phase_transition_matrix()` reveals vertical phase ordering; `export_results()` writes all results to CSV.
 - Harris Matrix tooling: `harris_from_contexts()` auto-generates penalties from depth ordering; `read_harris()` imports CSV edge lists; `validate_phases_harris()` checks phase-stratigraphy consistency.
 - New plots: `gg_convergence()` (EM trace), `gg_phase_profile()` (depth vs phase), `gg_confusion()` (confusion matrix heatmap with ARI).
+- `bootstrap_sef()` for bootstrap confidence intervals on PDI, entropy, energy, loglik, and ARI.
+- `cv_sef()` for k-fold cross-validation of phase count selection.
+- `optimize_weights()` for data-driven SEI weight estimation via grid search cross-validation.
+- `reorder_phases()` relabels phases by mean depth (phase 1 = deepest/oldest) to solve label switching.
+- `sei_sparse()` wrapper for sparse SEI computation on large datasets (n > 1000).
 
 ## Improvements
 
 - `fit_sef()` gains `n_init` parameter for multiple random initialisations (default: 1). Best run by log-likelihood is retained.
+- `fit_sef()` default `em_iter` increased from 25 to 100 for better convergence.
 - EM convergence tracking: `$converged` flag in `sef_fit` objects; warning issued on non-convergence.
+- ICL (Integrated Complete-data Likelihood) added to `fit_sef()` and `compare_k()` model selection metrics.
+- SEI matrix components normalised to [0, 1] before weighting for consistent dimensional contribution.
+- `sei_matrix()` gains `max_dist` parameter for sparse computation (zeroes beyond threshold).
 - `sei_matrix()` and `ese()` fully vectorized (50-100x faster on large datasets).
 
 # palimpsestr 0.8.0
