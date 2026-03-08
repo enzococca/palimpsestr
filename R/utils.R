@@ -163,5 +163,7 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
     }
   }
 
-  list(prob = prob, means = means, vars = vars, mix = mix, loglik = loglik_trace)
+  converged <- (length(loglik_trace) < max_iter)
+  list(prob = prob, means = means, vars = vars, mix = mix,
+       loglik = loglik_trace, converged = converged)
 }

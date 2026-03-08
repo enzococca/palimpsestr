@@ -15,6 +15,8 @@
 #' @param seed Random seed for reproducibility.
 #' @param em_iter Maximum number of EM iterations.
 #' @param em_tol Convergence tolerance on the log-likelihood.
+#' @param n_init Number of random initialisations. The run with the
+#'   highest log-likelihood is retained (default: 1).
 #' @return An S3 object of class \code{sef_fit}.
 #' @seealso \code{\link{archaeo_sim}}, \code{\link{compare_k}},
 #'   \code{\link{pdi}}, \code{\link{detect_intrusions}}
@@ -41,43 +43,65 @@ fit_sef <- function(data,
                     weights = c(ws = 1, wz = 1, wt = 1, wc = 1),
                     seed = 1,
                     em_iter = 25,
-                    em_tol = 1e-5) {
+                    em_tol = 1e-5,
+                    n_init = 1) {
   check_required_columns(data, c(coords, chrono, class))
   if (!is.null(tafonomy)) check_required_columns(data, tafonomy)
   if (!is.null(context)) check_required_columns(data, context)
   if (k < 1) stop("k must be >= 1", call. = FALSE)
   if (em_iter < 1) stop("em_iter must be >= 1", call. = FALSE)
-  set.seed(seed)
+  if (n_init < 1) stop("n_init must be >= 1", call. = FALSE)
 
   feat <- feature_matrix(data, coords = coords, chrono = chrono, class_col = class)
-  km <- stats::kmeans(feat, centers = k)
-  centers0 <- km$centers
-  tot_withinss <- km$tot.withinss
-  scale0 <- mean(stats::dist(centers0))
-  if (!is.finite(scale0) || scale0 <= 0) scale0 <- 1
-
   penalty <- build_context_penalty(data, context_col = context, harris = harris)
   taf <- if (!is.null(tafonomy)) pmin(pmax(data[[tafonomy]], 0), 1) else rep(0, nrow(data))
-  prob0 <- softmax_negdist(feat, centers0, scale = scale0)
 
-  strat_pen <- NULL
-  if (!is.null(context) || !is.null(harris)) {
-    strat_pen <- sapply(seq_len(k), function(j) {
-      idx <- which(km$cluster == j)
-      if (length(idx) == 0) return(rep(0, nrow(data)))
-      rowMeans(penalty[, idx, drop = FALSE])
-    })
+  best_em <- NULL
+  best_ll <- -Inf
+  best_km <- NULL
+
+  for (init in seq_len(n_init)) {
+    set.seed(seed + init - 1)
+    km <- stats::kmeans(feat, centers = k, nstart = 1)
+    centers0 <- km$centers
+    scale0 <- mean(stats::dist(centers0))
+    if (!is.finite(scale0) || scale0 <= 0) scale0 <- 1
+    prob0 <- softmax_negdist(feat, centers0, scale = scale0)
+
+    strat_pen <- NULL
+    if (!is.null(context) || !is.null(harris)) {
+      strat_pen <- sapply(seq_len(k), function(j) {
+        idx <- which(km$cluster == j)
+        if (length(idx) == 0) return(rep(0, nrow(data)))
+        rowMeans(penalty[, idx, drop = FALSE])
+      })
+    }
+
+    em <- em_diag_gmm(
+      features = feat,
+      prob_init = prob0,
+      max_iter = em_iter,
+      tol = em_tol,
+      weights_obs = 1 - 0.5 * taf,
+      strat_penalty = strat_pen,
+      taf = taf
+    )
+
+    final_ll <- tail(em$loglik, 1)
+    if (final_ll > best_ll) {
+      best_ll <- final_ll
+      best_em <- em
+      best_km <- km
+    }
   }
 
-  em <- em_diag_gmm(
-    features = feat,
-    prob_init = prob0,
-    max_iter = em_iter,
-    tol = em_tol,
-    weights_obs = 1 - 0.5 * taf,
-    strat_penalty = strat_pen,
-    taf = taf
-  )
+  em <- best_em
+  km <- best_km
+
+  if (!em$converged) {
+    warning("EM did not converge within ", em_iter, " iterations. ",
+            "Consider increasing em_iter.", call. = FALSE)
+  }
 
   prob <- em$prob
   colnames(prob) <- paste0("phase", seq_len(k))
@@ -111,6 +135,8 @@ fit_sef <- function(data,
     variances = em$vars,
     mixture_weights = em$mix,
     em_loglik = em$loglik,
+    converged = em$converged,
+    n_init = n_init,
     call = match.call(),
     model_stats = list(
       mean_entropy = mean(ent, na.rm = TRUE),
@@ -119,10 +145,10 @@ fit_sef <- function(data,
       mean_energy = mean(energy, na.rm = TRUE),
       mean_tafonomy = mean(taf, na.rm = TRUE),
       pdi = 1 - mean(ent, na.rm = TRUE) / ifelse(k > 1, log(k), 1),
-      tot_withinss = tot_withinss,
+      tot_withinss = km$tot.withinss,
       loglik = loglik,
       bic = bic,
-      pseudo_bic = nrow(data) * log(tot_withinss / max(nrow(data), 1)) + log(max(nrow(data), 1)) * k * ncol(feat)
+      pseudo_bic = nrow(data) * log(km$tot.withinss / max(nrow(data), 1)) + log(max(nrow(data), 1)) * k * ncol(feat)
     )
   )
   class(out) <- "sef_fit"
@@ -149,6 +175,8 @@ print.sef_fit <- function(x, ...) {
 ", x$model_stats$bic))
   cat(sprintf("PDI: %.3f
 ", x$model_stats$pdi))
+  cat(sprintf("Converged: %s\n", if (x$converged) "yes" else "NO"))
+  if (!is.null(x$n_init) && x$n_init > 1) cat(sprintf("Initialisations: %d\n", x$n_init))
   invisible(x)
 }
 
