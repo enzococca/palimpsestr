@@ -28,7 +28,7 @@ RoxygenNote: 7.3.2
 Depends: R (>= 4.1.0)
 Imports: stats, utils, graphics, grDevices, methods
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, sf, ggplot2, viridis,
-        ggrepel, DBI, RSQLite, RPostgres
+        ggrepel, plotly, DBI, RSQLite, RPostgres
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 NeedsCompilation: no
