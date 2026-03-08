@@ -27,21 +27,32 @@ ese <- function(data,
                 neighbourhood = NULL) {
   check_required_columns(data, c(coords, chrono, class_col))
   n <- nrow(data)
-  energy <- numeric(n)
 
-  for (i in seq_len(n)) {
-    for (j in seq_len(n)) {
-      if (i == j) next
-      ds <- sqrt((data[[coords[1]]][i] - data[[coords[1]]][j]) ^ 2 +
-                   (data[[coords[2]]][i] - data[[coords[2]]][j]) ^ 2)
-      if (!is.null(neighbourhood) && ds > neighbourhood) next
-      dz <- abs(data[[coords[3]]][i] - data[[coords[3]]][j])
-      ot <- chrono_overlap(data[[chrono[1]]][i], data[[chrono[2]]][i],
-                           data[[chrono[1]]][j], data[[chrono[2]]][j])
-      oc <- as.numeric(data[[class_col]][i] == data[[class_col]][j])
-      energy[i] <- energy[i] + beta[1] * ds + beta[2] * dz + beta[3] * (1 - ot) + beta[4] * (1 - oc)
-    }
+  xy <- as.matrix(data[, coords[1:2], drop = FALSE])
+  z <- data[[coords[3]]]
+  a <- data[[chrono[1]]]
+  b <- data[[chrono[2]]]
+  cl <- data[[class_col]]
+
+  ds <- as.matrix(dist(xy))
+  dz <- abs(outer(z, z, "-"))
+
+  mins_max <- outer(a, a, pmax)
+  maxs_min <- outer(b, b, pmin)
+  mins_min <- outer(a, a, pmin)
+  maxs_max <- outer(b, b, pmax)
+  num <- pmax(0, maxs_min - mins_max)
+  den <- maxs_max - mins_min
+  ot <- ifelse(den <= 0, 0, num / den)
+
+  oc <- outer(cl, cl, "==") * 1
+
+  contrib <- beta[1] * ds + beta[2] * dz + beta[3] * (1 - ot) + beta[4] * (1 - oc)
+  diag(contrib) <- 0
+
+  if (!is.null(neighbourhood)) {
+    contrib[ds > neighbourhood] <- 0
   }
 
-  energy / pmax(n - 1, 1)
+  rowSums(contrib) / pmax(n - 1, 1)
 }

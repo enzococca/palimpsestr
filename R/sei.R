@@ -28,27 +28,38 @@ sei_matrix <- function(data,
                        z_floor = 0.25) {
   check_required_columns(data, c(coords, chrono, class_col))
   n <- nrow(data)
-  out <- matrix(0, n, n)
+
   xy <- as.matrix(data[, coords[1:2], drop = FALSE])
   z <- data[[coords[3]]]
   a <- data[[chrono[1]]]
   b <- data[[chrono[2]]]
   cl <- data[[class_col]]
 
-  for (i in seq_len(n - 1)) {
-    for (j in (i + 1):n) {
-      ds <- sqrt(sum((xy[i, ] - xy[j, ]) ^ 2))
-      dz <- max(abs(z[i] - z[j]), z_floor)
-      ot <- chrono_overlap(a[i], b[i], a[j], b[j])
-      oc <- as.numeric(cl[i] == cl[j])
-      val <- weights[["ws"]] / (ds + eps) +
-        weights[["wz"]] / dz +
-        weights[["wt"]] * ot +
-        weights[["wc"]] * oc
-      out[i, j] <- val
-      out[j, i] <- val
-    }
-  }
+  # Spatial distance matrix
+  ds <- as.matrix(dist(xy))
+
+  # Vertical separation
+  dz <- abs(outer(z, z, "-"))
+  dz <- pmax(dz, z_floor)
+
+  # Chronological overlap (vectorized)
+  mins_max <- outer(a, a, pmax)
+  maxs_min <- outer(b, b, pmin)
+  mins_min <- outer(a, a, pmin)
+  maxs_max <- outer(b, b, pmax)
+  num <- pmax(0, maxs_min - mins_max)
+  den <- maxs_max - mins_min
+  ot <- ifelse(den <= 0, 0, num / den)
+
+  # Class match
+  oc <- outer(cl, cl, "==") * 1
+
+  # SEI
+  out <- weights[["ws"]] / (ds + eps) +
+         weights[["wz"]] / dz +
+         weights[["wt"]] * ot +
+         weights[["wc"]] * oc
+
   diag(out) <- 0
   out
 }
