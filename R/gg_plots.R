@@ -399,6 +399,131 @@ gg_map <- function(object, geometries,
 }
 
 
+#' EM convergence trace
+#'
+#' Plots the log-likelihood at each EM iteration to verify convergence.
+#'
+#' @param object A \code{sef_fit} object.
+#' @return A ggplot object.
+#' @seealso \code{\link{fit_sef}}
+#' @family plotting
+#' @examples
+#' \donttest{
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   x <- archaeo_sim(n = 80, k = 3, seed = 1)
+#'   fit <- fit_sef(x, k = 3)
+#'   gg_convergence(fit)
+#' }
+#' }
+#' @export
+gg_convergence <- function(object) {
+  if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
+  .check_ggplot()
+  df <- data.frame(
+    iteration = seq_along(object$em_loglik),
+    loglik = object$em_loglik
+  )
+  ggplot2::ggplot(df, ggplot2::aes(x = .data$iteration, y = .data$loglik)) +
+    ggplot2::geom_line(linewidth = 0.9, colour = "#0072B2") +
+    ggplot2::geom_point(size = 2.5, colour = "#0072B2") +
+    ggplot2::labs(
+      title = "EM Convergence Trace",
+      subtitle = sprintf("Final log-likelihood: %.2f | Converged: %s",
+                         tail(object$em_loglik, 1),
+                         if (object$converged) "yes" else "no"),
+      x = "Iteration", y = "Log-Likelihood",
+      caption = .sef_caption()
+    ) +
+    .theme_sef()
+}
+
+#' Vertical phase profile
+#'
+#' Plots finds along the depth (z) axis, coloured by phase assignment,
+#' to visualise the stratigraphic ordering of phases.
+#'
+#' @param object A \code{sef_fit} object.
+#' @return A ggplot object.
+#' @seealso \code{\link{phase_transition_matrix}}
+#' @family plotting
+#' @examples
+#' \donttest{
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   x <- archaeo_sim(n = 80, k = 3, seed = 1)
+#'   fit <- fit_sef(x, k = 3)
+#'   gg_phase_profile(fit)
+#' }
+#' }
+#' @export
+gg_phase_profile <- function(object) {
+  if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
+  .check_ggplot()
+  df <- data.frame(
+    x = object$data[[object$coords[1]]],
+    z = object$data[[object$coords[3]]],
+    phase = factor(object$phase),
+    confidence = apply(object$phase_prob, 1, max)
+  )
+  k <- object$k
+
+  ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = .data$z,
+                                    colour = .data$phase, size = .data$confidence)) +
+    ggplot2::geom_point(alpha = 0.7) +
+    ggplot2::scale_colour_manual(values = .phase_colours(k), name = "Phase") +
+    ggplot2::scale_size_continuous(range = c(1.5, 4), guide = "none") +
+    ggplot2::scale_y_reverse() +
+    ggplot2::labs(
+      title = "Vertical Phase Profile",
+      subtitle = "Depth (z) vs horizontal position, coloured by phase",
+      x = object$coords[1], y = paste0(object$coords[3], " (depth)"),
+      caption = .sef_caption()
+    ) +
+    .theme_sef()
+}
+
+#' Confusion matrix heatmap
+#'
+#' Plots a heatmap of the confusion matrix between estimated and
+#' known true phase assignments.
+#'
+#' @param object A \code{sef_fit} object.
+#' @param true_labels Integer vector of known true phase assignments.
+#' @return A ggplot object.
+#' @seealso \code{\link{confusion_matrix}}, \code{\link{adjusted_rand_index}}
+#' @family plotting
+#' @examples
+#' \donttest{
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   x <- archaeo_sim(n = 80, k = 3, seed = 1, mixing = 0.05)
+#'   fit <- fit_sef(x, k = 3, seed = 1)
+#'   gg_confusion(fit, x$true_phase)
+#' }
+#' }
+#' @export
+gg_confusion <- function(object, true_labels) {
+  if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
+  .check_ggplot()
+  cm <- confusion_matrix(object, true_labels)
+  df <- as.data.frame(as.table(cm))
+  names(df) <- c("estimated", "true", "count")
+
+  ggplot2::ggplot(df, ggplot2::aes(x = .data$true, y = .data$estimated,
+                                    fill = .data$count)) +
+    ggplot2::geom_tile(colour = "white", linewidth = 1) +
+    ggplot2::geom_text(ggplot2::aes(label = .data$count), size = 5, fontface = "bold") +
+    ggplot2::scale_fill_gradient(low = "grey95", high = "#0072B2", name = "Count") +
+    ggplot2::scale_y_discrete(limits = rev) +
+    ggplot2::labs(
+      title = "Phase Confusion Matrix",
+      subtitle = sprintf("ARI = %.3f", adjusted_rand_index(object, true_labels)),
+      x = "True Phase", y = "Estimated Phase",
+      caption = .sef_caption()
+    ) +
+    ggplot2::coord_equal() +
+    .theme_sef()
+}
+
+
 # ── Utility ──
 
 .check_ggplot <- function() {
