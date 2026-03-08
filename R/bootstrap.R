@@ -58,6 +58,9 @@ bootstrap_sef <- function(object, n_boot = 100, conf = 0.95,
 
     if (is.null(fit_b)) next
 
+    # Solve label switching before computing diagnostics
+    fit_b <- reorder_phases(fit_b)
+
     results[b, "pdi"] <- pdi(fit_b)
     results[b, "mean_entropy"] <- mean(fit_b$entropy, na.rm = TRUE)
     results[b, "mean_energy"] <- mean(fit_b$energy, na.rm = TRUE)

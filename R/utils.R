@@ -32,19 +32,35 @@ normalize_rows <- function(x) {
   x / rs
 }
 
-feature_matrix <- function(data, coords, chrono, class_col = NULL) {
+feature_matrix <- function(data, coords, chrono, class_col = NULL,
+                           center = NULL, scale = NULL) {
   x <- as.matrix(data[, coords, drop = FALSE])
   tmid <- rowMeans(as.matrix(data[, chrono, drop = FALSE]))
   tspan <- data[[chrono[2]]] - data[[chrono[1]]]
   out <- cbind(x, tmid = tmid, tspan = tspan)
-  out <- scale(out)
+
+  if (!is.null(center) && !is.null(scale)) {
+    # Use external center/scale (e.g. from training set)
+    out <- sweep(out, 2, center, FUN = "-")
+    out <- sweep(out, 2, scale, FUN = "/")
+  } else {
+    out <- base::scale(out)
+  }
   out[is.na(out)] <- 0
+
+  # Store scaling attributes for later use (e.g. cross-validation)
+  sc_center <- attr(out, "scaled:center")
+  sc_scale <- attr(out, "scaled:scale")
 
   if (!is.null(class_col)) {
     mm <- stats::model.matrix(~ . - 1, data = data.frame(class_tmp = as.factor(data[[class_col]])))
     colnames(mm) <- sub("^class_tmp", "class_", colnames(mm))
     out <- cbind(out, mm)
   }
+
+  # Preserve scaling info
+  if (!is.null(sc_center)) attr(out, "scaled:center") <- sc_center
+  if (!is.null(sc_scale)) attr(out, "scaled:scale") <- sc_scale
   out
 }
 
@@ -72,13 +88,17 @@ validate_harris <- function(harris, n) {
   harris
 }
 
-build_context_penalty <- function(data, context_col = NULL, harris = NULL) {
+build_context_penalty <- function(data, context_col = NULL, harris = NULL,
+                                   context_weight = 0.25) {
   n <- nrow(data)
   pen <- matrix(0, n, n)
   if (!is.null(context_col)) {
     check_required_columns(data, context_col)
     ctx <- as.character(data[[context_col]])
-    pen <- pen + outer(ctx, ctx, FUN = function(a, b) as.numeric(a != b)) * 0.25
+    # Penalty for finds in different stratigraphic units.
+    # Default 0.25 chosen empirically: mild penalty that softly encourages
+    # same-context finds to cluster together without overwhelming other evidence.
+    pen <- pen + outer(ctx, ctx, FUN = function(a, b) as.numeric(a != b)) * context_weight
   }
   harris <- validate_harris(harris, n)
   if (!is.null(harris)) {
@@ -102,7 +122,8 @@ diag_log_density <- function(features, means, vars) {
 }
 
 em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_obs = NULL,
-                        strat_penalty = NULL, taf = NULL) {
+                        strat_penalty = NULL, taf = NULL,
+                        taf_weight_m = 0.5, taf_weight_e = 0.15) {
   n <- nrow(features)
   p <- ncol(features)
   k <- ncol(prob_init)
@@ -119,7 +140,7 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
     mix <- numeric(k)
 
     for (j in seq_len(k)) {
-      rj <- prob[, j] * weights_obs * (1 - 0.5 * taf)
+      rj <- prob[, j] * weights_obs * (1 - taf_weight_m * taf)
       sw <- sum(rj)
       if (sw <= 1e-8) {
         idx <- sample.int(n, 1)
@@ -141,14 +162,19 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
     if (!is.null(strat_penalty)) {
       logpost <- logpost - strat_penalty
     }
-    if (!is.null(taf)) {
-      logpost <- logpost - matrix(taf * 0.15, nrow = n, ncol = k)
+    if (!is.null(taf) && taf_weight_e > 0) {
+      logpost <- logpost - matrix(taf * taf_weight_e, nrow = n, ncol = k)
     }
 
     m <- apply(logpost, 1, max)
     stable <- exp(logpost - m)
     rs <- rowSums(stable)
-    rs[rs <= 0] <- 1
+    n_degen <- sum(rs <= 0)
+    if (n_degen > 0) {
+      warning(sprintf("EM iteration %d: %d observations with degenerate posteriors (set to uniform)",
+                       iter, n_degen), call. = FALSE)
+      rs[rs <= 0] <- 1
+    }
     prob <- stable / rs
 
     ll <- sum(log(rs) + m)

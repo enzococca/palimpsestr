@@ -58,11 +58,17 @@ optimize_weights <- function(data, k, weight_grid = NULL, n_folds = 3,
         next
       }
 
-      # Test log-likelihood
+      # Test log-likelihood (using training standardisation)
       fold_ll[fold] <- tryCatch({
+        feat_train <- feature_matrix(train_data, coords = fit_train$coords,
+                                      chrono = fit_train$chrono,
+                                      class_col = fit_train$class_col)
+        train_center <- attr(feat_train, "scaled:center")
+        train_scale <- attr(feat_train, "scaled:scale")
         feat_test <- feature_matrix(test_data, coords = fit_train$coords,
                                      chrono = fit_train$chrono,
-                                     class_col = fit_train$class_col)
+                                     class_col = fit_train$class_col,
+                                     center = train_center, scale = train_scale)
         log_dens <- diag_log_density(feat_test, fit_train$centroids,
                                       fit_train$variances)
         log_mix <- log(pmax(fit_train$mixture_weights, 1e-12))

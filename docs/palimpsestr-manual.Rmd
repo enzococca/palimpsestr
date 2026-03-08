@@ -1,6 +1,6 @@
 ---
 title: "palimpsestr: User Manual"
-subtitle: "Complete Reference Guide v0.9.0"
+subtitle: "Complete Reference Guide v0.10.0"
 author: "Enzo Cocca"
 date: "`r Sys.Date()`"
 output:
@@ -93,6 +93,24 @@ Parameters:
 - `n`: number of artifacts
 - `k`: number of phases
 - `seed`: random seed for reproducibility
+- `mixing`: proportion of inter-phase mixing (0 = none, 1 = complete)
+
+## Built-in datasets
+
+The package includes four built-in datasets:
+
+| Dataset | Finds | Phases | Mixing | Description |
+|---------|-------|--------|--------|-------------|
+| `demo_easy` | 150 | 3 | 5% | Well-separated phases |
+| `demo_moderate` | 200 | 3 | 30% | Moderate palimpsest |
+| `demo_compressed` | 250 | 4 | 50% | Heavily disturbed |
+| `villa_romana` | 300 | 4 | Realistic | Multi-period Roman villa |
+
+```{r}
+data(villa_romana)
+str(villa_romana)
+table(villa_romana$class)
+```
 - `mixing`: proportion of inter-phase mixing (0 = none, 1 = complete)
 
 # Core Analysis
@@ -562,6 +580,9 @@ sf::st_write(sf_pts, "results.gpkg", layer = "phases")
 | `gg_convergence()` | EM convergence trace |
 | `gg_phase_profile()` | Vertical depth profile |
 | `gg_confusion()` | Confusion matrix heatmap |
+| `gg_cv()` | Cross-validation diagnostic plot |
+| `gg_bootstrap()` | Bootstrap confidence interval plot |
+| `gg_weights()` | Weight sensitivity heatmap |
 | `gg_map()` | Overlay on excavation plan |
 | `as_plotly()` | Convert any gg_* to interactive |
 

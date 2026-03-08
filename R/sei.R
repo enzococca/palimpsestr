@@ -18,6 +18,10 @@
 #'   dramatically reduces memory and computation time. The result is
 #'   a sparse-like matrix with zeros for distant pairs.
 #' @return A symmetric numeric matrix with zero diagonal.
+#' @note SEI values are normalised within each dataset. Absolute SEI values
+#'   are \strong{not directly comparable} across different excavations or
+#'   datasets of different sizes. Use SEI for within-dataset ranking and
+#'   relative comparisons only.
 #' @seealso \code{\link{local_sei}}, \code{\link{fit_sef}}
 #' @family SEI
 #' @examples

@@ -48,3 +48,35 @@
 #' print(ck)
 #' }
 "demo_compressed"
+
+#' Simulated Roman Villa excavation dataset
+#'
+#' A realistic archaeological dataset representing 300 finds from a
+#' multi-period Roman villa with 4 occupation phases: Republican
+#' (2nd--1st c. BCE), Early Imperial (1st--2nd c. CE), Late Imperial
+#' (3rd--4th c. CE), and Late Antique (5th--6th c. CE).
+#'
+#' The dataset includes realistic post-depositional disturbances:
+#' bioturbation (8\% vertical displacement), construction cuts (5\%
+#' stratigraphic intrusions), and residual pottery (3\% old finds
+#' in younger contexts).
+#'
+#' @format A data.frame with 300 rows and 10 variables:
+#' \describe{
+#'   \item{id}{Unique find identifier (VR_0001 to VR_0300)}
+#'   \item{x}{Easting coordinate (metres)}
+#'   \item{y}{Northing coordinate (metres)}
+#'   \item{z}{Depth below datum (metres)}
+#'   \item{context}{Stratigraphic unit label (US_101 to US_404)}
+#'   \item{date_min}{Start of chronological interval (BCE as negative, CE as positive)}
+#'   \item{date_max}{End of chronological interval}
+#'   \item{class}{Material class (ceramic types, bone, metal, glass, etc.)}
+#'   \item{taf_score}{Taphonomic disturbance score (0 = pristine, 1 = fully disturbed)}
+#'   \item{true_phase}{Known depositional phase (1--4, for validation)}
+#' }
+#' @source Simulated data; see \code{data-raw/site_villa_romana.R}.
+#' @examples
+#' data(villa_romana)
+#' str(villa_romana)
+#' table(villa_romana$true_phase)
+"villa_romana"

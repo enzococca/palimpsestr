@@ -52,7 +52,11 @@ ese <- function(data,
 
   if (!is.null(neighbourhood)) {
     contrib[ds > neighbourhood] <- 0
+    # Divide by actual number of neighbours (not n-1)
+    n_neighbours <- rowSums(ds <= neighbourhood) - 1  # subtract self
+    n_neighbours <- pmax(n_neighbours, 1)
+    rowSums(contrib) / n_neighbours
+  } else {
+    rowSums(contrib) / pmax(n - 1, 1)
   }
-
-  rowSums(contrib) / pmax(n - 1, 1)
 }
