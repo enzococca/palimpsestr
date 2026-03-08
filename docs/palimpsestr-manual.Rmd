@@ -377,6 +377,77 @@ data <- read_db(
 )
 ```
 
+# Phase Reordering
+
+Mixture models suffer from *label switching*: phase numbers are arbitrary across runs. Use `reorder_phases()` to ensure phase 1 = deepest (oldest) and phase K = shallowest (most recent):
+
+```{r}
+fit <- reorder_phases(fit)
+table(fit$phase)
+```
+
+# Bootstrap Confidence Intervals
+
+Assess uncertainty on key metrics via bootstrap resampling:
+
+```{r}
+bs <- bootstrap_sef(fit, n_boot = 50, verbose = FALSE)
+print(bs)
+```
+
+Returns a data.frame with columns `metric`, `mean`, `se`, `ci_lower`, `ci_upper` for PDI, mean entropy, mean energy, loglik, and optionally ARI (if `true_labels` is provided).
+
+Parameters:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `n_boot` | 100 | Number of bootstrap replicates |
+| `conf` | 0.95 | Confidence level for intervals |
+| `true_labels` | NULL | Known true phases for ARI confidence interval |
+| `verbose` | TRUE | Print progress messages |
+
+# Cross-Validation
+
+Evaluate model fit via k-fold cross-validation:
+
+```{r}
+cv <- cv_sef(moderate, k_values = 3, n_folds = 3, seed = 42)
+print(cv)
+```
+
+Use with multiple K values to find the best:
+
+```{r eval=FALSE}
+cv <- cv_sef(data, k_values = 2:5, n_folds = 5, seed = 42)
+print(cv)  # shows mean_test_loglik per k
+```
+
+# Data-Driven Weight Optimisation
+
+Instead of manually tuning SEI weights, use `optimize_weights()` to find the best configuration via grid search:
+
+```{r eval=FALSE}
+opt <- optimize_weights(data, k = 3, n_folds = 3, seed = 42)
+print(opt$best_weights)
+
+# Re-fit with optimal weights
+fit <- fit_sef(data, k = 3, weights = opt$best_weights)
+```
+
+# Sparse SEI for Large Datasets
+
+For datasets with n > 1000, the full $n \times n$ SEI matrix may be too large. Use `sei_sparse()` which automatically applies a distance threshold:
+
+```{r eval=FALSE}
+# Automatic sparse mode
+sei <- sei_sparse(data, max_dist = 5.0)
+
+# Or use sei_matrix() directly with max_dist
+sei <- sei_matrix(data, max_dist = 5.0)
+```
+
+Pairs beyond `max_dist` Euclidean distance receive SEI = 0, dramatically reducing memory and computation time.
+
 # Complete Workflow Example
 
 ```{r eval=FALSE}
@@ -426,6 +497,7 @@ sf::st_write(sf_pts, "results.gpkg", layer = "phases")
 | `fit_sef()` | Fit the SEF model |
 | `compare_k()` | Compare multiple K values |
 | `archaeo_sim()` | Simulate archaeological data |
+| `reorder_phases()` | Relabel phases by mean depth (deepest = phase 1) |
 
 ## Diagnostics
 
@@ -461,11 +533,20 @@ sf::st_write(sf_pts, "results.gpkg", layer = "phases")
 | `read_harris()` | Import Harris Matrix from CSV |
 | `validate_phases_harris()` | Check phase--stratigraphy consistency |
 
+## Robustness & Sensitivity
+
+| Function | Description |
+|----------|-------------|
+| `bootstrap_sef()` | Bootstrap confidence intervals on PDI, entropy, ARI |
+| `cv_sef()` | K-fold cross-validation for model selection |
+| `optimize_weights()` | Data-driven SEI weight optimisation via grid search |
+
 ## SEI / ESE
 
 | Function | Description |
 |----------|-------------|
 | `sei_matrix()` | Stratigraphic Entanglement Index matrix |
+| `sei_sparse()` | Sparse SEI for large datasets (n > 1000) |
 | `local_sei()` | Row sums of SEI matrix |
 | `ese()` | Excavation Stratigraphic Energy |
 
