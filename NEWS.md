@@ -1,3 +1,21 @@
+# palimpsestr 0.10.0
+
+## New features
+
+- New plots: `gg_cv()` (cross-validation diagnostics), `gg_bootstrap()` (confidence interval forest plot), `gg_weights()` (weight sensitivity heatmap).
+- `villa_romana` dataset: realistic 300-find Roman villa with 4 phases, bioturbation, construction cuts, and residual pottery.
+
+## Bug fixes and improvements
+
+- **Cross-validation fix**: test data now standardised using training set center/scale, eliminating bias in held-out log-likelihood (`cv_sef()`, `optimize_weights()`).
+- **Bootstrap fix**: `reorder_phases()` applied to each replicate before ARI computation, solving label switching in confidence intervals.
+- **ESE neighbourhood fix**: when `neighbourhood` is set, energy is divided by actual neighbour count instead of n-1, removing peripheral bias.
+- **Numerical stability**: EM now emits a warning when degenerate posteriors occur (instead of silently replacing with uniform).
+- **Feature matrix**: `feature_matrix()` now accepts external `center`/`scale` parameters and preserves scaling attributes for proper cross-validation.
+- Taphonomic weighting parameters (M-step: 0.5, E-step: 0.15) now configurable in EM engine.
+- Context penalty weight (default 0.25) now configurable and documented.
+- SEI documentation: explicit warning that absolute values are not comparable across datasets.
+
 # palimpsestr 0.9.0
 
 ## New features

@@ -45,6 +45,12 @@ A symmetric numeric matrix with zero diagonal.
 Builds an \eqn{n \times n}{n x n} symmetric matrix quantifying pairwise
 depositional coherence from spatial, vertical, temporal, and cultural evidence.
 }
+\note{
+SEI values are normalised within each dataset. Absolute SEI values
+are \strong{not directly comparable} across different excavations or
+datasets of different sizes. Use SEI for within-dataset ranking and
+relative comparisons only.
+}
 \examples{
 x <- archaeo_sim(n = 30, k = 2, seed = 1)
 S <- sei_matrix(x)

@@ -524,6 +524,136 @@ gg_confusion <- function(object, true_labels) {
 }
 
 
+#' Cross-validation diagnostic plot
+#'
+#' Plots mean test and training log-likelihood across K values from
+#' \code{\link{cv_sef}} output.
+#'
+#' @param cv_result Data.frame returned by \code{\link{cv_sef}}.
+#' @return A ggplot object.
+#' @seealso \code{\link{cv_sef}}, \code{\link{gg_compare_k}}
+#' @family plotting
+#' @export
+gg_cv <- function(cv_result) {
+  .check_ggplot()
+  agg <- stats::aggregate(
+    cbind(test_loglik, train_loglik) ~ k,
+    data = cv_result, FUN = mean, na.rm = TRUE
+  )
+  agg_sd <- stats::aggregate(
+    cbind(test_loglik, train_loglik) ~ k,
+    data = cv_result, FUN = sd, na.rm = TRUE
+  )
+  agg$test_se <- agg_sd$test_loglik / sqrt(max(table(cv_result$k)))
+  agg$train_se <- agg_sd$train_loglik / sqrt(max(table(cv_result$k)))
+
+  df_long <- data.frame(
+    k = rep(agg$k, 2),
+    loglik = c(agg$test_loglik, agg$train_loglik),
+    se = c(agg$test_se, agg$train_se),
+    set = factor(rep(c("Test (held-out)", "Training"), each = nrow(agg)),
+                 levels = c("Test (held-out)", "Training"))
+  )
+
+  best_k <- agg$k[which.max(agg$test_loglik)]
+
+  ggplot2::ggplot(df_long, ggplot2::aes(x = .data$k, y = .data$loglik,
+                                          colour = .data$set)) +
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$loglik - .data$se,
+                                       ymax = .data$loglik + .data$se,
+                                       fill = .data$set),
+                          alpha = 0.15, colour = NA) +
+    ggplot2::geom_line(linewidth = 0.9) +
+    ggplot2::geom_point(size = 3) +
+    ggplot2::geom_vline(xintercept = best_k, linetype = "dashed",
+                         colour = "#D55E00", linewidth = 0.7) +
+    ggplot2::annotate("text", x = best_k + 0.15, y = Inf,
+                       label = paste("Best K =", best_k),
+                       colour = "#D55E00", vjust = 2, hjust = 0,
+                       fontface = "bold", size = 3.5) +
+    ggplot2::scale_colour_manual(values = c("#0072B2", "#E69F00"), name = NULL) +
+    ggplot2::scale_fill_manual(values = c("#0072B2", "#E69F00"), guide = "none") +
+    ggplot2::scale_x_continuous(breaks = unique(df_long$k)) +
+    ggplot2::labs(
+      title = "Cross-Validation: Log-Likelihood vs K",
+      subtitle = sprintf("Best K = %d (highest test log-likelihood) | Ribbon = \u00b11 SE",
+                         best_k),
+      x = "Number of Phases (K)", y = "Mean Log-Likelihood",
+      caption = .sef_caption()
+    ) +
+    .theme_sef()
+}
+
+
+#' Bootstrap confidence interval plot
+#'
+#' Visualises bootstrap confidence intervals for key SEF diagnostics
+#' (PDI, entropy, energy, log-likelihood, and optionally ARI).
+#'
+#' @param bs_result Data.frame returned by \code{\link{bootstrap_sef}}.
+#' @return A ggplot object.
+#' @seealso \code{\link{bootstrap_sef}}
+#' @family plotting
+#' @export
+gg_bootstrap <- function(bs_result) {
+  .check_ggplot()
+  df <- bs_result
+  df$statistic <- factor(df$statistic, levels = rev(df$statistic))
+
+  ggplot2::ggplot(df, ggplot2::aes(x = .data$estimate, y = .data$statistic)) +
+    ggplot2::geom_errorbar(ggplot2::aes(xmin = .data$lower, xmax = .data$upper),
+                            width = 0.3, linewidth = 0.8, colour = "#0072B2",
+                            orientation = "y") +
+    ggplot2::geom_point(size = 3.5, colour = "#D55E00") +
+    ggplot2::labs(
+      title = "Bootstrap Confidence Intervals",
+      subtitle = sprintf("%d replicates | %d%% CI",
+                         attr(bs_result, "n_boot"),
+                         round(attr(bs_result, "conf") * 100)),
+      x = "Value", y = NULL,
+      caption = .sef_caption()
+    ) +
+    .theme_sef()
+}
+
+
+#' Weight sensitivity heatmap
+#'
+#' Plots the mean test log-likelihood across weight configurations
+#' from \code{\link{optimize_weights}} output.
+#'
+#' @param opt_result List returned by \code{\link{optimize_weights}}.
+#' @return A ggplot object.
+#' @seealso \code{\link{optimize_weights}}
+#' @family plotting
+#' @export
+gg_weights <- function(opt_result) {
+  .check_ggplot()
+  res <- opt_result$results
+  best <- opt_result$best_weights
+
+  # Show ws vs wz, averaging over wt and wc
+  agg <- stats::aggregate(mean_test_loglik ~ ws + wz, data = res, FUN = mean)
+
+  ggplot2::ggplot(agg, ggplot2::aes(x = factor(.data$ws), y = factor(.data$wz),
+                                      fill = .data$mean_test_loglik)) +
+    ggplot2::geom_tile(colour = "white", linewidth = 0.8) +
+    ggplot2::geom_text(ggplot2::aes(label = sprintf("%.0f", .data$mean_test_loglik)),
+                        size = 3) +
+    ggplot2::scale_fill_gradient(low = "grey95", high = "#0072B2",
+                                  name = "Mean Test\nLogLik") +
+    ggplot2::labs(
+      title = "Weight Sensitivity: Spatial vs Vertical",
+      subtitle = sprintf("Best: ws=%.1f wz=%.1f wt=%.1f wc=%.1f (averaged over wt, wc)",
+                         best["ws"], best["wz"], best["wt"], best["wc"]),
+      x = "Spatial Weight (ws)", y = "Vertical Weight (wz)",
+      caption = .sef_caption()
+    ) +
+    ggplot2::coord_equal() +
+    .theme_sef()
+}
+
+
 # ── Utility ──
 
 .check_ggplot <- function() {

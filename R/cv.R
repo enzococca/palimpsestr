@@ -50,13 +50,20 @@ cv_sef <- function(data, k_values = 2:6, n_folds = 5, seed = 1, ...) {
         next
       }
 
-      # Evaluate on test data: compute feature matrix and log-likelihood
+      # Evaluate on test data: compute feature matrix using TRAINING standardisation
       test_ll <- tryCatch({
         coords <- fit_train$coords
         chrono <- fit_train$chrono
         class_col <- fit_train$class_col
+        # Build training features to capture scale parameters
+        feat_train <- feature_matrix(train_data, coords = coords,
+                                      chrono = chrono, class_col = class_col)
+        train_center <- attr(feat_train, "scaled:center")
+        train_scale <- attr(feat_train, "scaled:scale")
+        # Standardise test data using training center/scale
         feat_test <- feature_matrix(test_data, coords = coords,
-                                     chrono = chrono, class_col = class_col)
+                                     chrono = chrono, class_col = class_col,
+                                     center = train_center, scale = train_scale)
         # Compute log-likelihood under trained model
         log_dens <- diag_log_density(feat_test, fit_train$centroids,
                                       fit_train$variances)
