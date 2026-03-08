@@ -25,6 +25,7 @@ sef_summary(fit)
 
 Other fitting: 
 \code{\link{compare_k}()},
-\code{\link{fit_sef}()}
+\code{\link{fit_sef}()},
+\code{\link{reorder_phases}()}
 }
 \concept{fitting}

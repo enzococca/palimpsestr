@@ -279,6 +279,57 @@ H_ext <- read_harris("harris_matrix.csv", contexts = data$context)
 fit <- fit_sef(data, k = 3, harris = H_ext, context = "context")
 ```
 
+## Sensitivity Analysis of SEI Weights
+
+The SEI combines four evidence domains (spatial, vertical, temporal, cultural) with configurable weights. To assess how weight choices affect the results, we compare three configurations:
+
+```{r sensitivity, fig.cap="Sensitivity of PDI and ARI to weight configuration."}
+configs <- list(
+  equal    = c(ws = 1, wz = 1, wt = 1, wc = 1),
+  spatial  = c(ws = 2, wz = 1, wt = 0.5, wc = 0.5),
+  temporal = c(ws = 0.5, wz = 0.5, wt = 2, wc = 1)
+)
+
+sens <- do.call(rbind, lapply(names(configs), function(nm) {
+  w <- configs[[nm]]
+  f <- fit_sef(demo_moderate, k = 3, weights = w, seed = 42,
+               tafonomy = "taf_score", context = "context")
+  data.frame(
+    config = nm,
+    pdi = pdi(f),
+    ari = adjusted_rand_index(f, demo_moderate$true_phase),
+    mean_entropy = mean(f$entropy, na.rm = TRUE),
+    stringsAsFactors = FALSE
+  )
+}))
+sens
+```
+
+The results show that the model is reasonably robust to weight variation, though emphasising the most informative domain for a given site can improve performance. The `optimize_weights()` function provides a data-driven approach to weight selection via cross-validated log-likelihood.
+
+## Bootstrap Confidence Intervals
+
+Uncertainty on key statistics can be quantified via bootstrap resampling:
+
+```{r bootstrap, eval=FALSE}
+bs <- bootstrap_sef(fit, n_boot = 100, true_labels = demo_moderate$true_phase)
+print(bs)
+```
+
+This returns percentile confidence intervals for PDI, mean entropy, mean energy, log-likelihood, and ARI.
+
+## Model Limitations
+
+Several methodological choices warrant discussion:
+
+1. **Diagonal covariance**: the EM uses diagonal Gaussians, assuming conditional independence between features within each phase. This is a deliberate parsimony choice suitable for archaeological datasets with modest sample sizes (n = 50--500). Full covariance would require substantially more data to estimate reliably.
+
+2. **SEI component normalisation**: since v0.9.0, each SEI component is normalised to [0, 1] before weighting, making the weights directly interpretable as relative importance. Earlier versions summed raw values on incomparable scales.
+
+3. **Phase labelling**: phase numbers are arbitrary in mixture models. Use `reorder_phases()` to ensure phase 1 = deepest (oldest) stratum. This is recommended before reporting results.
+
+4. **Scalability**: the SEI and ESE matrices are $O(n^2)$ in memory. For datasets exceeding ~2000 finds, use `sei_sparse()` or the `max_dist` parameter in `sei_matrix()` to limit computation to spatial neighbours.
+
 ## Conclusion
 
 The **palimpsestr** package offers a unified probabilistic framework for decomposing archaeological palimpsests, addressing a long-standing gap between qualitative stratigraphic reasoning and quantitative spatial analysis. By jointly modelling spatial proximity, vertical distribution, chronological overlap, and cultural similarity, the Stratigraphic Entanglement Field approach produces soft phase assignments that acknowledge --- rather than suppress --- the inherent uncertainty of mixed deposits. The three diagnostic statistics (SEI, ESE, PDI) provide interpretable, actionable summaries at the find, deposit, and assemblage levels respectively.

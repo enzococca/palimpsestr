@@ -72,6 +72,7 @@ summary(fit)
 
 Other fitting: 
 \code{\link{compare_k}()},
+\code{\link{reorder_phases}()},
 \code{\link{sef_summary}()}
 }
 \concept{fitting}
