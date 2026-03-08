@@ -210,6 +210,7 @@ print.sef_fit <- function(x, ...) {
 ", x$model_stats$loglik))
   cat(sprintf("BIC: %.3f
 ", x$model_stats$bic))
+  cat(sprintf("ICL: %.3f\n", x$model_stats$icl))
   cat(sprintf("PDI: %.3f
 ", x$model_stats$pdi))
   cat(sprintf("Converged: %s\n", if (x$converged) "yes" else "NO"))
