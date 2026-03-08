@@ -1,0 +1,160 @@
+---
+title: "Analyzing archaeological palimpsests with palimpsestr"
+author: "Enzo Cocca"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analyzing archaeological palimpsests with palimpsestr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 5
+)
+```
+
+## Overview
+
+**palimpsestr** provides a probabilistic framework for decomposing archaeological
+palimpsests into latent depositional phases. The method integrates four domains
+of evidence — spatial proximity, stratigraphic depth, chronological overlap,
+and cultural similarity — to produce soft (probabilistic) phase assignments
+and three diagnostic statistics:
+
+- **SEI** (Stratigraphic Entanglement Index): measures pairwise depositional coherence
+- **ESE** (Excavation Stratigraphic Energy): measures local depositional disruption
+- **PDI** (Palimpsest Dissolution Index): global measure of phase separability
+
+## Quick start
+
+```{r quickstart}
+library(palimpsestr)
+
+# Simulate a palimpsest with 3 phases and 30% mixing
+x <- archaeo_sim(n = 200, k = 3, mixing = 0.30, seed = 42)
+head(x)
+```
+
+## Fitting the model
+
+```{r fit}
+fit <- fit_sef(
+  x,
+  k        = 3,
+  tafonomy = "taf_score",
+  context  = "context",
+  seed     = 42
+)
+
+print(fit)
+```
+
+```{r summary}
+summary(fit)
+```
+
+## Visualizing results
+
+### Phase assignment
+
+```{r phasefield, fig.cap="Dominant phase assignment. Point size reflects assignment confidence."}
+plot_phasefield(fit)
+```
+
+### Entropy map
+
+High entropy indicates areas where phase assignment is uncertain —
+typically at the boundaries between phases or in heavily mixed zones.
+
+```{r entropy, fig.cap="Spatial entropy map."}
+plot_entropy(fit)
+```
+
+### Excavation Stratigraphic Energy
+
+Elevated ESE values highlight zones of depositional disruption.
+
+```{r energy, fig.cap="Excavation Stratigraphic Energy field."}
+plot_energy(fit)
+```
+
+### SEI profile
+
+```{r sei, fig.cap="Ranked local SEI values."}
+plot_sei_profile(fit)
+```
+
+## Phase probability table
+
+```{r phase_table}
+pt <- as_phase_table(fit)
+head(pt, 10)
+```
+
+## Intrusion detection
+
+Artefacts with high entropy, high energy, and low SEI are flagged
+as potentially intrusive.
+
+```{r intrusions}
+di <- detect_intrusions(fit)
+di_top <- di[order(di$intrusion_prob, decreasing = TRUE), ]
+head(di_top, 10)
+```
+
+## Selecting the number of phases
+
+```{r compare_k}
+ck <- compare_k(x, k_values = 2:6, tafonomy = "taf_score",
+                context = "context", seed = 42)
+print(ck)
+```
+
+The optimal K minimises BIC while maximising PDI.
+
+## Using included demo datasets
+
+The package ships with three simulated datasets representing different
+degrees of palimpsest formation:
+
+```{r demo_data, eval=FALSE}
+data(demo_easy)        # 3 phases, 5% mixing
+data(demo_moderate)    # 3 phases, 30% mixing
+data(demo_compressed)  # 4 phases, 50% mixing
+```
+
+## GIS export
+
+Results can be exported as `sf` objects for visualization in QGIS
+or further spatial analysis.
+
+```{r gis, eval=FALSE}
+library(sf)
+
+# Points with phase assignments
+sf_pts <- as_sf_phase(fit, crs = 32632L)
+
+# High-SEI links as lines
+sf_links <- as_sf_links(fit, quantile_threshold = 0.90, crs = 32632L)
+
+# Write to GeoPackage
+st_write(sf_pts, "palimpsest_phases.gpkg", layer = "phases")
+st_write(sf_links, "palimpsest_phases.gpkg", layer = "sei_links")
+```
+
+## Integration with PyArchInit
+
+Results exported as GeoPackage can be loaded directly in QGIS
+alongside PyArchInit layers. The `phase_diagnostic_table()` function
+returns a data.frame compatible with CSV import into the PyArchInit
+database.
+
+```{r pyarchinit, eval=FALSE}
+pdt <- phase_diagnostic_table(fit)
+write.csv(pdt, "palimpsest_diagnostics.csv", row.names = FALSE)
+```

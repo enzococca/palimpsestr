@@ -1,0 +1,37 @@
+Package: palimpsestr
+Type: Package
+Title: Probabilistic Decomposition of Archaeological Palimpsests
+Version: 0.7.0
+Authors@R: 
+    c(person(given = "Enzo",
+             family = "Cocca",
+             role = c("aut", "cre"),
+             email = "enzo.cocca@cnr.it",
+             comment = c(ORCID = "0000-0000-0000-0000")))
+Description: Probabilistic framework for the analysis of archaeological
+    palimpsests based on the Stratigraphic Entanglement Field (SEF).
+    Integrates spatial proximity, stratigraphic depth, chronological
+    overlap, and cultural similarity to estimate latent depositional
+    phases via diagonal Gaussian mixture EM. Provides the Stratigraphic
+    Entanglement Index (SEI), Excavation Stratigraphic Energy (ESE), and
+    Palimpsest Dissolution Index (PDI) for quantifying depositional
+    coherence, detecting intrusive finds, and measuring palimpsest
+    formation. Includes simulation, diagnostics, phase-count selection,
+    publication-quality plots, and GIS export via sf.
+URL: https://github.com/enzococca/palimpsestr
+BugReports: https://github.com/enzococca/palimpsestr/issues
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: R (>= 4.1.0)
+Imports: stats, utils, graphics, grDevices, methods
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown, sf, ggplot2, viridis,
+        ggrepel, DBI, RSQLite, RPostgres
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+NeedsCompilation: no
+Packaged: 2026-03-07 15:19:33 UTC; root
+Author: Enzo Cocca [aut, cre] (<https://orcid.org/0000-0000-0000-0000>)
+Maintainer: Enzo Cocca <enzo.cocca@cnr.it>

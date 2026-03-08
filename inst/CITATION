@@ -1,0 +1,10 @@
+citHeader("To cite palimpsestr in publications use:")
+
+bibentry(
+  bibtype  = "Manual",
+  title    = "palimpsestr: Probabilistic Decomposition of Archaeological Palimpsests",
+  author   = person("Enzo", "Cocca"),
+  year     = "2026",
+  note     = "R package version 0.6.0",
+  url      = "https://github.com/enzococca/palimpsestr"
+)
