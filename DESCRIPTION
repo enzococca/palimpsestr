@@ -6,7 +6,7 @@ Authors@R:
     c(person(given = "Enzo",
              family = "Cocca",
              role = c("aut", "cre"),
-             email = "enzo.cocca@gmail.com",
+             email = "enzo.ccc@gmail.com",
              comment = c(ORCID = "0000-0000-0000-0000")))
 Description: Probabilistic framework for the analysis of archaeological
     palimpsests based on the Stratigraphic Entanglement Field (SEF).
