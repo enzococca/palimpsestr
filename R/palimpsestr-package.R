@@ -3,7 +3,7 @@
 #' Probabilistic framework for the analysis of archaeological palimpsests
 #' based on the Stratigraphic Entanglement Field (SEF).
 #'
-#' @importFrom stats complete.cases dist kmeans median quantile rbeta rnorm runif
+#' @importFrom stats complete.cases dist kmeans median quantile rbeta rnorm runif sd
 #' @importFrom utils tail
 #' @keywords internal
 "_PACKAGE"

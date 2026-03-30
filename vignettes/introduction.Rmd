@@ -354,10 +354,111 @@ The `cv_sef()` and `optimize_weights()` functions standardise test data using th
 
 The SEI and ESE matrices are $O(n^2)$ in memory. For datasets exceeding ~2000 finds, use `sei_sparse()` or the `max_dist` parameter in `sei_matrix()` to limit computation to spatial neighbours.
 
+## Application to a Realistic Dataset: Villa Romana
+
+To demonstrate palimpsestr on a more complex, realistic scenario, we use the `villa_romana` dataset included in the package. This dataset simulates 300 finds from a multi-period Roman villa with 4 occupation phases --- Republican (2nd--1st c. BCE), Early Imperial (1st--2nd c. CE), Late Imperial (3rd--4th c. CE), and Late Antique (5th--6th c. CE) --- across 18 stratigraphic units. It incorporates realistic post-depositional disturbances including bioturbation (8% vertical displacement), construction cuts (5% stratigraphic intrusions), and residual pottery (3% old material in younger contexts).
+
+```{r villa-load}
+data(villa_romana)
+cat("Finds:", nrow(villa_romana), "| Contexts:", length(unique(villa_romana$context)),
+    "| Material classes:", length(unique(villa_romana$class)), "\n")
+cat("Date range:", min(villa_romana$date_min), "to", max(villa_romana$date_max), "\n")
+table(villa_romana$class)
+```
+
+### Phase Count Selection
+
+```{r villa-compare-k, fig.cap="Model selection for villa_romana: BIC and PDI across K = 2 to 6."}
+ck_vr <- compare_k(villa_romana, k_values = 2:6,
+                    tafonomy = "taf_score", context = "context", seed = 42)
+print(ck_vr)
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_compare_k(ck_vr)
+}
+```
+
+### Fitting with K = 4
+
+```{r villa-fit}
+fit_vr <- fit_sef(villa_romana, k = 4,
+                  tafonomy = "taf_score", context = "context",
+                  n_init = 5, seed = 42)
+print(fit_vr)
+summary(fit_vr)
+```
+
+### Spatial Diagnostics
+
+```{r villa-phasefield, fig.cap="Phase assignments for the Roman villa dataset. The model recovers four chronologically coherent phases despite realistic post-depositional disturbance."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_phasefield(fit_vr)
+}
+```
+
+```{r villa-entropy, fig.cap="Entropy map for villa_romana. High-entropy zones highlight areas of depositional mixing between phases."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_entropy(fit_vr)
+}
+```
+
+```{r villa-energy, fig.cap="ESE energy field for villa_romana. Red zones indicate local disruption."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_energy(fit_vr)
+}
+```
+
+### Intrusion Detection
+
+```{r villa-intrusions, fig.cap="Detected intrusions in the villa_romana dataset. Flagged finds correspond to bioturbated or redeposited material."}
+di_vr <- detect_intrusions(fit_vr)
+suspects_vr <- di_vr[di_vr$intrusion_prob > 0.5, ]
+cat("Suspected intrusions:", nrow(suspects_vr), "out of", nrow(villa_romana), "finds\n")
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_intrusions(fit_vr, top_n = 10)
+}
+```
+
+### Validation
+
+Since true phases are known in this dataset, we can evaluate the decomposition:
+
+```{r villa-validation}
+ari_vr <- adjusted_rand_index(fit_vr, villa_romana$true_phase)
+cat("Adjusted Rand Index:", round(ari_vr, 3), "\n")
+confusion_matrix(fit_vr, villa_romana$true_phase)
+```
+
+```{r villa-confusion, fig.cap="Confusion matrix for the villa_romana 4-phase decomposition."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_confusion(fit_vr, villa_romana$true_phase)
+}
+```
+
+### Vertical Profile
+
+```{r villa-profile, fig.cap="Vertical phase profile for villa_romana. Phase 1 (Republican) occupies the deepest stratum; Phase 4 (Late Antique) the shallowest."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_phase_profile(fit_vr)
+}
+```
+
+### Per-Unit Summary
+
+```{r villa-us}
+us_summary_table(fit_vr)
+```
+
+The per-unit table shows that most stratigraphic units have high purity (> 0.8), indicating consistent phase assignment within contexts. Units with lower purity and higher mean entropy correspond to the disturbed contexts where bioturbation or construction cuts have introduced material from adjacent phases.
+
 ## Conclusion
 
 The **palimpsestr** package offers a unified probabilistic framework for decomposing archaeological palimpsests, addressing a long-standing gap between qualitative stratigraphic reasoning and quantitative spatial analysis. By jointly modelling spatial proximity, vertical distribution, chronological overlap, and cultural similarity, the Stratigraphic Entanglement Field approach produces soft phase assignments that acknowledge --- rather than suppress --- the inherent uncertainty of mixed deposits. The three diagnostic statistics (SEI, ESE, PDI) provide interpretable, actionable summaries at the find, deposit, and assemblage levels respectively.
 
 Several directions for future development are planned. First, extending the EM algorithm to support full (non-diagonal) covariance matrices would allow the model to capture correlated spatial-temporal structure within phases. Second, incorporating spatial autocorrelation into the likelihood function would better model the spatial continuity of depositional events. Third, a Bayesian formulation with informative priors on phase parameters would allow formal incorporation of prior stratigraphic knowledge. Finally, integration with radiocarbon calibration curves (via the **rcarbon** package) would enable direct modelling of calibrated date distributions rather than summary date ranges.
 
-The package is available on GitHub and welcomes contributions from the archaeological computing community.
+The package is available on GitHub at <https://github.com/enzococca/palimpsestr> and welcomes contributions from the archaeological computing community.
+
+```{r eval=FALSE}
+# install.packages("remotes")
+remotes::install_github("enzococca/palimpsestr")
+```

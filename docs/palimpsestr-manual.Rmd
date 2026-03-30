@@ -29,7 +29,7 @@ library(palimpsestr)
 devtools::install_github("enzococca/palimpsestr")
 
 # From local source
-install.packages("palimpsestr_0.9.0.tar.gz", repos = NULL, type = "source")
+install.packages("palimpsestr_0.10.0.tar.gz", repos = NULL, type = "source")
 ```
 
 ## Required and optional packages
@@ -110,9 +110,6 @@ The package includes four built-in datasets:
 data(villa_romana)
 str(villa_romana)
 table(villa_romana$class)
-```
-- `mixing`: proportion of inter-phase mixing (0 = none, 1 = complete)
-
 # Core Analysis
 
 ## Fitting the SEF model: `fit_sef()`
@@ -504,6 +501,86 @@ report_sef(fit, lang = "en")
 # 8. GIS
 sf_pts <- as_sf_phase(fit, crs = 32632L)
 sf::st_write(sf_pts, "results.gpkg", layer = "phases")
+```
+
+# Real-Data Example: Villa Romana
+
+The `villa_romana` dataset models a multi-period Roman villa excavation with 300 finds across 4 occupation phases (Republican, Early Imperial, Late Imperial, Late Antique) and 18 stratigraphic units. It includes realistic post-depositional disturbance (bioturbation, construction cuts, residual pottery) and taphonomic scoring.
+
+## Load and inspect
+
+```{r}
+data(villa_romana)
+cat("Finds:", nrow(villa_romana), "| Contexts:", length(unique(villa_romana$context)),
+    "| Classes:", length(unique(villa_romana$class)), "\n")
+cat("Date range:", min(villa_romana$date_min), "to", max(villa_romana$date_max), "\n")
+table(villa_romana$true_phase)
+```
+
+## Fit with taphonomic weighting
+
+```{r}
+fit_vr <- fit_sef(villa_romana, k = 4,
+                  tafonomy = "taf_score",
+                  context  = "context",
+                  n_init   = 5, seed = 42)
+print(fit_vr)
+```
+
+## Diagnostics
+
+```{r}
+cat("PDI:", pdi(fit_vr), "\n")
+sef_summary(fit_vr)
+```
+
+## Validation against known phases
+
+```{r}
+adjusted_rand_index(fit_vr, villa_romana$true_phase)
+confusion_matrix(fit_vr, villa_romana$true_phase)
+```
+
+## Intrusion detection
+
+```{r}
+di_vr <- detect_intrusions(fit_vr)
+suspects_vr <- di_vr[di_vr$intrusion_prob > 0.5, ]
+cat("Suspected intrusions:", nrow(suspects_vr), "out of", nrow(villa_romana), "\n")
+```
+
+## Visualisation
+
+```{r fig.height=5}
+gg_phasefield(fit_vr)
+```
+
+```{r fig.height=5}
+gg_entropy(fit_vr)
+```
+
+```{r fig.height=5}
+gg_energy(fit_vr)
+```
+
+```{r fig.height=5}
+gg_intrusions(fit_vr, top_n = 10)
+```
+
+```{r fig.height=5}
+gg_phase_profile(fit_vr)
+```
+
+## Per-US summary
+
+```{r}
+us_summary_table(fit_vr)
+```
+
+## Interpretive report
+
+```{r}
+report_sef(fit_vr, lang = "en")
 ```
 
 # Function Reference

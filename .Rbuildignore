@@ -7,3 +7,5 @@
 ^\.idea$
 ^CLAUDE\.md$
 ^\.claude$
+^data-raw$
+^demo_v090\.R$

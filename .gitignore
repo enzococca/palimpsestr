@@ -1,0 +1,14 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+.DS_Store
+.idea/
+*.tar.gz
+*.zip
+docs/*.log
+docs/*.pdf
+src/*.o
+src/*.so
+src/*.dll
