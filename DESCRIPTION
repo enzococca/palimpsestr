@@ -6,7 +6,7 @@ Authors@R:
     c(person(given = "Enzo",
              family = "Cocca",
              role = c("aut", "cre"),
-             email = "enzo.cocca@cnr.it",
+             email = "enzo.cocca@gmail.com",
              comment = c(ORCID = "0000-0000-0000-0000")))
 Description: Probabilistic framework for the analysis of archaeological
     palimpsests based on the Stratigraphic Entanglement Field (SEF).
@@ -32,6 +32,3 @@ Suggests: testthat (>= 3.0.0), knitr, rmarkdown, sf, ggplot2, viridis,
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2026-03-07 15:19:33 UTC; root
-Author: Enzo Cocca [aut, cre] (<https://orcid.org/0000-0000-0000-0000>)
-Maintainer: Enzo Cocca <enzo.cocca@cnr.it>
