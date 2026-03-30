@@ -1,11 +1,17 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 0 notes
+0 errors | 0 warnings | 1 note
+
+* This is a new submission.
 
 ## Test environments
 
-* local macOS (aarch64), R 4.4.x
-* GitHub Actions: ubuntu-latest (R release, R devel), macos-latest (R release), windows-latest (R release)
+* macOS 15 (aarch64-apple-darwin20), R 4.4.3
+* TinyTeX / TeX Live 2025
+
+## Notes
+
+* NOTE: "New submission" --- this is the first CRAN release of palimpsestr.
 
 ## Downstream dependencies
 
