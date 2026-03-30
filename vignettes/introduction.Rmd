@@ -10,10 +10,11 @@ vignette: >
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5.5, dpi = 150)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5.5, dpi = 150,
+                      warning = FALSE, message = FALSE)
 ```
 
-*Archaeological palimpsests --- deposits in which material from multiple occupation phases is superimposed and partially intermixed --- represent one of the most persistent analytical challenges in field archaeology. The **palimpsestr** R package implements the Stratigraphic Entanglement Field (SEF) framework, a probabilistic method for decomposing palimpsests into latent depositional phases by jointly modelling four evidence domains: spatial proximity, vertical distribution, chronological overlap, and cultural similarity. The package provides a diagonal-covariance Gaussian mixture model fitted via Expectation-Maximisation, augmented with taphonomic weighting and stratigraphic entanglement penalties. Three interpretable diagnostics --- the Stratigraphic Entanglement Index (SEI), Excavation Stratigraphic Energy (ESE), and Palimpsest Dissolution Index (PDI) --- allow practitioners to assess deposit coherence, detect intrusive finds, and evaluate overall phase separability. This article describes the methodology, demonstrates a complete analytical workflow on a simulated dataset, and discusses how palimpsestr complements traditional stratigraphic tools such as the Harris Matrix.*
+*Archaeological palimpsests --- deposits in which material from multiple occupation phases is superimposed and partially intermixed --- represent one of the most persistent analytical challenges in field archaeology. The **palimpsestr** R package implements the Stratigraphic Entanglement Field (SEF) framework, a probabilistic method for decomposing palimpsests into latent depositional phases by jointly modelling four evidence domains: spatial proximity, vertical distribution, chronological overlap, and cultural similarity. The package provides a diagonal-covariance Gaussian mixture model fitted via Expectation-Maximisation, augmented with taphonomic weighting and stratigraphic entanglement penalties. Three interpretable diagnostics --- the Stratigraphic Entanglement Index (SEI), Excavation Stratigraphic Energy (ESE), and Palimpsest Dissolution Index (PDI) --- allow practitioners to assess deposit coherence, detect intrusive finds, and evaluate overall phase separability. This article describes the methodology and demonstrates a complete analytical workflow on a realistic multi-period Roman villa dataset.*
 
 ## Introduction
 
@@ -39,7 +40,7 @@ where:
 - $\mathbb{1}[c_i = c_j]$ is an indicator function equal to 1 when both finds belong to the same cultural or typological class, and 0 otherwise.
 - $w_s, w_z, w_t, w_c$ are domain weights (defaulting to equal weighting) that allow the analyst to encode prior knowledge about which evidence domains are most reliable for a given site.
 
-The SEI matrix is row-normalised and used both as a regularisation penalty during model fitting and as the basis for the ESE diagnostic.
+Each SEI component is normalised to [0, 1] by dividing by its within-dataset maximum, making weights directly interpretable as relative importance. The SEI matrix is row-normalised and used both as a regularisation penalty during model fitting and as the basis for the ESE diagnostic.
 
 ### The Diagonal Gaussian Mixture EM
 
@@ -64,42 +65,47 @@ Three statistics summarise different aspects of the decomposition:
 
 - **Intrusion score**: a composite metric combining high entropy, high ESE, and low SEI connectivity. Finds exceeding a threshold on this composite are flagged as candidate intrusions --- items that are spatially or stratigraphically anomalous relative to their assigned phase.
 
-## Worked Example
+## The Dataset: Villa Romana
 
-We demonstrate the complete analytical workflow using `demo_moderate`, a simulated dataset of 200 finds distributed across 3 depositional phases with 30% inter-phase mixing. The dataset is included in the package.
+We demonstrate the complete analytical workflow using `villa_romana`, a realistic multi-period Roman villa dataset included in the package. It simulates 300 finds from a villa with 4 occupation phases across 18 stratigraphic units, incorporating realistic post-depositional disturbances.
 
 ```{r load-data}
 library(palimpsestr)
-data(demo_moderate)
-str(demo_moderate)
+data(villa_romana)
+cat("Finds:", nrow(villa_romana), "\n")
+cat("Stratigraphic units:", length(unique(villa_romana$context)), "\n")
+cat("Material classes:", length(unique(villa_romana$class)), "\n")
+cat("Date range:", min(villa_romana$date_min), "to", max(villa_romana$date_max), "\n")
 ```
 
-### Fitting the Model
+The four phases represent:
 
-The primary function `fit_sef()` takes a data frame with columns `x`, `y`, `z`, `t_min`, `t_max`, and a cultural class variable, together with the desired number of phases $K$.
+| Phase | Period | Chronology |
+|:------|:-------|:-----------|
+| 1 | Republican | 2nd--1st c. BCE |
+| 2 | Early Imperial | 1st--2nd c. CE |
+| 3 | Late Imperial | 3rd--4th c. CE |
+| 4 | Late Antique | 5th--6th c. CE |
 
-```{r fit-model}
-fit <- fit_sef(
-  demo_moderate,
-  k        = 3,
-  tafonomy = "taf_score",
-  context  = "context",
-  seed     = 42
-)
-print(fit)
-summary(fit)
+The dataset includes realistic disturbances: bioturbation (8% vertical displacement), construction cuts (5% stratigraphic intrusions), and residual pottery (3% old material in younger contexts).
+
+```{r data-summary}
+cat("Material classes:\n")
+sort(table(villa_romana$class), decreasing = TRUE)
 ```
 
-The `print` method provides a concise overview of the fitted model, while `summary` reports phase-level statistics including the mean SEI, ESE, and entropy for each phase, as well as the global PDI.
+```{r data-structure}
+str(villa_romana)
+```
 
-### Phase Count Selection
+## Phase Count Selection
 
-When the number of phases is unknown, `compare_k()` fits models across a range of $K$ values and reports BIC and PDI for each. The optimal $K$ minimises BIC while maximising PDI.
+When the number of phases is unknown, `compare_k()` fits models across a range of $K$ values and reports BIC, ICL, and PDI for each. The optimal $K$ minimises BIC while maximising PDI.
 
 ```{r compare-k}
 ck <- compare_k(
-  demo_moderate,
-  k_values = 2:6,
+  villa_romana,
+  k_values = 2:7,
   tafonomy = "taf_score",
   context  = "context",
   seed     = 42
@@ -107,25 +113,62 @@ ck <- compare_k(
 print(ck)
 ```
 
-```{r gg-compare-k, fig.cap="Model selection diagnostics: BIC and PDI across candidate phase counts."}
+```{r gg-compare-k, fig.cap="Model selection diagnostics: BIC, PDI, and mean entropy across candidate phase counts. The dashed line marks the optimal K."}
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   gg_compare_k(ck)
 }
 ```
 
-### Spatial Diagnostics
+## Fitting the Model (K = 4)
 
-The `gg_*` family of plotting functions produces publication-quality maps of phase assignments, entropy, and stratigraphic energy. All require **ggplot2**.
+Based on the selection diagnostics and archaeological knowledge of the site (4 occupation periods), we fit with K = 4 and multiple random initialisations.
 
-```{r gg-phasefield, fig.cap="Dominant phase assignment. Point size reflects assignment confidence (inverse entropy)."}
+```{r fit-model}
+fit <- fit_sef(
+  villa_romana,
+  k        = 4,
+  tafonomy = "taf_score",
+  context  = "context",
+  n_init   = 10,
+  seed     = 42
+)
+print(fit)
+```
+
+```{r model-summary}
+summary(fit)
+```
+
+### Model Overview
+
+```{r model-stats}
+cat("PDI:", pdi(fit), "\n")
+sef_summary(fit)
+```
+
+### EM Convergence
+
+```{r gg-convergence, fig.cap="EM convergence trace showing log-likelihood stabilisation across iterations."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_convergence(fit)
+}
+```
+
+## Spatial Diagnostics
+
+### Phase-field Map
+
+```{r gg-phasefield, fig.cap="Dominant phase assignment. Point size reflects assignment confidence (inverse entropy). Larger points indicate higher confidence."}
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   gg_phasefield(fit)
 }
 ```
 
-The phase-field map reveals the spatial structure of the decomposition. Larger points indicate higher assignment confidence; smaller points lie in zones of ambiguity.
+The phase-field map reveals the spatial structure of the decomposition. The model assigns each find to one of four chronologically coherent phases despite the presence of post-depositional disturbance.
 
-```{r gg-entropy, fig.cap="Spatial distribution of Shannon entropy. High-entropy zones (yellow) mark areas of uncertain phase assignment, typically at phase boundaries or in heavily mixed deposits."}
+### Entropy Map
+
+```{r gg-entropy, fig.cap="Spatial distribution of Shannon entropy. High-entropy zones (bright) mark areas of uncertain phase assignment, typically at phase boundaries or in heavily mixed deposits."}
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   gg_entropy(fit)
 }
@@ -133,7 +176,9 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 
 Entropy mapping is particularly useful for identifying the spatial extent of mixing. Zones of elevated entropy correspond to areas where multiple depositional phases are interleaved and cannot be cleanly separated.
 
-```{r gg-energy, fig.cap="Excavation Stratigraphic Energy field. Elevated ESE values (red) highlight zones of depositional disruption where neighbouring finds belong to different phases."}
+### Energy Map (ESE)
+
+```{r gg-energy, fig.cap="Excavation Stratigraphic Energy field. Elevated ESE values (bright) highlight zones of depositional disruption where neighbouring finds belong to different phases."}
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   gg_energy(fit)
 }
@@ -141,59 +186,223 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 
 The energy map highlights local disruptions. Clusters of high-ESE finds may indicate bioturbation channels, pit cuts, or other post-depositional disturbances.
 
-### Intrusion Detection
+### Intrusion Detection Map
+
+```{r gg-intrusions, fig.cap="Candidate intrusions overlaid on the phase-field map. Circled finds exhibit high entropy, high stratigraphic energy, and low entanglement with their neighbours. Top 10 suspects are labelled."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_intrusions(fit, top_n = 10)
+}
+```
+
+### Vertical Phase Profile
+
+```{r gg-phase-profile, fig.cap="Vertical phase profile: depth vs horizontal position. Phase 1 (deepest) corresponds to the earliest occupation; Phase 4 (shallowest) to the most recent."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_phase_profile(fit)
+}
+```
+
+The vertical profile confirms the expected stratigraphic ordering: earlier phases occupy deeper strata, later phases are shallower.
+
+## Intrusion Analysis
 
 The `detect_intrusions()` function computes a composite intrusion probability for each find, combining entropy, ESE, and SEI connectivity into a single score.
 
 ```{r intrusions}
 di <- detect_intrusions(fit)
 suspects <- di[di$intrusion_prob > 0.5, ]
-nrow(suspects)
+cat("Suspected intrusions:", nrow(suspects), "out of", nrow(villa_romana), "finds",
+    sprintf("(%.1f%%)\n", 100 * nrow(suspects) / nrow(villa_romana)))
 ```
 
-```{r gg-intrusions, fig.cap="Candidate intrusions overlaid on the phase-field map. Flagged finds exhibit high entropy, high stratigraphic energy, and low entanglement with their neighbours."}
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_intrusions(fit)
+```{r intrusion-table}
+if (nrow(suspects) > 0) {
+  # Merge with source data and phase assignments
+  phase_tab <- as_phase_table(fit)
+  susp_data <- merge(suspects, villa_romana[, c("id", "context", "class")], by = "id")
+  susp_data <- merge(susp_data, phase_tab[, c("id", "dominant_phase")], by = "id")
+  susp_data <- susp_data[order(susp_data$intrusion_prob, decreasing = TRUE), ]
+  susp_show <- susp_data[, c("id", "context", "class", "dominant_phase", "intrusion_prob")]
+  names(susp_show) <- c("Find", "US", "Class", "Phase", "Intrusion Prob.")
+  knitr::kable(head(susp_show, 15), row.names = FALSE, digits = 3,
+               caption = "Top suspected intrusions ranked by intrusion probability.")
 }
 ```
 
-Flagged finds warrant closer examination: they may represent genuinely intrusive material (e.g., items displaced by animal burrowing), or they may sit at genuine phase boundaries where assignment is inherently ambiguous.
+Flagged finds warrant closer examination: they may represent genuinely intrusive material (e.g., items displaced by animal burrowing or construction cuts), or they may sit at genuine phase boundaries where assignment is inherently ambiguous.
 
-### Interpretive Report
+## Stratigraphic Unit Purity
+
+The `us_summary_table()` function aggregates diagnostics per stratigraphic unit, reporting dominant phase, purity, mean entropy, energy, and intrusion count.
+
+```{r us-purity}
+us_tab <- us_summary_table(fit)
+knitr::kable(us_tab, row.names = FALSE, digits = 3,
+             caption = "Per-US diagnostics: dominant phase, purity, mean entropy, mean ESE, and number of intrusions.")
+```
+
+Units with purity > 90% indicate consistent phase assignment within the context. Lower purity and higher mean entropy correspond to disturbed contexts where bioturbation or construction cuts have introduced material from adjacent phases.
+
+```{r purity-stats}
+n_pure <- sum(us_tab$purity >= 0.9)
+cat(n_pure, "out of", nrow(us_tab), "units have purity >= 90%\n")
+```
+
+## Phase Transition Matrix
+
+Shows how often finds from phase $i$ sit directly above finds from phase $j$, revealing spatial adjacency between phases:
+
+```{r transition-matrix}
+tm <- phase_transition_matrix(fit)
+print(tm)
+```
+
+High off-diagonal values indicate zones of contact between phases. This is expected at the boundary between successive occupation periods.
+
+## Model Validation
+
+When true phase assignments are known (e.g., from simulation or independently dated contexts), palimpsestr provides two validation metrics:
+
+- **Adjusted Rand Index (ARI)**: measures agreement between estimated and true phases, corrected for chance. Values near 1 indicate perfect agreement; values near 0 indicate random agreement.
+- **Confusion matrix**: cross-tabulates estimated versus true phases, with automatic reordering to maximise diagonal agreement.
+
+```{r validation}
+ari <- adjusted_rand_index(fit, villa_romana$true_phase)
+cat("Adjusted Rand Index:", round(ari, 3), "\n")
+```
+
+```{r confusion}
+confusion_matrix(fit, villa_romana$true_phase)
+```
+
+```{r gg-confusion, fig.cap="Confusion matrix heatmap. Strong diagonal = correct phase recovery. Off-diagonal cells indicate misattributed finds, often corresponding to bioturbated or redeposited material."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_confusion(fit, villa_romana$true_phase)
+}
+```
+
+## Sensitivity Analysis of SEI Weights
+
+The SEI combines four evidence domains (spatial, vertical, temporal, cultural) with configurable weights. To assess how weight choices affect the results, we compare three configurations:
+
+```{r sensitivity}
+configs <- list(
+  equal    = c(ws = 1, wz = 1, wt = 1, wc = 1),
+  spatial  = c(ws = 2, wz = 1, wt = 0.5, wc = 0.5),
+  temporal = c(ws = 0.5, wz = 0.5, wt = 2, wc = 1)
+)
+
+sens <- do.call(rbind, lapply(names(configs), function(nm) {
+  w <- configs[[nm]]
+  f <- fit_sef(villa_romana, k = 4, weights = w, seed = 42,
+               tafonomy = "taf_score", context = "context")
+  data.frame(
+    config = nm,
+    pdi = pdi(f),
+    ari = adjusted_rand_index(f, villa_romana$true_phase),
+    mean_entropy = mean(f$entropy, na.rm = TRUE),
+    stringsAsFactors = FALSE
+  )
+}))
+knitr::kable(sens, digits = 4,
+             caption = "Sensitivity of PDI, ARI, and mean entropy to weight configuration.")
+```
+
+The results show that the model is reasonably robust to weight variation, though emphasising the most informative domain for a given site can improve performance. The `optimize_weights()` function provides a data-driven approach to weight selection via cross-validated log-likelihood.
+
+## Bootstrap Confidence Intervals
+
+Uncertainty on key statistics can be quantified via bootstrap resampling:
+
+```{r bootstrap}
+bs <- bootstrap_sef(fit, n_boot = 50, true_labels = villa_romana$true_phase, verbose = FALSE)
+knitr::kable(bs, digits = 4,
+             caption = "Bootstrap confidence intervals (50 replicates) for key model statistics.")
+```
+
+```{r gg-bootstrap, fig.cap="Bootstrap confidence intervals for PDI, mean entropy, mean energy, log-likelihood, and ARI."}
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  gg_bootstrap(bs)
+}
+```
+
+## Harris Matrix Integration
+
+palimpsestr can incorporate stratigraphic information from a Harris Matrix as a penalty during model fitting. The `harris_from_contexts()` function auto-generates a penalty matrix from the mean depth of finds in each context. Alternatively, `read_harris()` imports an external Harris Matrix from a CSV edge list.
+
+```{r harris}
+H <- harris_from_contexts(villa_romana, z_col = "z", context_col = "context")
+cat("Harris penalty matrix:", nrow(H), "x", ncol(H), "\n")
+```
+
+```{r harris-fit}
+fit_h <- fit_sef(villa_romana, k = 4, harris = H,
+                 tafonomy = "taf_score", context = "context",
+                 n_init = 5, seed = 42)
+cat("PDI without Harris:", round(pdi(fit), 4), "\n")
+cat("PDI with Harris:   ", round(pdi(fit_h), 4), "\n")
+cat("ARI without Harris:", round(adjusted_rand_index(fit, villa_romana$true_phase), 4), "\n")
+cat("ARI with Harris:   ", round(adjusted_rand_index(fit_h, villa_romana$true_phase), 4), "\n")
+```
+
+### Validate phases against stratigraphy
+
+```{r harris-validate}
+validate_phases_harris(fit)
+```
+
+The `consistent` column flags whether the dominant phase ordering respects stratigraphic depth. `FALSE` indicates an inversion that may warrant investigation.
+
+## Interpretive Report
 
 The `report_sef()` function generates a plain-language summary of the analysis, suitable for inclusion in excavation reports. It is available in English and Italian.
 
-```{r report}
+```{r report-en}
 report_sef(fit, lang = "en")
+```
+
+```{r report-it}
+report_sef(fit, lang = "it")
+```
+
+## Structured Exports
+
+All results can be exported to CSV for integration with external databases and GIS:
+
+```{r export, eval=FALSE}
+export_results(fit, dir = "results/", format = "csv", prefix = "villa_romana")
+```
+
+This creates 4 files:
+
+- `villa_romana_phases.csv` --- phase assignments and diagnostics per find
+- `villa_romana_intrusions.csv` --- intrusion probabilities
+- `villa_romana_us_summary.csv` --- per-US aggregated statistics
+- `villa_romana_model_summary.csv` --- model-level metrics (n, k, PDI, BIC, etc.)
+
+## GIS Export
+
+For integration with GIS workflows, palimpsestr can export results as `sf` spatial objects:
+
+```{r gis-export, eval=FALSE}
+if (requireNamespace("sf", quietly = TRUE)) {
+  sf_pts   <- as_sf_phase(fit, crs = 32632L, dims = "XYZ")
+  sf_links <- as_sf_links(fit, quantile_threshold = 0.90, crs = 32632L)
+  sf::st_write(sf_pts,   "villa_romana.gpkg", layer = "phases")
+  sf::st_write(sf_links, "villa_romana.gpkg", layer = "sei_links")
+}
 ```
 
 ## Interactive Visualization
 
-When **plotly** is available, any `gg_*` plot can be converted to an interactive visualization using `as_plotly()`. This allows hovering over individual finds to inspect their phase probabilities, entropy, and other attributes, and zooming into specific areas for detailed spatial analysis.
+When **plotly** is available, any `gg_*` plot can be converted to an interactive visualization using `as_plotly()`:
 
 ```{r interactive, eval=FALSE}
-# Interactive plot (requires ggplot2 and plotly, only works in HTML output)
 as_plotly(gg_phasefield(fit))
+as_plotly(gg_intrusions(fit))
 ```
-
-## GIS Export
-
-For integration with GIS workflows, palimpsestr can export results as `sf` spatial objects. Phase-assigned points and high-SEI links (representing strong stratigraphic entanglement between find pairs) can be written to GeoPackage for visualization in QGIS or further spatial analysis.
-
-```{r gis-export, eval=FALSE}
-if (requireNamespace("sf", quietly = TRUE)) {
-  sf_pts   <- as_sf_phase(fit, crs = 32632L)
-  sf_links <- as_sf_links(fit, quantile_threshold = 0.90, crs = 32632L)
-  sf::st_write(sf_pts,   "palimpsest.gpkg", layer = "phases")
-  sf::st_write(sf_links, "palimpsest.gpkg", layer = "sei_links")
-}
-```
-
-The resulting GeoPackage can be loaded directly alongside PyArchInit layers in QGIS, facilitating integration with existing site databases.
 
 ## Comparison with Traditional Approaches
-
-The following table summarises how palimpsestr's SEF framework relates to established methods for stratigraphic analysis and spatial clustering.
 
 | Aspect | Harris Matrix | k-means | palimpsestr (SEF) |
 |:-------|:-------------|:--------|:------------------|
@@ -204,259 +413,43 @@ The following table summarises how palimpsestr's SEF framework relates to establ
 | Scalability | Manual | Good | Good |
 | Interpretability | High | Low | High (PDI, reports) |
 
-It is important to emphasise that the SEF framework does not replace the Harris Matrix or other stratigraphic recording systems. Rather, it extends them. The Harris Matrix remains indispensable for documenting observed physical relationships between depositional units. What palimpsestr adds is a quantitative, probabilistic layer of analysis that can operate on the find-level data within those units --- precisely the scale at which palimpsest formation is most problematic and least well served by existing tools. In practice, the two approaches are complementary: the Harris Matrix provides the interpretive scaffold, while SEF populates it with probabilistic phase assignments and diagnostic statistics.
-
-## Model Validation
-
-When true phase assignments are known (e.g., from simulation or from independently dated contexts), palimpsestr provides two validation metrics:
-
-- **Adjusted Rand Index (ARI)**: measures agreement between estimated and true phases, corrected for chance. Values near 1 indicate perfect agreement; values near 0 indicate random agreement.
-- **Confusion matrix**: cross-tabulates estimated versus true phases, with automatic reordering to maximise diagonal agreement.
-
-```{r validation}
-ari <- adjusted_rand_index(fit, demo_moderate$true_phase)
-cat("Adjusted Rand Index:", round(ari, 3), "\n")
-confusion_matrix(fit, demo_moderate$true_phase)
-```
-
-```{r gg-confusion, fig.cap="Confusion matrix heatmap with ARI."}
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_confusion(fit, demo_moderate$true_phase)
-}
-```
-
-## EM Convergence and Multiple Initialisations
-
-The `fit_sef()` function supports multiple random initialisations via the `n_init` parameter. Each initialisation starts from a different K-means seed, and the run with the highest log-likelihood is retained. The convergence trace can be inspected with `gg_convergence()`.
-
-```{r convergence, fig.cap="EM convergence trace showing log-likelihood stabilisation."}
-fit_multi <- fit_sef(demo_moderate, k = 3, seed = 1, n_init = 5,
-                     tafonomy = "taf_score", context = "context")
-cat("Converged:", fit_multi$converged, "\n")
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_convergence(fit_multi)
-}
-```
-
-## Structured Exports
-
-The `us_summary_table()` function aggregates diagnostics per stratigraphic unit, reporting dominant phase, purity, mean entropy, energy, and intrusion count. The `phase_transition_matrix()` reveals vertical phase ordering. All results can be exported to CSV with `export_results()`.
-
-```{r exports}
-us_summary_table(fit)
-phase_transition_matrix(fit)
-```
-
-```{r export-csv, eval=FALSE}
-export_results(fit, dir = "results/", format = "csv")
-```
-
-## Vertical Phase Profile
-
-The `gg_phase_profile()` function plots finds along the depth axis, coloured by phase, to visualise the stratigraphic ordering of estimated phases.
-
-```{r gg-phase-profile, fig.cap="Vertical phase profile: depth vs horizontal position."}
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_phase_profile(fit)
-}
-```
-
-## Harris Matrix Integration
-
-palimpsestr can incorporate stratigraphic information from a Harris Matrix as a penalty during model fitting. The `harris_from_contexts()` function auto-generates a penalty matrix from the mean depth of finds in each context. Alternatively, `read_harris()` imports an external Harris Matrix from a CSV edge list with columns `from`, `to`, and optionally `weight`.
-
-```{r harris}
-H <- harris_from_contexts(demo_moderate, z_col = "z", context_col = "context")
-dim(H)
-
-# Validate estimated phases against stratigraphic ordering
-validate_phases_harris(fit)
-```
-
-```{r harris-import, eval=FALSE}
-# Import an external Harris Matrix (CSV format: from,to,weight)
-H_ext <- read_harris("harris_matrix.csv", contexts = data$context)
-fit <- fit_sef(data, k = 3, harris = H_ext, context = "context")
-```
-
-## Sensitivity Analysis of SEI Weights
-
-The SEI combines four evidence domains (spatial, vertical, temporal, cultural) with configurable weights. To assess how weight choices affect the results, we compare three configurations:
-
-```{r sensitivity, fig.cap="Sensitivity of PDI and ARI to weight configuration."}
-configs <- list(
-  equal    = c(ws = 1, wz = 1, wt = 1, wc = 1),
-  spatial  = c(ws = 2, wz = 1, wt = 0.5, wc = 0.5),
-  temporal = c(ws = 0.5, wz = 0.5, wt = 2, wc = 1)
-)
-
-sens <- do.call(rbind, lapply(names(configs), function(nm) {
-  w <- configs[[nm]]
-  f <- fit_sef(demo_moderate, k = 3, weights = w, seed = 42,
-               tafonomy = "taf_score", context = "context")
-  data.frame(
-    config = nm,
-    pdi = pdi(f),
-    ari = adjusted_rand_index(f, demo_moderate$true_phase),
-    mean_entropy = mean(f$entropy, na.rm = TRUE),
-    stringsAsFactors = FALSE
-  )
-}))
-sens
-```
-
-The results show that the model is reasonably robust to weight variation, though emphasising the most informative domain for a given site can improve performance. The `optimize_weights()` function provides a data-driven approach to weight selection via cross-validated log-likelihood.
-
-## Bootstrap Confidence Intervals
-
-Uncertainty on key statistics can be quantified via bootstrap resampling:
-
-```{r bootstrap, eval=FALSE}
-bs <- bootstrap_sef(fit, n_boot = 100, true_labels = demo_moderate$true_phase)
-print(bs)
-```
-
-This returns percentile confidence intervals for PDI, mean entropy, mean energy, log-likelihood, and ARI.
+The SEF framework does not replace the Harris Matrix. Rather, it extends it. The Harris Matrix remains indispensable for documenting observed physical relationships between depositional units. What palimpsestr adds is a quantitative, probabilistic layer of analysis that operates on find-level data within those units --- precisely the scale at which palimpsest formation is most problematic.
 
 ## Model Limitations and Methodological Notes
 
-Several methodological choices warrant discussion. We address them transparently to facilitate informed use and critical evaluation.
-
 ### Diagonal Covariance Assumption
 
-The EM uses diagonal Gaussians, assuming conditional independence between features within each phase. This means the model cannot capture within-phase correlations (e.g., deeper finds that are also older). This is a deliberate parsimony choice: for $p$ features and $k$ phases, diagonal covariance requires $k(2p+1)-1$ parameters versus $k(p(p+3)/2+1)-1$ for full covariance. With typical archaeological datasets (n = 50--500, p = 7--10), full covariance risks overfitting. The BIC penalty naturally favours diagonal when data is limited. Users with large datasets should compare BIC values between diagonal and full-covariance implementations to assess whether the simplification is justified.
+The EM uses diagonal Gaussians, assuming conditional independence between features within each phase. This is a deliberate parsimony choice: for $p$ features and $k$ phases, diagonal covariance requires $k(2p+1)-1$ parameters versus $k(p(p+3)/2+1)-1$ for full covariance. With typical archaeological datasets (n = 50--500, p = 7--10), full covariance risks overfitting.
 
 ### SEI Component Normalisation
 
-Each SEI component (spatial proximity, vertical proximity, temporal overlap, class match) is normalised to [0, 1] by dividing by its within-dataset maximum. This makes weights directly interpretable as relative importance, but has an important consequence: **absolute SEI values are not comparable across datasets**. The same pair of finds at the same distance will receive different SEI contributions depending on the closest pair in the entire dataset. SEI should therefore be used for within-dataset ranking and relative comparison only. Cross-site comparisons should use derived statistics (PDI, mean entropy) which are scale-invariant.
-
-### Taphonomic Weighting
-
-The EM incorporates taphonomic disturbance scores via two mechanisms: (i) down-weighting disturbed observations in the M-step responsibility calculation (default weight 0.5), and (ii) an additive log-posterior penalty in the E-step (default weight 0.15). These values were chosen empirically to provide moderate penalisation without overwhelming the data-driven clustering. Users can adjust these via the internal `taf_weight_m` and `taf_weight_e` parameters. A sensitivity analysis comparing results across a range of taphonomic weights (0.1--0.8) is recommended for publications.
+Each SEI component is normalised to [0, 1] by dividing by its within-dataset maximum. This makes weights interpretable but means **absolute SEI values are not comparable across datasets**. Cross-site comparisons should use derived statistics (PDI, mean entropy) which are scale-invariant.
 
 ### PDI Interpretation
 
-The Palimpsest Dissolution Index $PDI = 1 - \bar{H}/\log(K)$ is a descriptive measure of phase separability, not a formal test statistic. It has no asymptotic distribution under any null hypothesis. The interpretive guideline (PDI > 0.7 = well-resolved) is empirically derived from simulation studies with known phase structure and should not be treated as a formal decision boundary. Bootstrap confidence intervals (`bootstrap_sef()`) provide uncertainty quantification for PDI.
+The PDI is a descriptive measure, not a formal test statistic. The interpretive guideline (PDI > 0.7 = well-resolved) is empirically derived from simulation studies and should not be treated as a formal decision boundary. Bootstrap confidence intervals provide uncertainty quantification.
 
 ### Intrusion Detection
 
-The intrusion probability score is a heuristic combining rescaled entropy, ESE, and inverse local SEI with equal weights and no probabilistic interpretation. It identifies finds that are simultaneously uncertain (high entropy), locally anomalous (high energy), and weakly connected (low SEI). The 0.5 threshold is an exploratory guideline, not a calibrated decision boundary. Users should examine flagged observations individually using domain knowledge.
+The intrusion probability score is a heuristic combining rescaled entropy, ESE, and inverse local SEI. The 0.5 threshold is an exploratory guideline. Users should examine flagged observations individually using domain knowledge.
 
 ### Phase Labelling
 
-Phase numbers are arbitrary in mixture models (label switching). Use `reorder_phases()` to ensure phase 1 = deepest (oldest) stratum. The bootstrap procedure (`bootstrap_sef()`) applies phase reordering to each replicate to ensure consistent ARI computation.
+Phase numbers are arbitrary in mixture models (label switching). Use `reorder_phases()` to ensure phase 1 = deepest (oldest) stratum. The bootstrap procedure applies phase reordering to each replicate.
 
 ### Cross-Validation
 
-The `cv_sef()` and `optimize_weights()` functions standardise test data using the training set's center and scale, ensuring consistent feature scales across folds. Note that the feature matrix includes one-hot encoded class dummies which are not standardised, reflecting their natural [0, 1] scale.
+The `cv_sef()` and `optimize_weights()` functions standardise test data using the training set's center and scale, ensuring consistent feature scales across folds.
 
 ### Scalability
 
 The SEI and ESE matrices are $O(n^2)$ in memory. For datasets exceeding ~2000 finds, use `sei_sparse()` or the `max_dist` parameter in `sei_matrix()` to limit computation to spatial neighbours.
 
-## Application to a Realistic Dataset: Villa Romana
-
-To demonstrate palimpsestr on a more complex, realistic scenario, we use the `villa_romana` dataset included in the package. This dataset simulates 300 finds from a multi-period Roman villa with 4 occupation phases --- Republican (2nd--1st c. BCE), Early Imperial (1st--2nd c. CE), Late Imperial (3rd--4th c. CE), and Late Antique (5th--6th c. CE) --- across 18 stratigraphic units. It incorporates realistic post-depositional disturbances including bioturbation (8% vertical displacement), construction cuts (5% stratigraphic intrusions), and residual pottery (3% old material in younger contexts).
-
-```{r villa-load}
-data(villa_romana)
-cat("Finds:", nrow(villa_romana), "| Contexts:", length(unique(villa_romana$context)),
-    "| Material classes:", length(unique(villa_romana$class)), "\n")
-cat("Date range:", min(villa_romana$date_min), "to", max(villa_romana$date_max), "\n")
-table(villa_romana$class)
-```
-
-### Phase Count Selection
-
-```{r villa-compare-k, fig.cap="Model selection for villa_romana: BIC and PDI across K = 2 to 6."}
-ck_vr <- compare_k(villa_romana, k_values = 2:6,
-                    tafonomy = "taf_score", context = "context", seed = 42)
-print(ck_vr)
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_compare_k(ck_vr)
-}
-```
-
-### Fitting with K = 4
-
-```{r villa-fit}
-fit_vr <- fit_sef(villa_romana, k = 4,
-                  tafonomy = "taf_score", context = "context",
-                  n_init = 5, seed = 42)
-print(fit_vr)
-summary(fit_vr)
-```
-
-### Spatial Diagnostics
-
-```{r villa-phasefield, fig.cap="Phase assignments for the Roman villa dataset. The model recovers four chronologically coherent phases despite realistic post-depositional disturbance."}
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_phasefield(fit_vr)
-}
-```
-
-```{r villa-entropy, fig.cap="Entropy map for villa_romana. High-entropy zones highlight areas of depositional mixing between phases."}
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_entropy(fit_vr)
-}
-```
-
-```{r villa-energy, fig.cap="ESE energy field for villa_romana. Red zones indicate local disruption."}
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_energy(fit_vr)
-}
-```
-
-### Intrusion Detection
-
-```{r villa-intrusions, fig.cap="Detected intrusions in the villa_romana dataset. Flagged finds correspond to bioturbated or redeposited material."}
-di_vr <- detect_intrusions(fit_vr)
-suspects_vr <- di_vr[di_vr$intrusion_prob > 0.5, ]
-cat("Suspected intrusions:", nrow(suspects_vr), "out of", nrow(villa_romana), "finds\n")
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_intrusions(fit_vr, top_n = 10)
-}
-```
-
-### Validation
-
-Since true phases are known in this dataset, we can evaluate the decomposition:
-
-```{r villa-validation}
-ari_vr <- adjusted_rand_index(fit_vr, villa_romana$true_phase)
-cat("Adjusted Rand Index:", round(ari_vr, 3), "\n")
-confusion_matrix(fit_vr, villa_romana$true_phase)
-```
-
-```{r villa-confusion, fig.cap="Confusion matrix for the villa_romana 4-phase decomposition."}
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_confusion(fit_vr, villa_romana$true_phase)
-}
-```
-
-### Vertical Profile
-
-```{r villa-profile, fig.cap="Vertical phase profile for villa_romana. Phase 1 (Republican) occupies the deepest stratum; Phase 4 (Late Antique) the shallowest."}
-if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_phase_profile(fit_vr)
-}
-```
-
-### Per-Unit Summary
-
-```{r villa-us}
-us_summary_table(fit_vr)
-```
-
-The per-unit table shows that most stratigraphic units have high purity (> 0.8), indicating consistent phase assignment within contexts. Units with lower purity and higher mean entropy correspond to the disturbed contexts where bioturbation or construction cuts have introduced material from adjacent phases.
-
 ## Conclusion
 
 The **palimpsestr** package offers a unified probabilistic framework for decomposing archaeological palimpsests, addressing a long-standing gap between qualitative stratigraphic reasoning and quantitative spatial analysis. By jointly modelling spatial proximity, vertical distribution, chronological overlap, and cultural similarity, the Stratigraphic Entanglement Field approach produces soft phase assignments that acknowledge --- rather than suppress --- the inherent uncertainty of mixed deposits. The three diagnostic statistics (SEI, ESE, PDI) provide interpretable, actionable summaries at the find, deposit, and assemblage levels respectively.
 
-Several directions for future development are planned. First, extending the EM algorithm to support full (non-diagonal) covariance matrices would allow the model to capture correlated spatial-temporal structure within phases. Second, incorporating spatial autocorrelation into the likelihood function would better model the spatial continuity of depositional events. Third, a Bayesian formulation with informative priors on phase parameters would allow formal incorporation of prior stratigraphic knowledge. Finally, integration with radiocarbon calibration curves (via the **rcarbon** package) would enable direct modelling of calibrated date distributions rather than summary date ranges.
-
-The package is available on GitHub at <https://github.com/enzococca/palimpsestr> and welcomes contributions from the archaeological computing community.
+The package is available on GitHub at <https://github.com/enzococca/palimpsestr>.
 
 ```{r eval=FALSE}
 # install.packages("remotes")
