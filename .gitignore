@@ -6,6 +6,7 @@
 .DS_Store
 .idea/
 *.tar.gz
+*.Rcheck/
 *.zip
 docs/*.log
 docs/*.pdf
