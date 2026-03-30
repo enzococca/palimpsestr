@@ -9,3 +9,4 @@
 ^\.claude$
 ^data-raw$
 ^demo_v090\.R$
+^palimpsestr$

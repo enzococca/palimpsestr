@@ -7,7 +7,7 @@ Authors@R:
              family = "Cocca",
              role = c("aut", "cre"),
              email = "enzo.ccc@gmail.com",
-             comment = c(ORCID = "0000-0000-0000-0000")))
+             comment = c(ORCID = "0000-0002-8096-2810")))
 Description: Probabilistic framework for the analysis of archaeological
     palimpsests based on the Stratigraphic Entanglement Field (SEF).
     Integrates spatial proximity, stratigraphic depth, chronological
