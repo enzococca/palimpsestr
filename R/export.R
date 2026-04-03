@@ -82,7 +82,8 @@ phase_transition_matrix <- function(object) {
 #' summary to CSV files in the specified directory.
 #'
 #' @param object A \code{sef_fit} object.
-#' @param dir Output directory (created if it does not exist).
+#' @param dir Output directory (created if it does not exist). Must be
+#'   specified explicitly; consider using \code{tempdir()} for temporary output.
 #' @param format Export format: \code{"csv"} (default).
 #' @param prefix File name prefix (default: \code{"palimpsestr"}).
 #' @return Invisibly returns a character vector of written file paths.
@@ -95,7 +96,7 @@ phase_transition_matrix <- function(object) {
 #' export_results(fit, dir = tempdir())
 #' }
 #' @export
-export_results <- function(object, dir = ".", format = "csv", prefix = "palimpsestr") {
+export_results <- function(object, dir, format = "csv", prefix = "palimpsestr") {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
   if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
 
