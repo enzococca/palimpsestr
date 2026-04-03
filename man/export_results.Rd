@@ -4,12 +4,13 @@
 \alias{export_results}
 \title{Export all results to files}
 \usage{
-export_results(object, dir = ".", format = "csv", prefix = "palimpsestr")
+export_results(object, dir, format = "csv", prefix = "palimpsestr")
 }
 \arguments{
 \item{object}{A \code{sef_fit} object.}
 
-\item{dir}{Output directory (created if it does not exist).}
+\item{dir}{Output directory (created if it does not exist). Must be
+specified explicitly; consider using \code{tempdir()} for temporary output.}
 
 \item{format}{Export format: \code{"csv"} (default).}
 

@@ -12,12 +12,14 @@ Description: Probabilistic framework for the analysis of archaeological
     palimpsests based on the Stratigraphic Entanglement Field (SEF).
     Integrates spatial proximity, stratigraphic depth, chronological
     overlap, and cultural similarity to estimate latent depositional
-    phases via diagonal Gaussian mixture EM. Provides the Stratigraphic
-    Entanglement Index (SEI), Excavation Stratigraphic Energy (ESE), and
-    Palimpsest Dissolution Index (PDI) for quantifying depositional
-    coherence, detecting intrusive finds, and measuring palimpsest
-    formation. Includes simulation, diagnostics, phase-count selection,
-    publication-quality plots, and GIS export via sf.
+    phases via diagonal Gaussian mixture Expectation-Maximisation (EM).
+    Provides the Stratigraphic Entanglement Index (SEI), Excavation
+    Stratigraphic Energy (ESE), and Palimpsest Dissolution Index (PDI)
+    for quantifying depositional coherence, detecting intrusive finds,
+    and measuring palimpsest formation. Includes simulation, diagnostics,
+    phase-count selection, publication-quality plots, and GIS export via
+    'sf'. Methods are described in Cocca (2026)
+    <https://github.com/enzococca/palimpsestr>.
 URL: https://github.com/enzococca/palimpsestr
 BugReports: https://github.com/enzococca/palimpsestr/issues
 License: MIT + file LICENSE
