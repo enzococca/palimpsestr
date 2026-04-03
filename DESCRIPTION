@@ -17,8 +17,8 @@ Description: Probabilistic framework for the analysis of archaeological
     Stratigraphic Energy (ESE), and Palimpsest Dissolution Index (PDI)
     for quantifying depositional coherence, detecting intrusive finds,
     and measuring palimpsest formation. Includes simulation, diagnostics,
-    phase-count selection, publication-quality plots, and GIS export via
-    'sf'. Methods are described in Cocca (2026)
+    phase-count selection, publication-quality plots, and Geographic
+    Information System (GIS) export via 'sf'. Methods are described in Cocca (2026)
     <https://github.com/enzococca/palimpsestr>.
 URL: https://github.com/enzococca/palimpsestr
 BugReports: https://github.com/enzococca/palimpsestr/issues
