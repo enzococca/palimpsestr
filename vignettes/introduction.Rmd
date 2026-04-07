@@ -67,7 +67,7 @@ Three statistics summarise different aspects of the decomposition:
 
 ## The Dataset: Villa Romana
 
-We demonstrate the complete analytical workflow using `villa_romana`, a realistic multi-period Roman villa dataset included in the package. It simulates 300 finds from a villa with 4 occupation phases across 18 stratigraphic units, incorporating realistic post-depositional disturbances.
+We demonstrate the complete analytical workflow using `villa_romana`, a real archaeological dataset from Poggio Gramignano (Lugnano in Teverina, TR), a multi-period Roman villa with an annexed Late Antique infant cemetery. The dataset contains 615 inventoried finds from 54 stratigraphic units, with taphonomic scores assigned by the excavator.
 
 ```{r load-data}
 library(palimpsestr)
@@ -76,18 +76,23 @@ cat("Finds:", nrow(villa_romana), "\n")
 cat("Stratigraphic units:", length(unique(villa_romana$context)), "\n")
 cat("Material classes:", length(unique(villa_romana$class)), "\n")
 cat("Date range:", min(villa_romana$date_min), "to", max(villa_romana$date_max), "\n")
+cat("Mean taf_score:", round(mean(villa_romana$taf_score), 3), "\n")
 ```
 
-The four phases represent:
+The site spans eight archaeological periods:
 
-| Phase | Period | Chronology |
-|:------|:-------|:-----------|
-| 1 | Republican | 2nd--1st c. BCE |
-| 2 | Early Imperial | 1st--2nd c. CE |
-| 3 | Late Imperial | 3rd--4th c. CE |
-| 4 | Late Antique | 5th--6th c. CE |
+| Period | Chronology | Description |
+|:-------|:-----------|:------------|
+| 10 | 650--350 BCE | Pre-Roman (foundation pits) |
+| 9 | 30 BCE--80 CE | Augustan--Flavian (villa construction) |
+| 8 | 80--137 CE | Flavian |
+| 7 | 138--179 CE | Antonine--Severan |
+| 6 | 180--324 CE | Severan--Late Antique |
+| 5 | 324--425 CE | Late Antique |
+| 4 | 425--450 CE | Late Antique (cemetery) |
+| 3 | 450--550 CE | Late Antique--Early Medieval |
 
-The dataset includes realistic disturbances: bioturbation (8% vertical displacement), construction cuts (5% stratigraphic intrusions), and residual pottery (3% old material in younger contexts).
+The deposit includes levelling fills (US 76, 117, 118), backfills, and redeposited material, reflected in the taphonomic scores (taf_score: 0.5 for disturbed, 0.7 for redeposited, 1.0 for in situ).
 
 ```{r data-summary}
 cat("Material classes:\n")
@@ -261,25 +266,23 @@ High off-diagonal values indicate zones of contact between phases. This is expec
 
 ## Model Validation
 
-When true phase assignments are known (e.g., from simulation or independently dated contexts), palimpsestr provides two validation metrics:
-
-- **Adjusted Rand Index (ARI)**: measures agreement between estimated and true phases, corrected for chance. Values near 1 indicate perfect agreement; values near 0 indicate random agreement.
-- **Confusion matrix**: cross-tabulates estimated versus true phases, with automatic reordering to maximise diagonal agreement.
+When true phase assignments are known (e.g., from simulation), palimpsestr provides validation metrics. We demonstrate with the simulated `demo_moderate` dataset:
 
 ```{r validation}
-ari <- adjusted_rand_index(fit, villa_romana$true_phase)
+data(demo_moderate)
+fit_val <- fit_sef(demo_moderate, k = 3, tafonomy = "taf_score", context = "context", seed = 42)
+ari <- adjusted_rand_index(fit_val, demo_moderate$true_phase)
 cat("Adjusted Rand Index:", round(ari, 3), "\n")
+confusion_matrix(fit_val, demo_moderate$true_phase)
 ```
 
-```{r confusion}
-confusion_matrix(fit, villa_romana$true_phase)
-```
-
-```{r gg-confusion, fig.cap="Confusion matrix heatmap. Strong diagonal = correct phase recovery. Off-diagonal cells indicate misattributed finds, often corresponding to bioturbated or redeposited material."}
+```{r gg-confusion, fig.cap="Confusion matrix heatmap on simulated data. Strong diagonal = correct phase recovery."}
 if (requireNamespace("ggplot2", quietly = TRUE)) {
-  gg_confusion(fit, villa_romana$true_phase)
+  gg_confusion(fit_val, demo_moderate$true_phase)
 }
 ```
+
+For the real Poggio Gramignano data, no ground truth is available. Validation relies on archaeological coherence: the model should recover phases consistent with the site periodisation, and flag known disturbed contexts (levelling fills, backfills) as mixed.
 
 ## Sensitivity Analysis of SEI Weights
 
@@ -296,16 +299,17 @@ sens <- do.call(rbind, lapply(names(configs), function(nm) {
   w <- configs[[nm]]
   f <- fit_sef(villa_romana, k = 4, weights = w, seed = 42,
                tafonomy = "taf_score", context = "context")
+  di <- detect_intrusions(f)
   data.frame(
     config = nm,
     pdi = pdi(f),
-    ari = adjusted_rand_index(f, villa_romana$true_phase),
     mean_entropy = mean(f$entropy, na.rm = TRUE),
+    n_intrusions = sum(di$intrusion_prob > 0.5),
     stringsAsFactors = FALSE
   )
 }))
 knitr::kable(sens, digits = 4,
-             caption = "Sensitivity of PDI, ARI, and mean entropy to weight configuration.")
+             caption = "Sensitivity of PDI, mean entropy, and intrusion count to weight configuration.")
 ```
 
 The results show that the model is reasonably robust to weight variation, though emphasising the most informative domain for a given site can improve performance. The `optimize_weights()` function provides a data-driven approach to weight selection via cross-validated log-likelihood.
@@ -315,7 +319,7 @@ The results show that the model is reasonably robust to weight variation, though
 Uncertainty on key statistics can be quantified via bootstrap resampling:
 
 ```{r bootstrap}
-bs <- bootstrap_sef(fit, n_boot = 50, true_labels = villa_romana$true_phase, verbose = FALSE)
+bs <- bootstrap_sef(fit, n_boot = 50, verbose = FALSE)
 knitr::kable(bs, digits = 4,
              caption = "Bootstrap confidence intervals (50 replicates) for key model statistics.")
 ```
@@ -341,8 +345,10 @@ fit_h <- fit_sef(villa_romana, k = 4, harris = H,
                  n_init = 5, seed = 42)
 cat("PDI without Harris:", round(pdi(fit), 4), "\n")
 cat("PDI with Harris:   ", round(pdi(fit_h), 4), "\n")
-cat("ARI without Harris:", round(adjusted_rand_index(fit, villa_romana$true_phase), 4), "\n")
-cat("ARI with Harris:   ", round(adjusted_rand_index(fit_h, villa_romana$true_phase), 4), "\n")
+di_no <- detect_intrusions(fit)
+di_h  <- detect_intrusions(fit_h)
+cat("Intrusions without Harris:", sum(di_no$intrusion_prob > 0.5), "\n")
+cat("Intrusions with Harris:   ", sum(di_h$intrusion_prob > 0.5), "\n")
 ```
 
 ### Validate phases against stratigraphy
@@ -444,6 +450,16 @@ The `cv_sef()` and `optimize_weights()` functions standardise test data using th
 ### Scalability
 
 The SEI and ESE matrices are $O(n^2)$ in memory. For datasets exceeding ~2000 finds, use `sei_sparse()` or the `max_dist` parameter in `sei_matrix()` to limit computation to spatial neighbours.
+
+## Interactive Shiny Dashboard
+
+palimpsestr includes a built-in Shiny application for interactive analysis. The dashboard supports CSV upload, SQLite and PostgreSQL connections, and provides all diagnostic plots, tables, and maps in a point-and-click interface.
+
+```{r shiny-app, eval=FALSE}
+launch_app()
+```
+
+The app has six tabs: Data Input (CSV/SQLite/PostgreSQL with column mapping), Analysis (parameter selection and model fitting), Results (interactive plots via plotly), Tables (phase assignments, intrusions, US purity), Maps (overlay on excavation plan geometries), and Report (interpretive report generation and CSV/ZIP download).
 
 ## Conclusion
 

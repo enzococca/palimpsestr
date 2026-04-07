@@ -104,7 +104,7 @@ The package includes four built-in datasets:
 | `demo_easy` | 150 | 3 | 5% | Well-separated phases |
 | `demo_moderate` | 200 | 3 | 30% | Moderate palimpsest |
 | `demo_compressed` | 250 | 4 | 50% | Heavily disturbed |
-| `villa_romana` | 300 | 4 | Realistic | Multi-period Roman villa |
+| `villa_romana` | 615 | -- | Real data | Poggio Gramignano Roman villa (VRPG 3004) |
 
 ```{r}
 data(villa_romana)
@@ -514,7 +514,7 @@ data(villa_romana)
 cat("Finds:", nrow(villa_romana), "| Contexts:", length(unique(villa_romana$context)),
     "| Classes:", length(unique(villa_romana$class)), "\n")
 cat("Date range:", min(villa_romana$date_min), "to", max(villa_romana$date_max), "\n")
-table(villa_romana$true_phase)
+table(villa_romana$class)
 ```
 
 ## Fit with taphonomic weighting
@@ -534,11 +534,15 @@ cat("PDI:", pdi(fit_vr), "\n")
 sef_summary(fit_vr)
 ```
 
-## Validation against known phases
+## Validation (on simulated data)
+
+Validation with ARI and confusion matrix requires known true phases. We demonstrate with `demo_moderate`:
 
 ```{r}
-adjusted_rand_index(fit_vr, villa_romana$true_phase)
-confusion_matrix(fit_vr, villa_romana$true_phase)
+data(demo_moderate)
+fit_demo <- fit_sef(demo_moderate, k = 3, seed = 42)
+adjusted_rand_index(fit_demo, demo_moderate$true_phase)
+confusion_matrix(fit_demo, demo_moderate$true_phase)
 ```
 
 ## Intrusion detection
