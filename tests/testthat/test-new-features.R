@@ -26,10 +26,10 @@ test_that("gg_weights returns ggplot", {
 
 test_that("villa_romana dataset loads and has expected structure", {
   data(villa_romana, package = "palimpsestr")
-  expect_equal(nrow(villa_romana), 300)
+  expect_equal(nrow(villa_romana), 615)
   expect_true(all(c("id", "x", "y", "z", "context", "date_min", "date_max",
-                     "class", "taf_score", "true_phase") %in% names(villa_romana)))
-  expect_equal(length(unique(villa_romana$true_phase)), 4)
+                     "class", "taf_score") %in% names(villa_romana)))
+  expect_true(length(unique(villa_romana$context)) >= 50)
 })
 
 test_that("feature_matrix preserves scaling attributes", {

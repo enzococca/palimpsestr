@@ -10,3 +10,8 @@
 ^data-raw$
 ^demo_v090\.R$
 ^palimpsestr$
+^.*\.xlsx$
+^.*\.sql$
+^Copia
+^analisi_
+^VRPG_
