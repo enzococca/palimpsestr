@@ -96,6 +96,22 @@ ui <- dashboardPage(
           )
         ),
         fluidRow(
+          box(title = "Merge taf_score from External File", status = "info",
+              solidHeader = TRUE, width = 12, collapsible = TRUE, collapsed = TRUE,
+              p("Upload a CSV or Excel file with taf_score per context (US). ",
+                "The file must have a column matching the context IDs and a taf_score column."),
+              fluidRow(
+                column(4, fileInput("taf_file", "taf_score File (CSV/Excel)",
+                                    accept = c(".csv", ".tsv", ".xlsx", ".xls"))),
+                column(3, textInput("taf_join_col", "Context column in taf file", value = "US")),
+                column(3, textInput("taf_value_col", "taf_score column", value = "taf_score")),
+                column(2, br(), actionButton("merge_taf", "Merge taf_score",
+                                             icon = icon("link"), class = "btn-info"))
+              ),
+              verbatimTextOutput("taf_merge_status")
+          )
+        ),
+        fluidRow(
           box(title = "Data Preview", width = 12, collapsible = TRUE,
               verbatimTextOutput("data_summary"),
               DT::dataTableOutput("data_preview")
@@ -331,6 +347,96 @@ server <- function(input, output, session) {
       showNotification(paste("Dataset ready:", nrow(out), "records,",
                              length(unique(out$class)), "classes"), type = "message")
     }, error = function(e) showNotification(paste("Mapping error:", e$message), type = "error"))
+  })
+
+  ## --- Merge taf_score from external file ---
+
+  observeEvent(input$merge_taf, {
+    req(rv$data, input$taf_file)
+    tryCatch({
+      # Read external taf file
+      ext <- tolower(tools::file_ext(input$taf_file$name))
+      if (ext %in% c("xlsx", "xls")) {
+        if (!has_openxlsx) stop("Install openxlsx to import Excel files")
+        taf_df <- openxlsx::read.xlsx(input$taf_file$datapath)
+      } else {
+        # Try comma first, then semicolon, then tab
+        taf_df <- tryCatch(
+          read.csv(input$taf_file$datapath, stringsAsFactors = FALSE),
+          error = function(e) read.csv(input$taf_file$datapath, sep = ";", stringsAsFactors = FALSE)
+        )
+      }
+
+      join_col <- input$taf_join_col
+      val_col  <- input$taf_value_col
+
+      if (!join_col %in% names(taf_df))
+        stop(paste0("Column '", join_col, "' not found in taf file. Available: ",
+                     paste(names(taf_df), collapse = ", ")))
+      if (!val_col %in% names(taf_df))
+        stop(paste0("Column '", val_col, "' not found in taf file. Available: ",
+                     paste(names(taf_df), collapse = ", ")))
+
+      # Build lookup: context -> taf_score
+      taf_lookup <- taf_df[[val_col]]
+      names(taf_lookup) <- as.character(taf_df[[join_col]])
+      taf_lookup <- as.numeric(taf_lookup)
+
+      # Match contexts in dataset
+      if (!"context" %in% names(rv$data))
+        stop("Dataset has no 'context' column. Map it first in Column Mapping.")
+
+      # Try matching with and without "US_" prefix
+      ctx <- as.character(rv$data$context)
+      matched <- taf_lookup[ctx]
+
+      # If no matches, try stripping "US_" prefix from dataset
+      if (all(is.na(matched))) {
+        ctx_stripped <- sub("^US_", "", ctx)
+        matched <- taf_lookup[ctx_stripped]
+      }
+      # If still no matches, try adding "US_" prefix
+      if (all(is.na(matched))) {
+        ctx_prefixed <- paste0("US_", ctx)
+        matched <- taf_lookup[ctx_prefixed]
+      }
+
+      n_matched <- sum(!is.na(matched))
+      if (n_matched == 0)
+        stop("No matching contexts found. Check context column names.")
+
+      # Merge: update existing taf_score or create new
+      rv$data$taf_score <- ifelse(is.na(matched),
+                                   if ("taf_score" %in% names(rv$data)) rv$data$taf_score else 0.5,
+                                   matched)
+
+      # Also merge any extra columns (sotto_tipologia, residualita, etc.)
+      extra_cols <- setdiff(names(taf_df), c(join_col, val_col))
+      for (ec in extra_cols) {
+        vals <- taf_df[[ec]]
+        names(vals) <- as.character(taf_df[[join_col]])
+        ec_matched <- vals[ctx]
+        if (all(is.na(ec_matched))) ec_matched <- vals[sub("^US_", "", ctx)]
+        if (all(is.na(ec_matched))) ec_matched <- vals[paste0("US_", ctx)]
+        if (any(!is.na(ec_matched))) {
+          rv$data[[ec]] <- as.character(ec_matched)
+        }
+      }
+
+      showNotification(paste("taf_score merged:", n_matched, "/", nrow(rv$data),
+                             "finds matched"), type = "message")
+    }, error = function(e) showNotification(paste("Merge error:", e$message), type = "error"))
+  })
+
+  output$taf_merge_status <- renderPrint({
+    req(rv$data)
+    if ("taf_score" %in% names(rv$data)) {
+      cat("taf_score present. Mean:", round(mean(rv$data$taf_score, na.rm = TRUE), 3),
+          "| Range:", paste(range(rv$data$taf_score, na.rm = TRUE), collapse = "-"),
+          "| NA:", sum(is.na(rv$data$taf_score)), "\n")
+    } else {
+      cat("No taf_score in dataset yet.\n")
+    }
   })
 
   ## --- Data Preview ---
