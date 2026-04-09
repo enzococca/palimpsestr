@@ -17,7 +17,12 @@ fit_sef(
   seed = 1,
   em_iter = 100,
   em_tol = 1e-05,
-  n_init = 1
+  n_init = 1,
+  chrono_precision = FALSE,
+  taf_as_feature = FALSE,
+  residuality = FALSE,
+  class_scale = FALSE,
+  subclass = NULL
 )
 }
 \arguments{
@@ -47,6 +52,23 @@ fit_sef(
 
 \item{n_init}{Number of random initialisations. The run with the
 highest log-likelihood is retained (default: 1).}
+
+\item{chrono_precision}{Logical. If TRUE, add 1/tspan as a feature
+giving higher weight to precisely dated finds (default: FALSE).}
+
+\item{taf_as_feature}{Logical. If TRUE and \code{tafonomy} is provided,
+include taf_score as an additional feature dimension (default: FALSE).}
+
+\item{residuality}{Logical. If TRUE and \code{context} is provided,
+add a residuality score measuring chronological mismatch between
+each find and its context mean (default: FALSE).}
+
+\item{class_scale}{Logical. If TRUE, scale one-hot class columns by
+\code{1/sqrt(n_classes)} so their total energy is comparable to a
+single numeric feature (default: FALSE).}
+
+\item{subclass}{Optional column name for sub-class labels. If provided,
+used instead of \code{class} for one-hot encoding in the feature matrix.}
 }
 \value{
 An S3 object of class \code{sef_fit}.

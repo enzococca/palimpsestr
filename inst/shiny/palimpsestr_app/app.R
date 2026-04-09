@@ -12,6 +12,7 @@ has_plotly  <- requireNamespace("plotly", quietly = TRUE)
 has_sf      <- requireNamespace("sf", quietly = TRUE)
 has_sqlite  <- requireNamespace("RSQLite", quietly = TRUE) && requireNamespace("DBI", quietly = TRUE)
 has_pg      <- requireNamespace("RPostgres", quietly = TRUE) && requireNamespace("DBI", quietly = TRUE)
+has_openxlsx <- requireNamespace("openxlsx", quietly = TRUE)
 
 # Helpers for plotly/ggplot fallback
 sef_plot_ui <- function(id, height = "500px") {
@@ -41,11 +42,11 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       id = "tabs",
-      menuItem("Dati", tabName = "data", icon = icon("upload")),
-      menuItem("Analisi", tabName = "analysis", icon = icon("cogs")),
-      menuItem("Grafici", tabName = "results", icon = icon("chart-bar")),
-      menuItem("Tabelle", tabName = "tables", icon = icon("table")),
-      menuItem("Mappe", tabName = "maps", icon = icon("map")),
+      menuItem("Data", tabName = "data", icon = icon("upload")),
+      menuItem("Analysis", tabName = "analysis", icon = icon("cogs")),
+      menuItem("Plots", tabName = "results", icon = icon("chart-bar")),
+      menuItem("Tables", tabName = "tables", icon = icon("table")),
+      menuItem("Maps", tabName = "maps", icon = icon("map")),
       menuItem("Report", tabName = "report", icon = icon("file-alt"))
     )
   ),
@@ -55,44 +56,47 @@ ui <- dashboardPage(
       ## --- Tab 1: Data Input ---
       tabItem(tabName = "data",
         fluidRow(
-          box(title = "CSV", status = "primary", solidHeader = TRUE, width = 4,
-              fileInput("csv_file", "Carica CSV", accept = ".csv"),
-              checkboxInput("csv_sep_semicolon", "Separatore ;", FALSE)
+          box(title = "CSV / Excel", status = "primary", solidHeader = TRUE, width = 4,
+              fileInput("csv_file", "Upload CSV / Excel",
+                        accept = c(".csv", ".tsv", ".txt", ".xlsx", ".xls")),
+              radioButtons("csv_separator", "Separator (for CSV)",
+                           choices = c("Comma" = ",", "Semicolon" = ";", "Tab" = "\t"),
+                           selected = ",", inline = TRUE)
           ),
           box(title = "SQLite", status = "info", solidHeader = TRUE, width = 4,
               if (has_sqlite) tagList(
-                fileInput("sqlite_file", "Database SQLite", accept = c(".sqlite", ".db")),
-                textInput("sqlite_table", "Tabella", value = "inventario_materiali_table"),
-                actionButton("load_sqlite", "Carica", icon = icon("database"))
-              ) else p("Installa RSQLite per usare SQLite")
+                fileInput("sqlite_file", "SQLite Database", accept = c(".sqlite", ".db")),
+                textInput("sqlite_table", "Table", value = "inventario_materiali_table"),
+                actionButton("load_sqlite", "Load", icon = icon("database"))
+              ) else p("Install RSQLite to use SQLite")
           ),
           box(title = "PostgreSQL", status = "warning", solidHeader = TRUE, width = 4,
               if (has_pg) tagList(
                 fluidRow(
                   column(8, textInput("pg_host", "Host", value = "localhost")),
-                  column(4, numericInput("pg_port", "Porta", value = 5432))
+                  column(4, numericInput("pg_port", "Port", value = 5432))
                 ),
                 textInput("pg_dbname", "Database", value = ""),
                 fluidRow(
-                  column(6, textInput("pg_user", "Utente", value = "postgres")),
+                  column(6, textInput("pg_user", "User", value = "postgres")),
                   column(6, passwordInput("pg_pass", "Password"))
                 ),
-                textInput("pg_table", "Tabella", value = "inventario_materiali_table"),
-                textInput("pg_query", "Query SQL (opzionale)", value = ""),
-                actionButton("load_pg", "Connetti", icon = icon("plug"))
-              ) else p("Installa RPostgres per usare PostgreSQL")
+                textInput("pg_table", "Table", value = "inventario_materiali_table"),
+                textInput("pg_query", "SQL Query (optional)", value = ""),
+                actionButton("load_pg", "Connect", icon = icon("plug"))
+              ) else p("Install RPostgres to use PostgreSQL")
           )
         ),
         fluidRow(
-          box(title = "Mappatura colonne", status = "success", solidHeader = TRUE,
+          box(title = "Column Mapping", status = "success", solidHeader = TRUE,
               width = 12, collapsible = TRUE,
               uiOutput("column_mapping"),
-              actionButton("apply_mapping", "Applica mappatura", icon = icon("check"),
+              actionButton("apply_mapping", "Apply Mapping", icon = icon("check"),
                            class = "btn-success")
           )
         ),
         fluidRow(
-          box(title = "Anteprima dati", width = 12, collapsible = TRUE,
+          box(title = "Data Preview", width = 12, collapsible = TRUE,
               verbatimTextOutput("data_summary"),
               DT::dataTableOutput("data_preview")
           )
@@ -102,28 +106,35 @@ ui <- dashboardPage(
       ## --- Tab 2: Analysis ---
       tabItem(tabName = "analysis",
         fluidRow(
-          box(title = "Parametri modello", status = "primary", solidHeader = TRUE, width = 4,
-              sliderInput("k", "Numero di fasi (K)", min = 2, max = 10, value = 4),
-              checkboxInput("use_taf", "Ponderazione tafonomica (taf_score)", TRUE),
-              checkboxInput("use_harris", "Vincolo Harris (auto da profondita')", FALSE),
-              numericInput("n_init", "Inizializzazioni", value = 5, min = 1, max = 50),
-              numericInput("em_iter", "Max iterazioni EM", value = 100, min = 10, max = 1000),
+          box(title = "Model Parameters", status = "primary", solidHeader = TRUE, width = 4,
+              sliderInput("k", "Number of Phases (K)", min = 2, max = 10, value = 4),
+              checkboxInput("use_taf", "Taphonomic weighting (taf_score)", TRUE),
+              checkboxInput("use_harris", "Harris constraint (auto from depth)", FALSE),
+              numericInput("n_init", "Initialisations", value = 5, min = 1, max = 50),
+              numericInput("em_iter", "Max EM iterations", value = 100, min = 10, max = 1000),
               numericInput("seed", "Seed", value = 42),
-              actionButton("run_analysis", "Avvia analisi",
+              hr(),
+              h5("Feature Space"),
+              checkboxInput("chrono_precision", "Chronological precision (1/tspan)", FALSE),
+              checkboxInput("taf_as_feature", "taf_score as feature", FALSE),
+              checkboxInput("residuality", "Residuality (date/context mismatch)", FALSE),
+              checkboxInput("class_scale", "One-hot class scaling", FALSE),
+              textInput("subclass", "Sub-class column (optional)", value = ""),
+              actionButton("run_analysis", "Run Analysis",
                            icon = icon("play"), class = "btn-primary btn-lg")
           ),
-          box(title = "Selezione K (compare_k)", status = "info", solidHeader = TRUE, width = 8,
+          box(title = "Phase Count Selection (compare_k)", status = "info", solidHeader = TRUE, width = 8,
               fluidRow(
-                column(6, sliderInput("k_range", "Range K", min = 2, max = 10, value = c(2, 7))),
+                column(6, sliderInput("k_range", "K Range", min = 2, max = 10, value = c(2, 7))),
                 column(3, numericInput("ck_ninit", "n_init", value = 3, min = 1)),
-                column(3, br(), actionButton("run_compare_k", "Confronta K", icon = icon("search")))
+                column(3, br(), actionButton("run_compare_k", "Compare K", icon = icon("search")))
               ),
               sef_plot_ui("plot_compare_k", "400px"),
               DT::dataTableOutput("tbl_compare_k")
           )
         ),
         fluidRow(
-          box(title = "Stato", width = 12,
+          box(title = "Status", width = 12,
               verbatimTextOutput("analysis_status")
           )
         )
@@ -133,24 +144,24 @@ ui <- dashboardPage(
       tabItem(tabName = "results",
         tabBox(width = 12, id = "result_tabs",
           tabPanel("Phase Field", sef_plot_ui("plot_phasefield", "550px")),
-          tabPanel("Entropia", sef_plot_ui("plot_entropy", "550px")),
-          tabPanel("Energia (ESE)", sef_plot_ui("plot_energy", "550px")),
-          tabPanel("Intrusioni",
-                   numericInput("top_n", "Top N sospetti", value = 10, min = 1, max = 50),
+          tabPanel("Entropy", sef_plot_ui("plot_entropy", "550px")),
+          tabPanel("Energy (ESE)", sef_plot_ui("plot_energy", "550px")),
+          tabPanel("Intrusions",
+                   numericInput("top_n", "Top N suspects", value = 10, min = 1, max = 50),
                    sef_plot_ui("plot_intrusions", "550px")),
-          tabPanel("Profilo verticale", sef_plot_ui("plot_phase_profile", "550px")),
-          tabPanel("Convergenza EM", sef_plot_ui("plot_convergence", "550px"))
+          tabPanel("Vertical Profile", sef_plot_ui("plot_phase_profile", "550px")),
+          tabPanel("EM Convergence", sef_plot_ui("plot_convergence", "550px"))
         )
       ),
 
       ## --- Tab 4: Tables ---
       tabItem(tabName = "tables",
         tabBox(width = 12, id = "table_tabs",
-          tabPanel("Fasi", DT::dataTableOutput("tbl_phases")),
-          tabPanel("Intrusioni", DT::dataTableOutput("tbl_intrusions")),
-          tabPanel("Purezza US", DT::dataTableOutput("tbl_us_summary")),
-          tabPanel("Matrice transizione", DT::dataTableOutput("tbl_transition")),
-          tabPanel("Modello",
+          tabPanel("Phases", DT::dataTableOutput("tbl_phases")),
+          tabPanel("Intrusions", DT::dataTableOutput("tbl_intrusions")),
+          tabPanel("US Purity", DT::dataTableOutput("tbl_us_summary")),
+          tabPanel("Transition Matrix", DT::dataTableOutput("tbl_transition")),
+          tabPanel("Model",
                    verbatimTextOutput("txt_print_fit"),
                    verbatimTextOutput("txt_summary_fit"))
         )
@@ -160,40 +171,40 @@ ui <- dashboardPage(
       tabItem(tabName = "maps",
         if (has_sf) tagList(
           fluidRow(
-            box(title = "Geometrie", status = "primary", solidHeader = TRUE, width = 4,
+            box(title = "Geometries", status = "primary", solidHeader = TRUE, width = 4,
                 fileInput("geom_file", "GeoPackage / GeoJSON / Shapefile",
                           accept = c(".gpkg", ".geojson", ".shp", ".shx", ".dbf", ".prj"),
                           multiple = TRUE),
-                textInput("geom_context_col", "Colonna US nelle geometrie", value = "context"),
+                textInput("geom_context_col", "US column in geometries", value = "context"),
                 selectInput("map_layer", "Layer", choices = c(
-                  "Fasi" = "phase", "Entropia" = "entropy",
-                  "Energia" = "energy", "Intrusioni" = "intrusion"
+                  "Phases" = "phase", "Entropy" = "entropy",
+                  "Energy" = "energy", "Intrusions" = "intrusion"
                 )),
-                actionButton("render_map", "Genera mappa", icon = icon("map"),
+                actionButton("render_map", "Render Map", icon = icon("map"),
                              class = "btn-primary")
             ),
-            box(title = "Mappa su pianta", width = 8,
+            box(title = "Excavation Plan Map", width = 8,
                 sef_plot_ui("plot_map", "600px")
             )
           )
-        ) else h3("Installa il pacchetto sf per le mappe GIS")
+        ) else h3("Install the sf package for GIS maps")
       ),
 
       ## --- Tab 6: Report ---
       tabItem(tabName = "report",
         fluidRow(
-          box(title = "Report interpretativo", status = "primary", solidHeader = TRUE, width = 4,
-              selectInput("report_lang", "Lingua", choices = c("Italiano" = "it", "English" = "en")),
-              actionButton("gen_report", "Genera report", icon = icon("file-text")),
+          box(title = "Interpretive Report", status = "primary", solidHeader = TRUE, width = 4,
+              selectInput("report_lang", "Language", choices = c("English" = "en", "Italiano" = "it")),
+              actionButton("gen_report", "Generate Report", icon = icon("file-text")),
               hr(),
-              h4("Download risultati"),
-              downloadButton("dl_phases_csv", "Fasi (CSV)"),
+              h4("Download Results"),
+              downloadButton("dl_phases_csv", "Phases (CSV)"),
               br(), br(),
-              downloadButton("dl_intrusions_csv", "Intrusioni (CSV)"),
+              downloadButton("dl_intrusions_csv", "Intrusions (CSV)"),
               br(), br(),
-              downloadButton("dl_us_summary_csv", "Purezza US (CSV)"),
+              downloadButton("dl_us_summary_csv", "US Purity (CSV)"),
               br(), br(),
-              downloadButton("dl_all_zip", "Tutto (ZIP)")
+              downloadButton("dl_all_zip", "All Results (ZIP)")
           ),
           box(title = "Report", width = 8,
               verbatimTextOutput("report_text")
@@ -220,13 +231,20 @@ server <- function(input, output, session) {
 
   ## --- Data Loading ---
 
-  # CSV
+  # CSV / Excel
   observeEvent(input$csv_file, {
     tryCatch({
-      sep <- if (input$csv_sep_semicolon) ";" else ","
-      rv$raw_data <- read.csv(input$csv_file$datapath, sep = sep, stringsAsFactors = FALSE)
-      showNotification(paste("Caricati", nrow(rv$raw_data), "record"), type = "message")
-    }, error = function(e) showNotification(paste("Errore CSV:", e$message), type = "error"))
+      ext <- tolower(tools::file_ext(input$csv_file$name))
+      if (ext %in% c("xlsx", "xls")) {
+        if (!has_openxlsx)
+          stop("Install the openxlsx package to import Excel files")
+        rv$raw_data <- openxlsx::read.xlsx(input$csv_file$datapath)
+      } else {
+        sep <- input$csv_separator
+        rv$raw_data <- read.csv(input$csv_file$datapath, sep = sep, stringsAsFactors = FALSE)
+      }
+      showNotification(paste("Loaded", nrow(rv$raw_data), "records"), type = "message")
+    }, error = function(e) showNotification(paste("Import error:", e$message), type = "error"))
   })
 
   # SQLite
@@ -236,8 +254,8 @@ server <- function(input, output, session) {
       con <- DBI::dbConnect(RSQLite::SQLite(), input$sqlite_file$datapath)
       on.exit(DBI::dbDisconnect(con))
       rv$raw_data <- DBI::dbReadTable(con, input$sqlite_table)
-      showNotification(paste("Caricati", nrow(rv$raw_data), "record da SQLite"), type = "message")
-    }, error = function(e) showNotification(paste("Errore SQLite:", e$message), type = "error"))
+      showNotification(paste("Loaded", nrow(rv$raw_data), "records from SQLite"), type = "message")
+    }, error = function(e) showNotification(paste("SQLite error:", e$message), type = "error"))
   })
 
   # PostgreSQL
@@ -253,8 +271,8 @@ server <- function(input, output, session) {
       } else {
         rv$raw_data <- DBI::dbReadTable(con, input$pg_table)
       }
-      showNotification(paste("Caricati", nrow(rv$raw_data), "record da PostgreSQL"), type = "message")
-    }, error = function(e) showNotification(paste("Errore PostgreSQL:", e$message), type = "error"))
+      showNotification(paste("Loaded", nrow(rv$raw_data), "records from PostgreSQL"), type = "message")
+    }, error = function(e) showNotification(paste("PostgreSQL error:", e$message), type = "error"))
   })
 
   ## --- Column Mapping ---
@@ -262,9 +280,8 @@ server <- function(input, output, session) {
   output$column_mapping <- renderUI({
     req(rv$raw_data)
     cols <- names(rv$raw_data)
-    none <- c("(nessuna)" = "")
+    none <- c("(none)" = "")
 
-    # Auto-detect matching columns
     auto <- function(target) {
       m <- match(tolower(target), tolower(cols))
       if (!is.na(m)) cols[m] else ""
@@ -272,17 +289,17 @@ server <- function(input, output, session) {
 
     tagList(
       fluidRow(
-        column(2, selectInput("col_x", "x (est)", choices = c(none, cols), selected = auto("x"))),
-        column(2, selectInput("col_y", "y (nord)", choices = c(none, cols), selected = auto("y"))),
-        column(2, selectInput("col_z", "z (quota)", choices = c(none, cols), selected = auto("z"))),
+        column(2, selectInput("col_x", "x (easting)", choices = c(none, cols), selected = auto("x"))),
+        column(2, selectInput("col_y", "y (northing)", choices = c(none, cols), selected = auto("y"))),
+        column(2, selectInput("col_z", "z (elevation)", choices = c(none, cols), selected = auto("z"))),
         column(2, selectInput("col_dmin", "date_min", choices = c(none, cols), selected = auto("date_min"))),
         column(2, selectInput("col_dmax", "date_max", choices = c(none, cols), selected = auto("date_max"))),
         column(2, selectInput("col_class", "class", choices = c(none, cols), selected = auto("class")))
       ),
       fluidRow(
-        column(2, selectInput("col_id", "id (opz.)", choices = c(none, cols), selected = auto("id"))),
-        column(2, selectInput("col_context", "context (opz.)", choices = c(none, cols), selected = auto("context"))),
-        column(2, selectInput("col_taf", "taf_score (opz.)", choices = c(none, cols), selected = auto("taf_score")))
+        column(2, selectInput("col_id", "id (opt.)", choices = c(none, cols), selected = auto("id"))),
+        column(2, selectInput("col_context", "context (opt.)", choices = c(none, cols), selected = auto("context"))),
+        column(2, selectInput("col_taf", "taf_score (opt.)", choices = c(none, cols), selected = auto("taf_score")))
       )
     )
   })
@@ -305,32 +322,31 @@ server <- function(input, output, session) {
       if (nzchar(input$col_context))  out$context <- as.character(d[[input$col_context]])
       if (nzchar(input$col_taf))      out$taf_score <- as.numeric(d[[input$col_taf]])
 
-      # Remove incomplete rows
       ok <- complete.cases(out[, c("x", "y", "z", "date_min", "date_max", "class")])
       out <- out[ok, ]
 
       rv$data <- out
       rv$fit <- NULL
       rv$compare_k <- NULL
-      showNotification(paste("Dataset pronto:", nrow(out), "record,",
-                             length(unique(out$class)), "classi"), type = "message")
-    }, error = function(e) showNotification(paste("Errore mappatura:", e$message), type = "error"))
+      showNotification(paste("Dataset ready:", nrow(out), "records,",
+                             length(unique(out$class)), "classes"), type = "message")
+    }, error = function(e) showNotification(paste("Mapping error:", e$message), type = "error"))
   })
 
   ## --- Data Preview ---
 
   output$data_summary <- renderPrint({
     req(rv$data)
-    cat("Reperti:", nrow(rv$data), "\n")
+    cat("Finds:", nrow(rv$data), "\n")
     if ("context" %in% names(rv$data))
-      cat("US:", length(unique(rv$data$context)), "\n")
-    cat("Classi:", length(unique(rv$data$class)), "\n")
-    cat("Date:", min(rv$data$date_min, na.rm = TRUE), "a",
+      cat("Contexts:", length(unique(rv$data$context)), "\n")
+    cat("Classes:", length(unique(rv$data$class)), "\n")
+    cat("Date range:", min(rv$data$date_min, na.rm = TRUE), "to",
         max(rv$data$date_max, na.rm = TRUE), "\n")
-    cat("Z:", round(min(rv$data$z, na.rm = TRUE), 2), "-",
+    cat("Z range:", round(min(rv$data$z, na.rm = TRUE), 2), "-",
         round(max(rv$data$z, na.rm = TRUE), 2), "\n")
     if ("taf_score" %in% names(rv$data))
-      cat("taf_score medio:", round(mean(rv$data$taf_score, na.rm = TRUE), 3), "\n")
+      cat("Mean taf_score:", round(mean(rv$data$taf_score, na.rm = TRUE), 3), "\n")
   })
 
   output$data_preview <- DT::renderDataTable({
@@ -352,12 +368,18 @@ server <- function(input, output, session) {
           h_arg <- harris_from_contexts(rv$data, z_col = "z", context_col = "context")
         }
         incProgress(0.2, detail = paste("Fitting K =", input$k, "..."))
+        subclass_arg <- if (nzchar(input$subclass)) input$subclass else NULL
         rv$fit <- fit_sef(rv$data, k = input$k,
                           tafonomy = taf_arg, context = ctx_arg, harris = h_arg,
                           n_init = input$n_init, em_iter = input$em_iter,
-                          seed = input$seed)
-        showNotification(paste("Fit completato! PDI =", round(pdi(rv$fit), 4)), type = "message")
-      }, error = function(e) showNotification(paste("Errore:", e$message), type = "error"))
+                          seed = input$seed,
+                          chrono_precision = input$chrono_precision,
+                          taf_as_feature = input$taf_as_feature,
+                          residuality = input$residuality,
+                          class_scale = input$class_scale,
+                          subclass = subclass_arg)
+        showNotification(paste("Fit complete! PDI =", round(pdi(rv$fit), 4)), type = "message")
+      }, error = function(e) showNotification(paste("Error:", e$message), type = "error"))
     })
   })
 
@@ -372,11 +394,17 @@ server <- function(input, output, session) {
           h_arg <- harris_from_contexts(rv$data, z_col = "z", context_col = "context")
         }
         kvals <- seq(input$k_range[1], input$k_range[2])
+        subclass_arg <- if (nzchar(input$subclass)) input$subclass else NULL
         rv$compare_k <- compare_k(rv$data, k_values = kvals,
                                    tafonomy = taf_arg, context = ctx_arg, harris = h_arg,
-                                   seed = input$seed, n_init = input$ck_ninit)
-        showNotification("Confronto K completato!", type = "message")
-      }, error = function(e) showNotification(paste("Errore:", e$message), type = "error"))
+                                   seed = input$seed, n_init = input$ck_ninit,
+                                   chrono_precision = input$chrono_precision,
+                                   taf_as_feature = input$taf_as_feature,
+                                   residuality = input$residuality,
+                                   class_scale = input$class_scale,
+                                   subclass = subclass_arg)
+        showNotification("K comparison complete!", type = "message")
+      }, error = function(e) showNotification(paste("Error:", e$message), type = "error"))
     })
   })
 
@@ -385,9 +413,9 @@ server <- function(input, output, session) {
       print(rv$fit)
       cat("\nPDI:", pdi(rv$fit), "\n")
       di <- detect_intrusions(rv$fit)
-      cat("Intrusioni (prob > 0.5):", sum(di$intrusion_prob > 0.5), "/", nrow(rv$data), "\n")
+      cat("Intrusions (prob > 0.5):", sum(di$intrusion_prob > 0.5), "/", nrow(rv$data), "\n")
     } else {
-      cat("Nessuna analisi avviata. Carica i dati e premi 'Avvia analisi'.\n")
+      cat("No analysis started. Load data and press 'Run Analysis'.\n")
     }
   })
 
@@ -449,7 +477,7 @@ server <- function(input, output, session) {
                     options = list(scrollX = TRUE, pageLength = 20)) |>
         DT::formatPercentage(columns = "purity", digits = 1) |>
         DT::formatRound(columns = c("mean_entropy", "mean_energy", "mean_local_sei"), digits = 4)
-    }, error = function(e) DT::datatable(data.frame(note = "Context non disponibile")))
+    }, error = function(e) DT::datatable(data.frame(note = "Context not available")))
   })
 
   output$tbl_transition <- DT::renderDataTable({
@@ -467,32 +495,27 @@ server <- function(input, output, session) {
     req(has_sf)
     tryCatch({
       files <- input$geom_file
-      # For shapefiles: copy all files to temp dir preserving extensions
       tmpdir <- tempfile()
       dir.create(tmpdir)
       for (i in seq_len(nrow(files))) {
         ext <- tools::file_ext(files$name[i])
-        base <- tools::file_path_sans_ext(files$name[1])  # use first file's base name
+        base <- tools::file_path_sans_ext(files$name[1])
         newpath <- file.path(tmpdir, paste0(base, ".", ext))
         file.copy(files$datapath[i], newpath)
       }
-      # Find the main file (.gpkg, .geojson, or .shp)
       main_file <- list.files(tmpdir, pattern = "\\.(gpkg|geojson|shp)$", full.names = TRUE)[1]
       geom <- sf::st_read(main_file, quiet = TRUE)
       geom <- sf::st_make_valid(geom)
 
-      # Rename context column
       ctx_col <- input$geom_context_col
       if (ctx_col %in% names(geom) && ctx_col != "context") {
         geom$context <- as.character(geom[[ctx_col]])
       } else if (!"context" %in% names(geom)) {
-        # Try common names
         for (cn in c("us", "US", "us_s", "context", "nome")) {
           if (cn %in% names(geom)) { geom$context <- as.character(geom[[cn]]); break }
         }
       }
 
-      # Dissolve per US
       us_list <- unique(geom$context)
       dissolved <- do.call(rbind, lapply(us_list, function(u) {
         sub <- geom[geom$context == u, ]
@@ -500,19 +523,18 @@ server <- function(input, output, session) {
       }))
       rv$geometries <- sf::st_cast(dissolved, "MULTIPOLYGON")
 
-      showNotification(paste("Geometrie caricate:", nrow(rv$geometries), "US"), type = "message")
-    }, error = function(e) showNotification(paste("Errore geometrie:", e$message), type = "error"))
+      showNotification(paste("Geometries loaded:", nrow(rv$geometries), "units"), type = "message")
+    }, error = function(e) showNotification(paste("Geometry error:", e$message), type = "error"))
   })
 
   observeEvent(input$render_map, {
     req(rv$fit, rv$geometries)
-    # Trigger plot update
     output$plot_map_trigger <- renderText({ input$render_map })
   })
 
   sef_plot_render(input, output, session, "plot_map", function() {
     req(rv$fit, rv$geometries)
-    input$render_map  # dependency
+    input$render_map
     gg_map(rv$fit, geometries = rv$geometries, layer = input$map_layer)
   })
 
@@ -525,19 +547,19 @@ server <- function(input, output, session) {
     tryCatch({
       txt <- capture.output(report_sef(rv$fit, lang = input$report_lang))
       report_rv(paste(txt, collapse = "\n"))
-      showNotification("Report generato!", type = "message")
-    }, error = function(e) showNotification(paste("Errore:", e$message), type = "error"))
+      showNotification("Report generated!", type = "message")
+    }, error = function(e) showNotification(paste("Error:", e$message), type = "error"))
   })
 
   output$report_text <- renderPrint({
     if (!is.null(report_rv())) cat(report_rv())
-    else cat("Premi 'Genera report' dopo aver eseguito l'analisi.")
+    else cat("Press 'Generate Report' after running the analysis.")
   })
 
   ## --- Downloads ---
 
   output$dl_phases_csv <- downloadHandler(
-    filename = function() paste0("palimpsestr_fasi_", Sys.Date(), ".csv"),
+    filename = function() paste0("palimpsestr_phases_", Sys.Date(), ".csv"),
     content = function(file) {
       req(rv$fit)
       write.csv(as_phase_table(rv$fit), file, row.names = FALSE)
@@ -545,7 +567,7 @@ server <- function(input, output, session) {
   )
 
   output$dl_intrusions_csv <- downloadHandler(
-    filename = function() paste0("palimpsestr_intrusioni_", Sys.Date(), ".csv"),
+    filename = function() paste0("palimpsestr_intrusions_", Sys.Date(), ".csv"),
     content = function(file) {
       req(rv$fit)
       write.csv(detect_intrusions(rv$fit), file, row.names = FALSE)
@@ -558,24 +580,23 @@ server <- function(input, output, session) {
       req(rv$fit)
       tryCatch(
         write.csv(us_summary_table(rv$fit), file, row.names = FALSE),
-        error = function(e) write.csv(data.frame(note = "Context non disponibile"), file, row.names = FALSE)
+        error = function(e) write.csv(data.frame(note = "Context not available"), file, row.names = FALSE)
       )
     }
   )
 
   output$dl_all_zip <- downloadHandler(
-    filename = function() paste0("palimpsestr_risultati_", Sys.Date(), ".zip"),
+    filename = function() paste0("palimpsestr_results_", Sys.Date(), ".zip"),
     content = function(file) {
       req(rv$fit)
       tmpdir <- tempfile()
       dir.create(tmpdir)
       export_results(rv$fit, dir = tmpdir, prefix = "palimpsestr")
-      # Add report
       tryCatch({
-        txt <- capture.output(report_sef(rv$fit, lang = "it"))
-        writeLines(txt, file.path(tmpdir, "report_it.md"))
         txt_en <- capture.output(report_sef(rv$fit, lang = "en"))
         writeLines(txt_en, file.path(tmpdir, "report_en.md"))
+        txt_it <- capture.output(report_sef(rv$fit, lang = "it"))
+        writeLines(txt_it, file.path(tmpdir, "report_it.md"))
       }, error = function(e) NULL)
       files <- list.files(tmpdir, full.names = TRUE)
       zip(file, files, flags = "-j")

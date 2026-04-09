@@ -17,6 +17,18 @@
 #' @param em_tol Convergence tolerance on the log-likelihood.
 #' @param n_init Number of random initialisations. The run with the
 #'   highest log-likelihood is retained (default: 1).
+#' @param chrono_precision Logical. If TRUE, add 1/tspan as a feature
+#'   giving higher weight to precisely dated finds (default: FALSE).
+#' @param taf_as_feature Logical. If TRUE and \code{tafonomy} is provided,
+#'   include taf_score as an additional feature dimension (default: FALSE).
+#' @param residuality Logical. If TRUE and \code{context} is provided,
+#'   add a residuality score measuring chronological mismatch between
+#'   each find and its context mean (default: FALSE).
+#' @param class_scale Logical. If TRUE, scale one-hot class columns by
+#'   \code{1/sqrt(n_classes)} so their total energy is comparable to a
+#'   single numeric feature (default: FALSE).
+#' @param subclass Optional column name for sub-class labels. If provided,
+#'   used instead of \code{class} for one-hot encoding in the feature matrix.
 #' @return An S3 object of class \code{sef_fit}.
 #' @seealso \code{\link{archaeo_sim}}, \code{\link{compare_k}},
 #'   \code{\link{pdi}}, \code{\link{detect_intrusions}}
@@ -44,15 +56,26 @@ fit_sef <- function(data,
                     seed = 1,
                     em_iter = 100,
                     em_tol = 1e-5,
-                    n_init = 1) {
+                    n_init = 1,
+                    chrono_precision = FALSE,
+                    taf_as_feature = FALSE,
+                    residuality = FALSE,
+                    class_scale = FALSE,
+                    subclass = NULL) {
   check_required_columns(data, c(coords, chrono, class))
   if (!is.null(tafonomy)) check_required_columns(data, tafonomy)
   if (!is.null(context)) check_required_columns(data, context)
+  if (!is.null(subclass)) check_required_columns(data, subclass)
   if (k < 1) stop("k must be >= 1", call. = FALSE)
   if (em_iter < 1) stop("em_iter must be >= 1", call. = FALSE)
   if (n_init < 1) stop("n_init must be >= 1", call. = FALSE)
 
-  feat <- feature_matrix(data, coords = coords, chrono = chrono, class_col = class)
+  feat <- feature_matrix(data, coords = coords, chrono = chrono, class_col = class,
+                         add_chrono_precision = chrono_precision,
+                         add_taf = taf_as_feature, taf_col = tafonomy,
+                         context_col = if (residuality && !is.null(context)) context else NULL,
+                         class_scale = class_scale,
+                         subclass_col = subclass)
   penalty <- build_context_penalty(data, context_col = context, harris = harris)
   taf <- if (!is.null(tafonomy)) pmin(pmax(data[[tafonomy]], 0), 1) else rep(0, nrow(data))
 
@@ -137,6 +160,11 @@ fit_sef <- function(data,
     em_loglik = em$loglik,
     converged = em$converged,
     n_init = n_init,
+    chrono_precision = chrono_precision,
+    taf_as_feature = taf_as_feature,
+    residuality = residuality,
+    class_scale = class_scale,
+    subclass = subclass,
     call = match.call(),
     model_stats = list(
       mean_entropy = mean(ent, na.rm = TRUE),

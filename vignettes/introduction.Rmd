@@ -461,6 +461,64 @@ launch_app()
 
 The app has six tabs: Data Input (CSV/SQLite/PostgreSQL with column mapping), Analysis (parameter selection and model fitting), Results (interactive plots via plotly), Tables (phase assignments, intrusions, US purity), Maps (overlay on excavation plan geometries), and Report (interpretive report generation and CSV/ZIP download).
 
+## Advanced Feature Space Options
+
+Version 0.12.0 introduces five optional improvements to the feature space that address limitations observed in real-data testing (Poggio Gramignano villa, Solarolo terramare).
+
+### Chronological Precision Weighting
+
+Finds with precise dating (narrow date range) should contribute more to temporal clustering than finds with generic dating. When `chrono_precision = TRUE`, the feature `1/tspan` is added, giving higher weight to precisely dated finds.
+
+```{r eval=FALSE}
+# Finds dated "BM2b" (50-year range) weight more than "BM" (300-year range)
+fit <- fit_sef(data, k = 3, chrono_precision = TRUE)
+```
+
+### Residuality Detection
+
+When a find's dating is inconsistent with its stratigraphic context (e.g., Late Antique ceramic in a Pre-Roman pit fill), the `residuality` feature captures this mismatch. Requires `context`.
+
+```{r eval=FALSE}
+# Adds abs(tmid_find - tmid_context_mean) / max_range as a feature
+fit <- fit_sef(data, k = 4, context = "context", residuality = TRUE)
+```
+
+### Class Scaling
+
+By default, one-hot encoded class columns (0/1) are not scaled, causing them to dominate the clustering when many classes are present. `class_scale = TRUE` multiplies one-hot columns by $1/\sqrt{n_{classes}}$, putting their total energy on par with a single numeric feature.
+
+```{r eval=FALSE}
+fit <- fit_sef(data, k = 4, class_scale = TRUE)
+```
+
+### Taphonomic Score as Feature
+
+In addition to using `taf_score` as a weight in the EM algorithm, it can be added as an explicit feature dimension, so that finds with similar taphonomic conditions cluster together.
+
+```{r eval=FALSE}
+fit <- fit_sef(data, k = 4, tafonomy = "taf_score", taf_as_feature = TRUE)
+```
+
+### Sub-class Encoding
+
+When finer typological distinctions are available (e.g., "ceramic_impasto" vs "ceramic_sigillata" instead of just "ceramic"), the `subclass` parameter uses them for one-hot encoding without changing the main `class` column.
+
+```{r eval=FALSE}
+fit <- fit_sef(data, k = 4, subclass = "subtype")
+```
+
+### Using All Five Together
+
+```{r eval=FALSE}
+fit <- fit_sef(data, k = 4,
+               tafonomy = "taf_score", context = "context",
+               chrono_precision = TRUE,
+               taf_as_feature = TRUE,
+               residuality = TRUE,
+               class_scale = TRUE,
+               subclass = "subtype")
+```
+
 ## Conclusion
 
 The **palimpsestr** package offers a unified probabilistic framework for decomposing archaeological palimpsests, addressing a long-standing gap between qualitative stratigraphic reasoning and quantitative spatial analysis. By jointly modelling spatial proximity, vertical distribution, chronological overlap, and cultural similarity, the Stratigraphic Entanglement Field approach produces soft phase assignments that acknowledge --- rather than suppress --- the inherent uncertainty of mixed deposits. The three diagnostic statistics (SEI, ESE, PDI) provide interpretable, actionable summaries at the find, deposit, and assemblage levels respectively.
