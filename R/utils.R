@@ -1,3 +1,6 @@
+# Null-coalescing helper
+null_default <- function(x, default) if (is.null(x)) default else x
+
 check_required_columns <- function(data, cols) {
   miss <- setdiff(cols, names(data))
   if (length(miss) > 0) {
@@ -33,14 +36,43 @@ normalize_rows <- function(x) {
 }
 
 feature_matrix <- function(data, coords, chrono, class_col = NULL,
-                           center = NULL, scale = NULL) {
+                           center = NULL, scale = NULL,
+                           add_chrono_precision = FALSE,
+                           add_taf = FALSE, taf_col = NULL,
+                           context_col = NULL,
+                           class_scale = FALSE,
+                           subclass_col = NULL) {
   x <- as.matrix(data[, coords, drop = FALSE])
   tmid <- rowMeans(as.matrix(data[, chrono, drop = FALSE]))
   tspan <- data[[chrono[2]]] - data[[chrono[1]]]
   out <- cbind(x, tmid = tmid, tspan = tspan)
 
+  # Improvement 1: chronological precision (1/tspan)
+  if (add_chrono_precision) {
+    chrono_prec <- 1 / pmax(tspan, 1)
+    out <- cbind(out, chrono_precision = chrono_prec)
+  }
+
+  # Improvement 2: residuality score (date mismatch with context)
+  if (!is.null(context_col) && context_col %in% names(data)) {
+    ctx <- as.character(data[[context_col]])
+    ctx_mean_tmid <- tapply(tmid, ctx, mean, na.rm = TRUE)
+    max_range <- max(abs(tspan), na.rm = TRUE)
+    if (!is.finite(max_range) || max_range <= 0) max_range <- 1
+    residuality <- abs(tmid - ctx_mean_tmid[ctx]) / max_range
+    residuality[!is.finite(residuality)] <- 0
+    out <- cbind(out, residuality = as.numeric(residuality))
+  }
+
+  # Improvement 4: taf_score as feature dimension
+  if (add_taf && !is.null(taf_col) && taf_col %in% names(data)) {
+    taf_vals <- pmin(pmax(as.numeric(data[[taf_col]]), 0), 1)
+    taf_vals[is.na(taf_vals)] <- 0.5
+    out <- cbind(out, taf_feature = taf_vals)
+  }
+
+  # Scale numeric features
   if (!is.null(center) && !is.null(scale)) {
-    # Use external center/scale (e.g. from training set)
     out <- sweep(out, 2, center, FUN = "-")
     out <- sweep(out, 2, scale, FUN = "/")
   } else {
@@ -48,17 +80,26 @@ feature_matrix <- function(data, coords, chrono, class_col = NULL,
   }
   out[is.na(out)] <- 0
 
-  # Store scaling attributes for later use (e.g. cross-validation)
   sc_center <- attr(out, "scaled:center")
   sc_scale <- attr(out, "scaled:scale")
 
-  if (!is.null(class_col)) {
-    mm <- stats::model.matrix(~ . - 1, data = data.frame(class_tmp = as.factor(data[[class_col]])))
+  # One-hot encode class (or subclass)
+  encode_col <- if (!is.null(subclass_col) && subclass_col %in% names(data)) {
+    subclass_col
+  } else {
+    class_col
+  }
+
+  if (!is.null(encode_col)) {
+    mm <- stats::model.matrix(~ . - 1, data = data.frame(class_tmp = as.factor(data[[encode_col]])))
     colnames(mm) <- sub("^class_tmp", "class_", colnames(mm))
+    # Improvement 3: class scaling
+    if (class_scale && ncol(mm) > 0) {
+      mm <- mm * (1 / sqrt(ncol(mm)))
+    }
     out <- cbind(out, mm)
   }
 
-  # Preserve scaling info
   if (!is.null(sc_center)) attr(out, "scaled:center") <- sc_center
   if (!is.null(sc_scale)) attr(out, "scaled:scale") <- sc_scale
   out

@@ -57,13 +57,25 @@ cv_sef <- function(data, k_values = 2:6, n_folds = 5, seed = 1, ...) {
         class_col <- fit_train$class_col
         # Build training features to capture scale parameters
         feat_train <- feature_matrix(train_data, coords = coords,
-                                      chrono = chrono, class_col = class_col)
+                                      chrono = chrono, class_col = class_col,
+                                      add_chrono_precision = null_default(fit_train$chrono_precision, FALSE),
+                                      add_taf = null_default(fit_train$taf_as_feature, FALSE),
+                                      taf_col = fit_train$tafonomy,
+                                      context_col = if (null_default(fit_train$residuality, FALSE)) fit_train$context else NULL,
+                                      class_scale = null_default(fit_train$class_scale, FALSE),
+                                      subclass_col = fit_train$subclass)
         train_center <- attr(feat_train, "scaled:center")
         train_scale <- attr(feat_train, "scaled:scale")
         # Standardise test data using training center/scale
         feat_test <- feature_matrix(test_data, coords = coords,
                                      chrono = chrono, class_col = class_col,
-                                     center = train_center, scale = train_scale)
+                                     center = train_center, scale = train_scale,
+                                     add_chrono_precision = null_default(fit_train$chrono_precision, FALSE),
+                                     add_taf = null_default(fit_train$taf_as_feature, FALSE),
+                                     taf_col = fit_train$tafonomy,
+                                     context_col = if (null_default(fit_train$residuality, FALSE)) fit_train$context else NULL,
+                                     class_scale = null_default(fit_train$class_scale, FALSE),
+                                     subclass_col = fit_train$subclass)
         # Compute log-likelihood under trained model
         log_dens <- diag_log_density(feat_test, fit_train$centroids,
                                       fit_train$variances)

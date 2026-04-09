@@ -51,7 +51,12 @@ bootstrap_sef <- function(object, n_boot = 100, conf = 0.95,
       suppressWarnings(fit_sef(
         data = boot_data, coords = coords, chrono = chrono,
         class = class_col, tafonomy = tafonomy, context = context,
-        k = k, seed = b, em_iter = em_iter, n_init = n_init
+        k = k, seed = b, em_iter = em_iter, n_init = n_init,
+        chrono_precision = null_default(object$chrono_precision, FALSE),
+        taf_as_feature = null_default(object$taf_as_feature, FALSE),
+        residuality = null_default(object$residuality, FALSE),
+        class_scale = null_default(object$class_scale, FALSE),
+        subclass = object$subclass
       )),
       error = function(e) NULL
     )
