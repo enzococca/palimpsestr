@@ -3,11 +3,10 @@ title: "palimpsestr: An R Package for the Probabilistic Decomposition of Archaeo
 author: |
   Enzo Cocca\textsuperscript{1,*}, Roberto Montagnetti\textsuperscript{2}\
   \
-  \footnotesize \textsuperscript{1} Independent Researcher, Italy\
-  \footnotesize \textsuperscript{2} Università degli Studi dell'Aquila, Dipartimento di Scienze Umane, L'Aquila, Italy\
+  \footnotesize \textsuperscript{1} Independent Researcher, Italy --- ORCID: 0000-0002-8096-2810\
+  \footnotesize \textsuperscript{2} Università degli Studi dell'Aquila, Dipartimento di Scienze Umane, L'Aquila, Italy --- ORCID: 0009-0004-2089-3122\
   \
-  \footnotesize \* corresponding author: enzo.ccc@gmail.com\
-  ORCID: 0000-0002-8096-2810
+  \footnotesize \* corresponding author: enzo.ccc@gmail.com
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 output:
   pdf_document:
