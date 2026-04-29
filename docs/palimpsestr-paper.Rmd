@@ -1,0 +1,445 @@
+---
+title: "palimpsestr: An R Package for the Probabilistic Decomposition of Archaeological Palimpsests"
+author: |
+  Enzo Cocca\textsuperscript{1,*}, Roberto Montagnetti\textsuperscript{2}\
+  \
+  \footnotesize \textsuperscript{1} Independent Researcher, Italy\
+  \footnotesize \textsuperscript{2} Università degli Studi dell'Aquila, Dipartimento di Scienze Umane, L'Aquila, Italy\
+  \
+  \footnotesize \* corresponding author: enzo.ccc@gmail.com\
+  ORCID: 0000-0002-8096-2810
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  pdf_document:
+    toc: false
+    number_sections: false
+    fig_caption: true
+    latex_engine: xelatex
+geometry: a4paper, margin=2.5cm
+linestretch: 1.5
+fontsize: 12pt
+header-includes:
+  - \usepackage{authblk}
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{caption}
+  - \captionsetup{font=small}
+  - \usepackage{setspace}
+  - \usepackage{float}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                      fig.width = 7, fig.height = 5, dpi = 150,
+                      out.width = "85%", fig.align = "center",
+                      fig.pos = "H")
+```
+
+\noindent
+**Abstract**
+
+This paper presents \texttt{palimpsestr}, an R package and Shiny application dedicated to the probabilistic decomposition of archaeological palimpsests --- deposits in which material from multiple occupation phases is superimposed and partially intermixed. Such deposits represent one of the most persistent analytical challenges in field archaeology, and existing tools (Harris Matrix recording systems, $k$-means spatial clustering, GIS overlays) typically address only one evidence domain at a time. \texttt{palimpsestr} implements the Stratigraphic Entanglement Field (SEF) framework, which integrates four evidence domains --- horizontal coordinates, vertical elevation, chronological range, and cultural class --- into a single diagonal-covariance Gaussian mixture model fitted by Expectation-Maximisation. The model is augmented with optional taphonomic weighting and stratigraphic entanglement penalties derived from the Harris Matrix. Three interpretable diagnostics --- the Stratigraphic Entanglement Index (SEI), Excavation Stratigraphic Energy (ESE), and Palimpsest Dissolution Index (PDI) --- allow practitioners to assess deposit coherence, detect intrusive finds, and evaluate phase separability. The package supports CSV/TSV/Excel/SQLite/PostgreSQL data import, GIS export to GeoPackage via the \texttt{sf} package, publication-quality plots via \texttt{ggplot2} and interactive plots via \texttt{plotly}, and includes a built-in Shiny dashboard for non-programmatic use. Version 0.12.0 introduces five optional feature-space enhancements (chronological precision weighting, residuality detection, class scaling, taphonomic score as feature, sub-class encoding) developed in response to real-world testing. We present an overview of the application's functions and demonstrate its use through a case study at the multi-period Roman villa of Poggio Gramignano (Lugnano in Teverina, Italy).
+
+\noindent
+**Keywords**: archaeological methods, palimpsest analysis, probabilistic clustering, Gaussian mixture model, Harris Matrix, R package, Shiny application, post-excavation stratigraphy
+
+\bigskip
+
+# Introduction
+
+Archaeological excavation is a destructive practice whose results cannot be replicated. To minimise interpretive losses, the discipline has developed several formalisms for recording and analysing stratified deposits. Among them, the Harris Matrix (Harris 1989) provides a rigorous deterministic notation for stratigraphic relationships, and remains the principal tool for recording observed contacts between depositional units. Yet many archaeological deposits do not exhibit clean stratigraphy: in **palimpsests** --- deposits where successive occupation phases are vertically and horizontally superimposed and partially intermixed --- the boundaries between phases are gradual rather than sharp (Bailey 2007; Lucas 2012). The phenomenon is ubiquitous: from deeply stratified Near Eastern tells to shallow open-air Palaeolithic sites where millennia of activity are compressed into a few centimetres of sediment, and from Bronze Age terramare with continuous reoccupation to multi-period Roman villas where construction debris and later cemeteries have repeatedly redeposited earlier material.
+
+Disentangling palimpsests requires integrating multiple lines of evidence. Spatial clustering methods such as $k$-means (Kintigh and Ammerman 1982) operate on coordinate data alone and cannot use chronological or typological information. Bayesian phase models for radiocarbon dating (Bronk Ramsey 2009; Crema and Bevan 2021) constrain temporal sequences but ignore spatial proximity. GIS overlays (Conolly and Lake 2006) offer powerful visualisation but no quantitative measure of phase coherence. Recent contributions have provided software tools for spatial exploration of piece-plotted finds (e.g. SEAHORS, Royer et al. 2023; archeoViz, Plutniak 2023), but these focus on visualisation rather than on the inference of latent depositional phases.
+
+This paper presents \texttt{palimpsestr}, a free and open-source R package and Shiny application that addresses the latter problem. The package implements the Stratigraphic Entanglement Field (SEF) framework, a probabilistic method that decomposes palimpsests into latent depositional phases by jointly modelling four evidence domains: horizontal coordinates, vertical elevation, chronological range, and cultural class. The model produces soft (probabilistic) phase assignments together with three diagnostic statistics that allow archaeologists to assess deposit coherence, detect intrusive finds, and evaluate the overall separability of phases.
+
+\texttt{palimpsestr} is freely available under MIT licence on GitHub (\url{https://github.com/enzococca/palimpsestr}). The package supports data import from CSV, TSV, Excel, SQLite, and PostgreSQL (including the PyArchInit database schema widely used in Italian archaeological practice), and provides GIS export to GeoPackage via the \texttt{sf} package, supporting integration with QGIS workflows. A built-in Shiny dashboard (\texttt{launch\_app()}) provides a point-and-click interface for archaeologists without R programming experience.
+
+The remainder of this paper is organised as follows. Section "Methodological framework" introduces the Stratigraphic Entanglement Field formalism, the Gaussian mixture model and its extensions, and the three diagnostic statistics. Section "Software overview" describes installation, package architecture, and the Shiny dashboard. Section "Data preparation" details the data formats and required columns. Sections "Core functions" and "Visualisation" describe the principal model-fitting and plotting functions. Section "Case study: Poggio Gramignano" demonstrates the application on a real-world multi-period Roman villa dataset. Section "Limitations and future development" discusses the package's known caveats, the v0.12.0 feature-space improvements, and avenues for future work.
+
+# Methodological framework
+
+## The Stratigraphic Entanglement Index (SEI)
+
+The Stratigraphic Entanglement Index (SEI) quantifies how strongly two finds $i$ and $j$ are *entangled*, i.e. how much joint evidence supports their co-occurrence within the same depositional event. For each pair of finds, the SEI is defined as the weighted sum of four contributions:
+
+$$
+SEI_{ij} = \frac{w_s}{d_{xy}(i,j) + \epsilon} + \frac{w_z}{\max(|z_i - z_j|, z_{\text{floor}})} + w_t \cdot O_t(i,j) + w_c \cdot \mathbb{1}[c_i = c_j]
+$$
+
+where $d_{xy}(i,j)$ is the Euclidean distance in the horizontal plane (with a small $\epsilon$ preventing division by zero), $|z_i - z_j|$ is the absolute vertical separation (with a $z_{\text{floor}}$ minimum threshold), $O_t(i,j)$ is the chronological overlap ratio computed from the intersection of the temporal ranges $[t_{\min,i}, t_{\max,i}]$ and $[t_{\min,j}, t_{\max,j}]$ relative to their union, and $\mathbb{1}[c_i = c_j]$ is an indicator function equal to 1 when both finds belong to the same cultural class. The weights $w_s, w_z, w_t, w_c$ default to unity but allow the analyst to encode prior knowledge about which evidence domains are most reliable for a given site.
+
+Each component is normalised to $[0, 1]$ within the dataset before weighting, ensuring that the four evidence domains contribute on a comparable scale. The resulting SEI matrix can be used both as a regularisation term during model fitting (encouraging strongly entangled finds to receive similar phase assignments) and as the basis for the Excavation Stratigraphic Energy diagnostic.
+
+## Diagonal Gaussian Mixture EM
+
+Phase decomposition proceeds via a Gaussian mixture model fitted by Expectation-Maximisation (EM, Dempster et al. 1977). The feature matrix for each find is constructed by concatenating: scaled horizontal coordinates $(x, y)$, vertical coordinate $(z)$, temporal midpoint and span of the date range $(t_{\text{mid}}, t_{\text{span}})$, and a one-hot encoding of the cultural class variable. The algorithm is initialised via $k$-means; the resulting hard assignments are converted to softmax probabilities. The EM procedure then iterates between an E-step (computing posterior phase membership probabilities given current parameters) and an M-step (updating mixture weights, means, and diagonal covariance matrices given current memberships).
+
+Two modifications distinguish the SEF framework from a standard Gaussian mixture. First, **taphonomic weighting**: when a per-find taphonomic integrity score (taf\_score, ranging from 0 = fully disturbed to 1 = pristine in situ) is supplied, it is used to down-weight poorly preserved items in the M-step responsibility calculation, reducing their influence on cluster centroids. A complementary additive penalty in the E-step posterior discourages confident assignment of disturbed finds to any single phase. Second, **stratigraphic entanglement penalties**: the SEI matrix is incorporated as a soft constraint on the E-step posterior, encouraging finds with high mutual entanglement to receive similar phase assignments.
+
+The diagonal-covariance assumption (i.e. independence between features within each phase) is a deliberate parsimony choice. With typical archaeological datasets ($n = 50$--500 finds, feature space $p \sim 7$--20), full covariance would risk overfitting; the BIC selection criterion naturally favours diagonal models when data are limited.
+
+## Diagnostic statistics
+
+Three statistics summarise different aspects of the decomposition:
+
+- **Excavation Stratigraphic Energy (ESE)**: for each find, ESE measures dissimilarity from spatial neighbours in terms of phase assignment. High ESE indicates that a find is surrounded by items assigned to different phases --- a signature of depositional disruption, bioturbation, or post-depositional displacement.
+
+- **Palimpsest Dissolution Index (PDI)**: a global statistic, $PDI = 1 - \bar{H}/\log(K)$, where $\bar{H}$ is mean Shannon entropy of phase-probability vectors and $K$ is the number of phases. PDI ranges from 0 (complete mixing; every find is equally likely to belong to any phase) to 1 (perfect separation). Values above 0.7 generally indicate well-resolved phases.
+
+- **Shannon entropy** ($H_i$) of each find's phase-probability vector, $H_i = -\sum_k p_{ik} \log p_{ik}$. Low entropy indicates confident assignment; high entropy signals ambiguity at phase boundaries or within heavily mixed zones.
+
+- **Intrusion score**: a composite metric combining high entropy, high ESE, and low SEI connectivity. Finds exceeding a threshold (default 0.5) are flagged as candidate intrusions.
+
+# Software overview
+
+\texttt{palimpsestr} is an R package distributed under the MIT licence. It is freely available on GitHub at \url{https://github.com/enzococca/palimpsestr}. Installation requires R $\geq$ 4.1.0 and can be performed directly from the GitHub source via the \texttt{remotes} package:
+
+\bigskip
+
+\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{
+\texttt{install.packages("remotes")} \\
+\texttt{remotes::install\_github("enzococca/palimpsestr")}
+}}
+
+\bigskip
+
+The package depends only on base R (\texttt{stats}, \texttt{utils}, \texttt{graphics}, \texttt{grDevices}); optional functionality is provided through suggested packages: \texttt{ggplot2} and \texttt{viridis} for publication-quality plots, \texttt{plotly} for interactive visualisation, \texttt{sf} for GIS export, \texttt{DBI} with \texttt{RSQLite} or \texttt{RPostgres} for database connectivity, and \texttt{shiny}, \texttt{shinydashboard} and \texttt{DT} for the interactive dashboard. The optional dependencies are checked at runtime; functions that require them issue an informative error if the corresponding package is not installed.
+
+The package architecture is modular: data import is handled by \texttt{read\_db()} and \texttt{load\_geometries()}; the core analytical engine by \texttt{fit\_sef()} (Section "Core functions"); diagnostics by \texttt{pdi()}, \texttt{detect\_intrusions()}, \texttt{us\_summary\_table()}, and \texttt{phase\_transition\_matrix()}; visualisation by \texttt{plot\_*()} (base R) and \texttt{gg\_*()} (\texttt{ggplot2}) functions; and reporting by \texttt{report\_sef()} which produces interpretive summaries in English or Italian. A complete list of exported functions is provided in the package manual (\texttt{?palimpsestr}).
+
+## The Shiny dashboard
+
+For users without R programming experience, the package includes a built-in Shiny dashboard, launched with:
+
+\bigskip
+
+\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{
+\texttt{library(palimpsestr)} \\
+\texttt{launch\_app()}
+}}
+
+\bigskip
+
+The dashboard provides six tabs covering the entire analytical workflow: **Data**, for importing CSV, TSV, Excel, SQLite, or PostgreSQL data and mapping columns to the required schema (with an optional panel for merging external taphonomic scores); **Analysis**, for selecting model parameters and running the fit, with separate controls for phase count selection (\texttt{compare\_k}); **Plots**, for interactive visualisation via \texttt{plotly}; **Tables**, for browsing phase assignments, intrusion scores, per-US purity, and the transition matrix; **Maps**, for overlaying results on uploaded excavation plan geometries (GeoPackage, GeoJSON or shapefile); and **Report**, for generating interpretive reports and downloading results as CSV or ZIP archives.
+
+# Data preparation
+
+## Required columns
+
+\texttt{palimpsestr} requires tabular data in which each row represents a single archaeological find. The mandatory columns are:
+
+- $x, y$: horizontal coordinates (numeric, in any consistent reference system);
+- $z$: vertical coordinate (numeric, depth or elevation);
+- $t_{\min}, t_{\max}$: lower and upper bounds of the chronological interval (numeric, with negative values for BCE);
+- $c$: cultural class (character, e.g. ceramic type or material category).
+
+Two optional columns are supported:
+
+- *context*: stratigraphic unit identifier (character), used for context-based penalties and per-US summaries;
+- *taf\_score*: taphonomic integrity score (numeric in $[0, 1]$), used for taphonomic weighting.
+
+The package's auxiliary function \texttt{archaeo\_sim()} generates synthetic datasets with these columns plus a known *true\_phase* label, useful for testing and validation.
+
+## Supported file formats
+
+The Shiny dashboard supports import from:
+
+- **CSV/TSV**: comma-, semicolon-, or tab-separated text files;
+- **Excel**: .xls and .xlsx files (via \texttt{openxlsx});
+- **SQLite**: .sqlite and .db files (via \texttt{RSQLite}), including PyArchInit databases;
+- **PostgreSQL**: connection by host/port/dbname/user/password (via \texttt{RPostgres}), with optional custom SQL queries.
+
+For GIS overlays, the dashboard accepts GeoPackage, GeoJSON, and shapefile (uploading all companion .shx, .dbf, .prj files) inputs via \texttt{sf}.
+
+## Database integration
+
+The function \texttt{read\_db()} provides programmatic access to any DBI-compliant database. Column mapping allows the user to align database column names with the package's expected schema:
+
+\bigskip
+
+\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{
+\texttt{library(DBI); library(RPostgres)} \\
+\texttt{con <- dbConnect(Postgres(), dbname = "site\_db", host = "localhost",} \\
+\texttt{\hspace*{2em}user = "postgres", password = "...")} \\
+\texttt{data <- read\_db(con, table = "inventario\_materiali\_table",} \\
+\texttt{\hspace*{2em}cols = list(x = "coord\_x", y = "coord\_y", z = "quota",} \\
+\texttt{\hspace*{2em}\hspace*{2em}date\_min = "anno\_iniziale", date\_max = "anno\_finale",} \\
+\texttt{\hspace*{2em}\hspace*{2em}class = "tipo\_reperto", context = "us"))} \\
+\texttt{dbDisconnect(con)}
+}}
+
+\bigskip
+
+# Core functions
+
+## Fitting the SEF model
+
+The principal function is \texttt{fit\_sef()}, which fits the Gaussian mixture model and returns an S3 object of class \texttt{sef\_fit}. Its essential arguments are the data frame, the number of phases $K$, and (optionally) the column names for taphonomic score, context, and a Harris matrix:
+
+\bigskip
+
+\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{
+\texttt{fit <- fit\_sef(data, k = 4,} \\
+\texttt{\hspace*{2em}tafonomy = "taf\_score",} \\
+\texttt{\hspace*{2em}context = "context",} \\
+\texttt{\hspace*{2em}harris = H,} \\
+\texttt{\hspace*{2em}n\_init = 10, seed = 42)}
+}}
+
+\bigskip
+
+The \texttt{n\_init} argument controls the number of random initialisations: the run with the highest log-likelihood is retained, mitigating the risk of local optima. The returned object stores phase assignments (\texttt{\$phase}), soft probabilities (\texttt{\$phase\_prob}), per-find entropy and energy, the SEI matrix and its row sums, and a list of model statistics including PDI, BIC, and ICL. The \texttt{print} and \texttt{summary} methods produce concise textual summaries.
+
+## Phase count selection
+
+When the number of phases is unknown, \texttt{compare\_k()} fits the model across a range of $K$ values and returns BIC, ICL, PDI, and mean entropy for each. The function \texttt{gg\_compare\_k()} renders a three-panel diagnostic plot:
+
+\bigskip
+
+\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{
+\texttt{ck <- compare\_k(data, k\_values = 2:7,} \\
+\texttt{\hspace*{2em}tafonomy = "taf\_score", context = "context")} \\
+\texttt{gg\_compare\_k(ck)}
+}}
+
+\bigskip
+
+The optimal $K$ is typically chosen at the BIC minimum, although in practice the analyst should consider the archaeological plausibility of the resulting partition.
+
+## Harris Matrix integration
+
+The Harris Matrix can be incorporated as a stratigraphic constraint in two ways. The function \texttt{harris\_from\_contexts()} auto-generates an $n \times n$ penalty matrix from the mean depth of finds in each context, on the assumption that deeper contexts are stratigraphically below shallower ones. Alternatively, \texttt{read\_harris()} imports an external Harris Matrix from a CSV edge list (with columns *from*, *to*, and optional *weight*):
+
+\bigskip
+
+\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{
+\texttt{H <- read\_harris("harris\_matrix.csv", contexts = data\$context)} \\
+\texttt{fit <- fit\_sef(data, k = 4, harris = H, context = "context")}
+}}
+
+\bigskip
+
+The function \texttt{validate\_phases\_harris()} flags inversions in the assigned phase ordering relative to stratigraphic depth.
+
+## Intrusion detection and per-US summaries
+
+The function \texttt{detect\_intrusions()} computes a composite intrusion probability for each find, combining rescaled entropy, ESE, and inverse local SEI. Finds with intrusion probability above a configurable threshold (default 0.5) are flagged for closer examination. The function \texttt{us\_summary\_table()} aggregates diagnostics per stratigraphic unit, reporting dominant phase, **purity** (proportion of finds in the dominant phase), mean entropy, mean ESE, and intrusion count. Units with purity below 70% are flagged as palimpsests.
+
+# Visualisation
+
+\texttt{palimpsestr} provides two parallel families of plotting functions: base R (\texttt{plot\_*}) for environments without \texttt{ggplot2}, and \texttt{ggplot2}-based (\texttt{gg\_*}) for publication-quality output. The principal \texttt{gg\_*} functions are:
+
+- \texttt{gg\_phasefield()}: dominant phase assignment, with point size reflecting confidence;
+- \texttt{gg\_entropy()}: spatial distribution of Shannon entropy;
+- \texttt{gg\_energy()}: ESE field, highlighting zones of depositional disruption;
+- \texttt{gg\_intrusions()}: intrusion-probability map, with the top-N suspects labelled;
+- \texttt{gg\_phase\_profile()}: vertical depth profile coloured by phase;
+- \texttt{gg\_compare\_k()}: phase-count selection diagnostics;
+- \texttt{gg\_convergence()}: EM log-likelihood trace;
+- \texttt{gg\_confusion()}: confusion-matrix heatmap (when true labels are available);
+- \texttt{gg\_map()}: overlay of dominant phase, entropy, energy, or intrusion scores on uploaded excavation plan geometries.
+
+Any \texttt{gg\_*} plot can be converted to an interactive \texttt{plotly} version via \texttt{as\_plotly()}, which adds hover tooltips reporting the find ID, context, phase probabilities, dating, class, and diagnostic scores.
+
+GIS export is provided by \texttt{as\_sf\_phase()} (a point layer with phase assignments) and \texttt{as\_sf\_links()} (a line layer of high-SEI links between find pairs, useful for visualising entanglement in QGIS).
+
+# Case study: Poggio Gramignano
+
+We illustrate the package on a multi-period Roman villa with a wide chronological range and well-differentiated material categories.
+
+## Site and dataset
+
+Poggio Gramignano (VRPG) is a multi-period Roman villa with an annexed Late Antique infant cemetery, located at Lugnano in Teverina (TR, Italy) and excavated since 1988 (Soren and Soren 1999). The dataset analysed here comprises **615 inventoried finds** from **54 stratigraphic units** spanning eight archaeological periods, from the Pre-Roman period (650--350 BCE) through the Late Antique (5th--6th c. CE). Coordinates are US centroids in the Monte Mario / Italy zone 2 reference system (EPSG:3004); $z$ is the mean elevation per US (in metres a.s.l.); chronological dating is derived from the site periodisation; 17 material classes are distinguished. Taphonomic scores were assigned by the excavator based on depositional context (1.0 for in situ deposits, 0.5--0.7 for accumulation and levelling layers, 0.3 for clearly redeposited fills). Stratigraphic relationships extracted from the PyArchInit database were used to build a Harris Matrix penalty.
+
+## Phase count selection
+
+The function \texttt{compare\_k()} was used to evaluate model fit across $K = 2, \dots, 7$, with all v0.12.0 feature-space enhancements activated (chronological precision, residuality, class scaling, taphonomic score as feature). Figure \ref{fig:compare-k} reports the resulting diagnostics: the BIC reaches a clear inflection at $K = 4$, which also coincides with the four macro-periods archaeologically distinguishable at the site (Pre-Roman, Imperial reuse, Late Antique structural collapse, Late Antique cemetery). $K = 4$ was therefore selected as the operational solution.
+
+```{r compare-k, fig.cap="\\label{fig:compare-k}Phase-count selection diagnostics from compare\\_k(): BIC (lower is better), PDI (higher is better), and mean entropy across K = 2--7. The BIC inflection at K = 4 coincides with the four macro-periods of the site."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/compare_k.png")
+```
+
+## Phase composition
+
+A four-phase model with Harris constraint, taphonomic weighting, and the v0.12.0 feature-space enhancements recovered phases coherent with the site periodisation (Table \ref{tab:vrpg-phases}). Phase 1 groups Pre-Roman finds (concentrated in US 210, an early pit beneath the villa foundations) together with residual Late Antique material from levelling deposits; Phase 2 captures the structural reuse of late imperial spaces, characterised by construction material, amphorae, glass and coins; Phase 3 isolates a small but typologically distinctive group of specialised material (lithics, samples, painted plaster, scraps) from the collapse and abandonment of habitational structures; Phase 4 (the dominant fraction, 68.8%) corresponds to the Late Antique cemetery, dominated by ceramics and amphorae used in the burial rites.
+
+\begin{table}[H]
+\centering
+\caption{VRPG phase composition (K=4, v0.12.0).}\label{tab:vrpg-phases}
+\small
+\begin{tabular}{clrrlr}
+\toprule
+Phase & Interpretation & N & \% & Dominant materials & Mean taf \\
+\midrule
+1 & Pre-Roman + residual & 117 & 19.0 & Ceramics, metals, fauna & 0.803 \\
+2 & Structural reuse & 50 & 8.1 & Construction, amphorae, glass & 0.740 \\
+3 & Specialised/residual & 25 & 4.1 & Lithics, samples, waste & 0.712 \\
+4 & Late Antique cemetery & 423 & 68.8 & Ceramics, amphorae, glass, coins & 0.780 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The model achieved $PDI = 1.000$, identified 8 finds (1.3%) as potential intrusions, and classified 38/54 stratigraphic units (70%) as pure (purity > 90%).
+
+## EM convergence
+
+```{r convergence, fig.cap="\\label{fig:convergence}EM convergence trace for the K = 4 model. The log-likelihood stabilises within 30 iterations, indicating a robust local optimum. The package retains the best-of-10 random initialisations."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/convergence.png")
+```
+
+## Spatial diagnostics
+
+The phase-field map (Figure \ref{fig:phasefield}) reveals the spatial distribution of the four phases on the excavation grid. The Late Antique cemetery (Phase 4) dominates the principal excavated area; Pre-Roman finds (Phase 1, in orange) are concentrated in the deeper areas around US 210; the structural reuse phase (Phase 2) and the specialised/residual phase (Phase 3) are scattered between the cemetery and the abandoned residential structures.
+
+```{r phasefield, fig.cap="\\label{fig:phasefield}VRPG: dominant phase assignment from gg\\_phasefield(). Each point is a find; colour indicates phase, point size reflects assignment confidence (inverse entropy)."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/phasefield.png")
+```
+
+The entropy map (Figure \ref{fig:entropy}) confirms that phase assignments are highly confident across the entire dataset: entropy values approach zero everywhere, indicating that the model is rarely uncertain about the phase of any individual find. This is partly an artefact of the high-dimensional feature space (which separates phases sharply) and partly a reflection of the genuine separability of the four periods at this site.
+
+```{r entropy, fig.cap="\\label{fig:entropy}VRPG: spatial distribution of Shannon entropy from gg\\_entropy(). Dark = confident assignment to a single phase; bright = ambiguous assignment. Entropy is uniformly low, indicating high model confidence."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/entropy.png")
+```
+
+The energy map (Figure \ref{fig:energy}) is more informative: ESE values vary across the site, with elevated values in zones where finds of different phases are spatially adjacent. These zones correspond to known levelling and accumulation deposits where the cemetery overlaid earlier structures.
+
+```{r energy, fig.cap="\\label{fig:energy}VRPG: Excavation Stratigraphic Energy (ESE) field from gg\\_energy(). Dark = stable deposit (find surrounded by same-phase neighbours); bright = local disruption zone."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/energy.png")
+```
+
+## Intrusion detection
+
+The intrusion-probability map (Figure \ref{fig:intrusions}) flags 8 finds with intrusion probability above 0.5. These are predominantly non-ceramic items in ceramic-dominated contexts (US 304, a *dolium*-fragment hearth; US 151, an isolated amphora; US 276, an isolated metal find).
+
+```{r intrusions, fig.cap="\\label{fig:intrusions}VRPG: intrusion detection from gg\\_intrusions(top\\_n = 10). Circled finds with labels are the highest-scoring suspects, computed from a composite of high entropy, high ESE, and low SEI connectivity."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/intrusions.png")
+```
+
+## Vertical phase profile
+
+The vertical profile (Figure \ref{fig:profile}) shows that the four phases occupy stratigraphically coherent depth ranges, with Phase 4 (Late Antique cemetery, in pink) at the shallowest levels and Phase 1 (Pre-Roman + residual, in orange) at the deepest. The partial overlap between Phases 2 and 3 reflects the spatial proximity of structural collapses and accumulation deposits.
+
+```{r profile, fig.cap="\\label{fig:profile}VRPG: vertical phase profile from gg\\_phase\\_profile(). Depth (z) on vertical axis, easting on horizontal axis; colours indicate phases. The stratigraphic ordering of phases is preserved by the model."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/phase_profile.png")
+```
+
+## Maps on excavation plan
+
+The function \texttt{gg\_map()} overlays model output on the actual excavation plan geometries imported from the PyArchInit database. Figure \ref{fig:map-phase} shows the dominant phase per US polygon; Figure \ref{fig:map-entropy} the mean entropy per US; Figure \ref{fig:map-energy} the mean ESE per US; Figure \ref{fig:map-intrusion} the mean intrusion probability per US.
+
+```{r map-phase, fig.cap="\\label{fig:map-phase}VRPG: dominant phase per US polygon (gg\\_map, layer = 'phase'). US polygons are coloured by their dominant phase; individual finds are overlaid as points."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/map_phase.png")
+```
+
+```{r map-entropy, fig.cap="\\label{fig:map-entropy}VRPG: mean entropy per US polygon (gg\\_map, layer = 'entropy'). Bright zones flag US with mixed-phase finds (potential palimpsests)."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/map_entropy.png")
+```
+
+```{r map-energy, fig.cap="\\label{fig:map-energy}VRPG: mean ESE per US polygon (gg\\_map, layer = 'energy'). Bright zones indicate US with high local stratigraphic disruption."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/map_energy.png")
+```
+
+```{r map-intrusion, fig.cap="\\label{fig:map-intrusion}VRPG: mean intrusion probability per US polygon (gg\\_map, layer = 'intrusion'). Highlights US containing potentially redeposited or out-of-context finds."}
+knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/map_intrusion.png")
+```
+
+## Validation against the excavator's interpretation
+
+Twelve units were classified as palimpsests (purity < 70%); these correspond to known levelling fills and accumulation layers (US 76, US 287, US 307, US 297). The interpretation provided by the second author (Roberto Montagnetti, on-site coordinator of the Poggio Gramignano excavations) confirmed:
+
+- **US 307** as a levelling layer with material from various periods quarried from adjacent areas;
+- **US 287** as an accumulation layer with multi-period material;
+- **US 76** as a levelling fill used to raise floor levels;
+- **US 304** as a combustion deposit inside a *dolium*-fragment hearth (the model flagged the heterogeneous content but the mixing here is functional, not depositional --- a known limitation discussed in the next section).
+
+Following this validation, taphonomic scores for US 76, US 287, US 297, and US 307 were lowered (from 0.7 to 0.3--0.4) to reflect the residual nature of their material; the analysis presented here uses these corrected values.
+
+# Limitations and future development
+
+Field testing on the case study highlighted several limitations and motivated the v0.12.0 feature-space improvements summarised below.
+
+## Limitations
+
+- **Functional vs. depositional mixing**: the model flags any heterogeneous context as anomalous, even when the heterogeneity is functional (e.g. a hearth such as VRPG US 304). Distinguishing functional mixing from disturbance requires excavator interpretation.
+- **Class-driven partitioning when temporal evidence is weak**: when most finds carry coarse dating, the cultural class dimension can dominate the clustering, producing typological rather than chronological phases. The v0.12.0 feature-space enhancements (especially \texttt{class\_scale}) mitigate this effect.
+- **PDI saturation**: the PDI tends to approach unity in datasets with sharp class differentiation, even when phases overlap chronologically. Bootstrap confidence intervals (\texttt{bootstrap\_sef()}) provide more informative uncertainty quantification.
+- **Diagonal covariance**: the assumption of conditional independence between features within phases is conservative; full-covariance variants are not currently implemented.
+- **SEI normalisation is within-dataset**: absolute SEI values are not comparable across sites. Cross-site comparisons should rely on derived statistics (PDI, mean entropy, ARI).
+- **Scalability**: the SEI and ESE matrices are $O(n^2)$ in memory; for $n > 2000$ users should employ \texttt{sei\_sparse()} or the \texttt{max\_dist} parameter.
+
+## Feature-space improvements (v0.12.0)
+
+In response to the case study, version 0.12.0 introduces five optional feature-space enhancements:
+
+1. **Chronological precision weighting** (\texttt{chrono\_precision}): adds $1/t_{\text{span}}$ as a feature, giving higher weight to precisely dated finds.
+2. **Residuality detection** (\texttt{residuality}): captures the chronological mismatch between each find and its context mean, requiring a *context* column.
+3. **Class scaling** (\texttt{class\_scale}): multiplies one-hot class columns by $1/\sqrt{n_{\text{classes}}}$ so their cumulative energy matches a single numeric feature.
+4. **Taphonomic score as feature** (\texttt{taf\_as\_feature}): in addition to its EM-weight role, makes \texttt{taf\_score} an explicit dimension so that finds with similar preservation cluster together.
+5. **Sub-class encoding** (\texttt{subclass}): allows finer typological distinctions (e.g. *ceramica\_impasto* vs. *ceramica\_sigillata*) without altering the main \texttt{class} column.
+
+Empirical testing on VRPG showed BIC improvements of approximately 10,000 points and an increase from 33 to 38 pure stratigraphic units after activating the four enhancements applicable to this dataset (subclass encoding requires sub-typological information not currently coded in the database). These improvements are optional and disabled by default to preserve backward compatibility.
+
+## Future development
+
+Planned directions include: integration with calibrated radiocarbon distributions (via the \texttt{rcarbon} package, Crema and Bevan 2021) to incorporate C14 dates from the ongoing analysis of cemetery skeletal remains at Poggio Gramignano; full-covariance and Bayesian variants of the mixture model; spatial-autocorrelation-aware likelihoods; automated detection of sub-typological structure within homogeneous classes; and direct ingestion of OxCal phase models. The package will continue to be developed in response to user feedback through the GitHub issue tracker.
+
+# Conclusion
+
+\texttt{palimpsestr} fills a long-standing methodological gap between qualitative stratigraphic reasoning and quantitative spatial analysis. By jointly modelling spatial proximity, vertical distribution, chronological overlap, and cultural similarity, the Stratigraphic Entanglement Field framework produces soft phase assignments that acknowledge --- rather than suppress --- the inherent uncertainty of mixed deposits. The three diagnostic statistics (SEI, ESE, PDI) provide interpretable summaries at the find, deposit, and assemblage levels respectively, and the package is fully integrated with established archaeological data sources (CSV, Excel, SQLite, PostgreSQL, PyArchInit) and GIS workflows (\texttt{sf}, GeoPackage, QGIS). The Shiny dashboard makes the framework accessible to archaeologists without R programming experience.
+
+The Poggio Gramignano case study illustrates the framework's strengths on temporally diverse deposits with rich material categories: the model successfully recovers four archaeologically coherent phases, identifies known levelling deposits as palimpsests, and produces interpretable visual outputs that integrate directly with excavation plan geometries. The validation by the excavator confirmed the relevance of the model output and motivated the optional feature-space improvements in version 0.12.0. \texttt{palimpsestr} is intended as a complement to, not a substitute for, the Harris Matrix and traditional stratigraphic recording: it adds a quantitative, probabilistic layer of analysis that operates at the find level, precisely the scale at which palimpsest formation is most problematic and least well-served by existing tools.
+
+# Data and code availability
+
+The \texttt{palimpsestr} package (version 0.12.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. Reproducibility scripts for the case study are available in the repository.
+
+# Author contributions
+
+E.C. designed and implemented the \texttt{palimpsestr} package, the Stratigraphic Entanglement Field framework, and the Shiny dashboard, and wrote the manuscript. R.M. directed the archaeological excavations at Poggio Gramignano (Lugnano in Teverina), provided the dataset and the taphonomic scores per stratigraphic unit, validated the model output against on-site stratigraphic interpretation, and contributed to the discussion of methodological limitations and feature-space improvements.
+
+# Acknowledgements
+
+We thank Professor David Soren (University of Arizona), David Pickel (Stanford University) and the wider Poggio Gramignano excavation team for the long-term archaeological work that produced the dataset analysed here. The development of \texttt{palimpsestr} benefited from the open-source archaeological computing community, particularly the maintainers of \texttt{sf}, \texttt{ggplot2}, \texttt{plotly}, and the PyArchInit project.
+
+# Conflict of interest
+
+The author declares no conflict of interest.
+
+# References
+
+\noindent
+Bailey, G. (2007). Time perspectives, palimpsests and the archaeology of time. *Journal of Anthropological Archaeology*, 26(2), 198--223.
+
+\noindent
+Bronk Ramsey, C. (2009). Bayesian analysis of radiocarbon dates. *Radiocarbon*, 51(1), 337--360.
+
+\noindent
+Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.12.0. \url{https://github.com/enzococca/palimpsestr}
+
+\noindent
+Conolly, J., & Lake, M. (2006). *Geographical Information Systems in Archaeology*. Cambridge: Cambridge University Press.
+
+\noindent
+Crema, E. R., & Bevan, A. (2021). Inference from large sets of radiocarbon dates: software and methods. *Radiocarbon*, 63(1), 23--39.
+
+\noindent
+Dempster, A. P., Laird, N. M., & Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *Journal of the Royal Statistical Society: Series B (Methodological)*, 39(1), 1--22.
+
+\noindent
+Harris, E. C. (1989). *Principles of Archaeological Stratigraphy* (2nd ed.). London: Academic Press.
+
+\noindent
+Kintigh, K. W., & Ammerman, A. J. (1982). Heuristic approaches to spatial analysis in archaeology. *American Antiquity*, 47(1), 31--63.
+
+\noindent
+Lucas, G. (2012). *Understanding the Archaeological Record*. Cambridge: Cambridge University Press.
+
+\noindent
+Plutniak, S. (2023). \texttt{archeoViz}: Visualisation, Exploration, and Web Communication of Archaeological Spatial Data. *Journal of Open Source Software*, 8(83).
+
+\noindent
+Royer, A., Discamps, E., Plutniak, S., & Thomas, M. (2023). SEAHORS: Spatial Exploration of ArcHaeological Objects in R Shiny. Zenodo, peer-reviewed and recommended by Peer Community in Archaeology. \url{https://doi.org/10.5281/zenodo.7957154}
+
+\noindent
+Soren, D., & Soren, N. (Eds.). (1999). *A Roman villa and a late Roman infant cemetery: excavation at Poggio Gramignano, Lugnano in Teverina*. Roma: L'Erma di Bretschneider.
