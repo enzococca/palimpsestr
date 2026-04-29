@@ -391,7 +391,7 @@ The Poggio Gramignano case study illustrates the framework's strengths on tempor
 
 # Data and code availability
 
-The \texttt{palimpsestr} package (version 0.12.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with DOI \url{https://doi.org/10.5281/zenodo.19881542}. This preprint is archived on Zenodo with DOI \url{https://doi.org/10.5281/zenodo.19882756}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. Reproducibility scripts for the case study are available in the repository.
+The \texttt{palimpsestr} package (version 0.12.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. Reproducibility scripts for the case study are available in the repository.
 
 # Author contributions
 
