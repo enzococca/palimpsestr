@@ -409,34 +409,34 @@ The author declares no conflict of interest.
 # References
 
 \noindent
-Bailey, G. (2007). Time perspectives, palimpsests and the archaeology of time. *Journal of Anthropological Archaeology*, 26(2), 198--223.
+Bailey, G. (2007). Time perspectives, palimpsests and the archaeology of time. *Journal of Anthropological Archaeology*, 26(2), 198--223. \url{https://doi.org/10.1016/j.jaa.2006.08.002}
 
 \noindent
-Bronk Ramsey, C. (2009). Bayesian analysis of radiocarbon dates. *Radiocarbon*, 51(1), 337--360.
+Bronk Ramsey, C. (2009). Bayesian analysis of radiocarbon dates. *Radiocarbon*, 51(1), 337--360. \url{https://doi.org/10.1017/S0033822200033865}
 
 \noindent
 Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.12.0. \url{https://github.com/enzococca/palimpsestr}
 
 \noindent
-Conolly, J., & Lake, M. (2006). *Geographical Information Systems in Archaeology*. Cambridge: Cambridge University Press.
+Conolly, J., & Lake, M. (2006). *Geographical Information Systems in Archaeology*. Cambridge Manuals in Archaeology. Cambridge: Cambridge University Press. ISBN 978-0-521-79744-3. \url{https://doi.org/10.1017/CBO9780511807459}
 
 \noindent
-Crema, E. R., & Bevan, A. (2021). Inference from large sets of radiocarbon dates: software and methods. *Radiocarbon*, 63(1), 23--39.
+Crema, E. R., & Bevan, A. (2021). Inference from large sets of radiocarbon dates: software and methods. *Radiocarbon*, 63(1), 23--39. \url{https://doi.org/10.1017/RDC.2020.95}
 
 \noindent
-Dempster, A. P., Laird, N. M., & Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *Journal of the Royal Statistical Society: Series B (Methodological)*, 39(1), 1--22.
+Dempster, A. P., Laird, N. M., & Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *Journal of the Royal Statistical Society: Series B (Methodological)*, 39(1), 1--22. \url{https://doi.org/10.1111/j.2517-6161.1977.tb01600.x}
 
 \noindent
-Harris, E. C. (1989). *Principles of Archaeological Stratigraphy* (2nd ed.). London: Academic Press.
+Harris, E. C. (1989). *Principles of Archaeological Stratigraphy* (2nd ed.). London and San Diego: Academic Press. ISBN 978-0-12-326651-4.
 
 \noindent
-Kintigh, K. W., & Ammerman, A. J. (1982). Heuristic approaches to spatial analysis in archaeology. *American Antiquity*, 47(1), 31--63.
+Kintigh, K. W., & Ammerman, A. J. (1982). Heuristic approaches to spatial analysis in archaeology. *American Antiquity*, 47(1), 31--63. \url{https://doi.org/10.2307/280052}
 
 \noindent
-Lucas, G. (2012). *Understanding the Archaeological Record*. Cambridge: Cambridge University Press.
+Lucas, G. (2012). *Understanding the Archaeological Record*. Cambridge: Cambridge University Press. ISBN 978-1-107-01026-0. \url{https://doi.org/10.1017/CBO9780511845772}
 
 \noindent
-Plutniak, S. (2023). \texttt{archeoViz}: Visualisation, Exploration, and Web Communication of Archaeological Spatial Data. *Journal of Open Source Software*, 8(83).
+Plutniak, S. (2023). \texttt{archeoViz}: an R package for the Visualisation, Exploration, and Web Communication of Archaeological Spatial Data. *Journal of Open Source Software*, 8(92), 5811. \url{https://doi.org/10.21105/joss.05811}
 
 \noindent
 Royer, A., Discamps, E., Plutniak, S., & Thomas, M. (2023). SEAHORS: Spatial Exploration of ArcHaeological Objects in R Shiny. Zenodo, peer-reviewed and recommended by Peer Community in Archaeology. \url{https://doi.org/10.5281/zenodo.7957154}
