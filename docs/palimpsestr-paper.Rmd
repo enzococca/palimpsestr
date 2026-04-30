@@ -1,10 +1,11 @@
 ---
-title: "palimpsestr: An R Package for the Identification and Probabilistic Decomposition of Archaeological Palimpsests"
+title: "palimpsestR: An R Package for the Identification and Probabilistic Decomposition of Archaeological Palimpsests"
 author: |
-  Enzo Cocca\textsuperscript{1,*}, Roberto Montagnetti\textsuperscript{2}\
+  Enzo Cocca\textsuperscript{1,*}, Roberto Montagnetti\textsuperscript{2}, Maurizio Cattani\textsuperscript{3}\
   \
   \footnotesize \textsuperscript{1} Independent Researcher, Italy --- ORCID: 0000-0002-8096-2810\
   \footnotesize \textsuperscript{2} Università degli Studi dell'Aquila, Dipartimento di Scienze Umane, L'Aquila, Italy --- ORCID: 0009-0004-2089-3122\
+  \footnotesize \textsuperscript{3} Università di Bologna, Dipartimento di Storia Culture Civiltà, Bologna, Italy --- ORCID: [TBD]\
   \
   \footnotesize \* corresponding author: enzo.ccc@gmail.com
 date: "`r format(Sys.Date(), '%d %B %Y')`"
@@ -407,11 +408,11 @@ The \texttt{palimpsestr} package (version 0.12.0 used in this paper) is publicly
 
 # Author contributions
 
-E.C. designed and implemented the \texttt{palimpsestr} package, the Stratigraphic Entanglement Field framework, and the Shiny dashboard, and wrote the manuscript. R.M. directed the archaeological excavations at Poggio Gramignano (Lugnano in Teverina), provided the dataset and the taphonomic scores per stratigraphic unit, validated the model output against on-site stratigraphic interpretation, and contributed to the discussion of methodological limitations and feature-space improvements.
+E.C. designed and implemented the \texttt{palimpsestr} package, the Stratigraphic Entanglement Field framework, and the Shiny dashboard, and wrote the manuscript. R.M. directed the archaeological excavations at Poggio Gramignano (Lugnano in Teverina), provided the dataset and the taphonomic scores per stratigraphic unit, validated the model output against on-site stratigraphic interpretation, and contributed to the discussion of methodological limitations and feature-space improvements. M.C. provided in-depth methodological supervision throughout the development of the framework, contributed to the formulation of the archaeological interpretation of the diagnostics (the redeposition score, the unit-level palimpsest measure, and the type-longevity outlook), highlighted the implicit assumption of horizontal stratigraphy, introduced the distinction between *older-than-context* (residual) and *younger-than-context* (latent feature) intrusions in the roadmap, and identified the future case study on dendrochronologically dated pile-dwellings as the appropriate validation context.
 
 # Acknowledgements
 
-We thank Professor David Soren (University of Arizona), David Pickel (Stanford University) and the wider Poggio Gramignano excavation team for the long-term archaeological work that produced the dataset analysed here. We are particularly indebted to **Professor Maurizio Cattani** (Università di Bologna) for an in-depth methodological review of an earlier version of this manuscript, whose comments led to the explicit treatment of the horizontal-stratigraphy assumption, the introduction of directional intrusion diagnostics in the development roadmap, and the planned future case study on dendrochronologically dated pile-dwellings. The development of \texttt{palimpsestr} benefited from the open-source archaeological computing community, particularly the maintainers of \texttt{sf}, \texttt{ggplot2}, \texttt{plotly}, and the PyArchInit project.
+We thank Professor David Soren (University of Arizona), David Pickel (Stanford University) and the wider Poggio Gramignano excavation team for the long-term archaeological work that produced the dataset analysed here. The development of \texttt{palimpsestr} benefited from the open-source archaeological computing community, particularly the maintainers of \texttt{sf}, \texttt{ggplot2}, \texttt{plotly}, and the PyArchInit project.
 
 # Conflict of interest
 
