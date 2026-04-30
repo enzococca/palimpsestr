@@ -25,8 +25,6 @@ header-includes:
   - \captionsetup{font=small}
   - \usepackage{setspace}
   - \usepackage{float}
-  - \usepackage{lineno}
-  - \linenumbers
 ---
 
 ```{r setup, include=FALSE}
@@ -413,7 +411,7 @@ E.C. designed and implemented the \texttt{palimpsestr} package, the Stratigraphi
 
 # Acknowledgements
 
-We thank Professor David Soren (University of Arizona), David Pickel (Stanford University) and the wider Poggio Gramignano excavation team for the long-term archaeological work that produced the dataset analysed here. We are particularly indebted to **Professor Maurizio Cattani** (Università di Bologna) for an in-depth methodological review of an earlier version of this manuscript, whose comments led to the explicit treatment of the horizontal-stratigraphy assumption, the introduction of directional intrusion diagnostics in the development roadmap, and the planned future case study on dendrochronologically dated pile-dwellings. We also thank **Marco Baioni**, director of the Lago Lucone excavation (Gavardo, BS), for opening the possibility of a future collaboration on annually resolved Bronze Age contexts. The development of \texttt{palimpsestr} benefited from the open-source archaeological computing community, particularly the maintainers of \texttt{sf}, \texttt{ggplot2}, \texttt{plotly}, and the PyArchInit project.
+We thank Professor David Soren (University of Arizona), David Pickel (Stanford University) and the wider Poggio Gramignano excavation team for the long-term archaeological work that produced the dataset analysed here. We are particularly indebted to **Professor Maurizio Cattani** (Università di Bologna) for an in-depth methodological review of an earlier version of this manuscript, whose comments led to the explicit treatment of the horizontal-stratigraphy assumption, the introduction of directional intrusion diagnostics in the development roadmap, and the planned future case study on dendrochronologically dated pile-dwellings. The development of \texttt{palimpsestr} benefited from the open-source archaeological computing community, particularly the maintainers of \texttt{sf}, \texttt{ggplot2}, \texttt{plotly}, and the PyArchInit project.
 
 # Conflict of interest
 
