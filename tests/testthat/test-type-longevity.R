@@ -46,7 +46,8 @@ test_that("dominant_phase equals which.max of weight_matrix", {
   fit <- helper_fit()
   out <- type_longevity(fit)
   for (i in seq_len(nrow(out))) {
-    expect_equal(out$dominant_phase[i], which.max(out$weight_matrix[[i]]))
+    expect_equal(unname(out$dominant_phase[i]),
+                 unname(which.max(out$weight_matrix[[i]])))
   }
 })
 
@@ -59,9 +60,22 @@ test_that("n_finds counts class membership", {
 })
 
 test_that("posterior_threshold close to 1 yields NA longevity and warning", {
-  fit <- helper_fit()
-  out <- expect_warning(type_longevity(fit, posterior_threshold = 0.999),
-                        "no phase passes")
+  # Use a noisy/over-K fit so at least one class has all-weights < threshold.
+  set.seed(11)
+  n <- 30
+  d <- data.frame(
+    id = paste0("f", 1:n),
+    x = runif(n), y = runif(n), z = runif(n, 0, 1),
+    date_min = runif(n, -300, 100),
+    date_max = runif(n, -200, 200),
+    class = sample(c("A","B","C"), n, replace = TRUE),
+    context = sample(paste0("US", 1:6), n, replace = TRUE)
+  )
+  d$date_max <- pmax(d$date_max, d$date_min + 50)
+  fit <- fit_sef(d, k = 5, context = "context")
+  expect_warning(type_longevity(fit, posterior_threshold = 0.999),
+                 "no phase passes")
+  out <- suppressWarnings(type_longevity(fit, posterior_threshold = 0.999))
   expect_true(any(is.na(out$longevity_min)))
 })
 
