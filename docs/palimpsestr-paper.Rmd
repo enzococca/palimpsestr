@@ -26,6 +26,8 @@ header-includes:
   - \captionsetup{font=small}
   - \usepackage{setspace}
   - \usepackage{float}
+  - \usepackage{lineno}
+  - \linenumbers
 ---
 
 ```{r setup, include=FALSE}
