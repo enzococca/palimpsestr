@@ -10,7 +10,10 @@ detect_intrusions(object)
 \item{object}{A \code{sef_fit} object.}
 }
 \value{
-A data.frame with columns \code{id} and \code{intrusion_prob}.
+A data.frame with columns \code{id}, \code{intrusion_prob},
+\code{direction} (factor with levels \code{older_than_context},
+\code{in_context}, \code{younger_than_context}), and \code{chrono_gap}
+(numeric, signed offset in years).
 }
 \description{
 Combines rescaled entropy, energy, and inverse local SEI into a composite
@@ -23,7 +26,8 @@ di <- detect_intrusions(fit)
 head(di[order(di$intrusion_prob, decreasing = TRUE), ])
 }
 \seealso{
-\code{\link{gg_intrusions}}, \code{\link{fit_sef}}
+\code{\link{gg_intrusions}}, \code{\link{fit_sef}},
+\code{\link{type_longevity}}
 
 Other diagnostics: 
 \code{\link{as_phase_table}()},
