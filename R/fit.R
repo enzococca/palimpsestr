@@ -333,8 +333,12 @@ predict_phase <- function(object) {
 #' intrusion probability score.
 #'
 #' @param object A \code{sef_fit} object.
-#' @return A data.frame with columns \code{id} and \code{intrusion_prob}.
-#' @seealso \code{\link{gg_intrusions}}, \code{\link{fit_sef}}
+#' @return A data.frame with columns \code{id}, \code{intrusion_prob},
+#'   \code{direction} (factor with levels \code{older_than_context},
+#'   \code{in_context}, \code{younger_than_context}), and \code{chrono_gap}
+#'   (numeric, signed offset in years).
+#' @seealso \code{\link{gg_intrusions}}, \code{\link{fit_sef}},
+#'   \code{\link{type_longevity}}
 #' @family diagnostics
 #' @examples
 #' x <- archaeo_sim(n = 60, k = 2, seed = 1)
@@ -345,12 +349,22 @@ predict_phase <- function(object) {
 detect_intrusions <- function(object) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
   z_entropy <- rescale01(object$entropy)
-  z_energy <- rescale01(object$energy)
-  z_sei <- 1 - rescale01(object$local_sei)
-  score <- (z_entropy + z_energy + z_sei) / 3
+  z_energy  <- rescale01(object$energy)
+  z_sei     <- 1 - rescale01(object$local_sei)
+  score     <- (z_entropy + z_energy + z_sei) / 3
+
+  date_min_col <- if (length(object$chrono) >= 1) object$chrono[1] else NULL
+  date_max_col <- if (length(object$chrono) >= 2) object$chrono[2] else NULL
+  dir_df <- .compute_direction(object$data,
+                               context_col   = object$context,
+                               date_min_col  = date_min_col,
+                               date_max_col  = date_max_col)
+
   data.frame(
-    id = if ("id" %in% names(object$data)) object$data$id else seq_len(nrow(object$data)),
-    intrusion_prob = pmin(pmax(score, 0), 1)
+    id             = if ("id" %in% names(object$data)) object$data$id else seq_len(nrow(object$data)),
+    intrusion_prob = pmin(pmax(score, 0), 1),
+    direction      = dir_df$direction,
+    chrono_gap     = dir_df$chrono_gap
   )
 }
 

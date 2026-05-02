@@ -30,6 +30,7 @@ Other diagnostics:
 \code{\link{detect_intrusions}()},
 \code{\link{ese}()},
 \code{\link{pdi}()},
-\code{\link{predict_phase}()}
+\code{\link{predict_phase}()},
+\code{\link{type_longevity}()}
 }
 \concept{diagnostics}

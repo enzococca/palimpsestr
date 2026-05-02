@@ -1,7 +1,7 @@
 Package: palimpsestr
 Type: Package
 Title: Probabilistic Decomposition of Archaeological Palimpsests
-Version: 0.12.0
+Version: 0.13.0
 Authors@R: 
     c(person(given = "Enzo",
              family = "Cocca",
@@ -30,7 +30,8 @@ RoxygenNote: 7.3.3
 Depends: R (>= 4.1.0)
 Imports: stats, utils, graphics, grDevices
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, sf, ggplot2, viridis,
-        ggrepel, plotly, DBI, RSQLite, RPostgres, shiny, shinydashboard, DT
+        ggrepel, plotly, DBI, RSQLite, RPostgres, shiny, shinydashboard,
+        DT, rcarbon (>= 1.5.0)
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 NeedsCompilation: no

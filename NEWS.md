@@ -1,3 +1,44 @@
+# palimpsestr 0.13.0
+
+## New features
+
+- `detect_intrusions()` now returns two new columns:
+  - `direction`: factor classifying each find as `older_than_context`,
+    `in_context`, or `younger_than_context` based on interval overlap
+    between the find's chronology and the leave-one-out chronological
+    envelope of its stratigraphic unit.
+  - `chrono_gap`: signed offset in years (negative = residual,
+    positive = latent intrusion, 0 = in-context).
+  Backward compatible: the existing `intrusion_prob` column is unchanged.
+
+- New `type_longevity()` function: per-class temporal envelope of the
+  phases with mean posterior weight above a configurable threshold
+  (default 0.1). Returns `longevity_min`, `longevity_max`,
+  `longevity_span`, `dominant_phase`, `n_finds`, and a list-column
+  `weight_matrix` with the per-phase posterior weights.
+
+- New `gg_longevity()` Gantt-style plot for the `type_longevity()` output.
+
+- New `chronology_from_rcarbon()` adapter: converts an
+  `rcarbon::CalDates` object into the `date_min`/`date_max`/`date_mid`
+  columns expected by `fit_sef()`. Three reduction methods: HPD
+  (default), `median_iqr`, `weighted_mean`. BCE/CE sign convention
+  by default. `rcarbon` is in Suggests.
+
+## Documentation
+
+- New vignette subsections demonstrating the three features above.
+
+## Shiny app
+
+- "Intrusions" tab now shows `direction` and `chrono_gap`.
+- New "Type longevity" tab with plot, table, and xlsx download.
+- "Data import" tab includes an optional rcarbon calibration panel.
+
+## Compatibility
+
+No breaking changes. All v0.12.0 user code continues to work as before.
+
 # palimpsestr 0.10.0
 
 ## New features

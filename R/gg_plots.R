@@ -712,3 +712,45 @@ as_plotly <- function(gg, tooltip = "text", ...) {
   if (!inherits(gg, "gg")) stop("gg must be a ggplot object", call. = FALSE)
   plotly::ggplotly(gg, tooltip = tooltip, ...)
 }
+
+#' Gantt-style plot of type longevity
+#'
+#' Visualises the output of \code{type_longevity()} as a horizontal Gantt
+#' chart: one segment per class spanning \code{longevity_min} to
+#' \code{longevity_max}, ordered by \code{longevity_min}, coloured by
+#' \code{dominant_phase}.
+#'
+#' @param longevity_table A data.frame as returned by \code{type_longevity()}.
+#' @param fit Optional \code{sef_fit} to harmonise the colour palette with
+#'   other phase plots. Currently used only to extract \code{k} for the
+#'   factor levels of \code{dominant_phase}.
+#' @return A \code{ggplot} object.
+#' @seealso \code{\link{type_longevity}}
+#' @family ggplot
+#' @examples
+#' \donttest{
+#' x <- archaeo_sim(n = 90, k = 3, seed = 1)
+#' fit <- fit_sef(x, k = 3, context = "context")
+#' tl <- type_longevity(fit)
+#' if (requireNamespace("ggplot2", quietly = TRUE)) gg_longevity(tl, fit)
+#' }
+#' @export
+gg_longevity <- function(longevity_table, fit = NULL) {
+  .check_ggplot()
+  K <- if (!is.null(fit)) fit$k else max(longevity_table$dominant_phase, na.rm = TRUE)
+  df <- longevity_table[!is.na(longevity_table$longevity_min), , drop = FALSE]
+  if (nrow(df) == 0) stop("no class with finite longevity to plot", call. = FALSE)
+  df$class <- factor(df$class, levels = df$class[order(df$longevity_min)])
+  df$dominant_phase <- factor(df$dominant_phase, levels = seq_len(K))
+  ggplot2::ggplot(df, ggplot2::aes(y = .data$class,
+                                   x     = .data$longevity_min,
+                                   xend  = .data$longevity_max,
+                                   yend  = .data$class,
+                                   colour = .data$dominant_phase)) +
+    ggplot2::geom_segment(linewidth = 4) +
+    ggplot2::scale_colour_manual(values = .phase_colours(K), drop = FALSE,
+                                 name = "Dominant phase") +
+    ggplot2::labs(x = "Year (BCE negative)", y = NULL,
+                  title = "Type longevity (posterior-weighted phase envelope)") +
+    .theme_sef()
+}
