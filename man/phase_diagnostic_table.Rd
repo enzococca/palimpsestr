@@ -31,6 +31,7 @@ Other diagnostics:
 \code{\link{ese}()},
 \code{\link{pdi}()},
 \code{\link{predict_phase}()},
+\code{\link{recommend_setup}()},
 \code{\link{type_longevity}()}
 }
 \concept{diagnostics}

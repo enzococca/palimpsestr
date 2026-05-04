@@ -421,10 +421,36 @@ as_plotly(gg_intrusions(fit))
 
 The SEF framework does not replace the Harris Matrix. Rather, it extends it. The Harris Matrix remains indispensable for documenting observed physical relationships between depositional units. What palimpsestr adds is a quantitative, probabilistic layer of analysis that operates on find-level data within those units --- precisely the scale at which palimpsest formation is most problematic.
 
+## Setup recommendations (v0.13.0)
+
+Real-world archaeological datasets often have subtle structural properties
+that strongly affect which `fit_sef()` flags should be enabled --- for
+example, coordinates assigned at the unit centroid rather than per find,
+chronology inherited from the unit's archaeological period, highly
+imbalanced class distributions, or informative taphonomic scores.
+The `recommend_setup()` helper inspects a dataset and returns the
+suggested flags plus diagnostic warnings:
+
+```{r recommend-setup}
+rec <- recommend_setup(villa_romana, context = "context", tafonomy = "taf_score")
+print(rec)
+```
+
+For `villa_romana` the helper detects that (i) coordinates are at unit
+centroid, (ii) chronology is US-tied (every find inherits its unit's
+period), (iii) taphonomic scores are informative (range 0.30--1.00),
+and that the empirically optimal setup is `class_scale = TRUE` plus
+`taf_as_feature = TRUE`. The same call also issues an explicit warning
+that `detect_intrusions()` direction will be `in_context` for every
+row on this dataset --- directional diagnostics require per-find
+typological dating, not unit-level chronology.
+
 ## Directional intrusion diagnostics (v0.13.0)
 
 ```{r directional-intrusions, fig.cap = "Distribution of intrusion directions across stratigraphic units."}
-fit_vr <- fit_sef(villa_romana, k = 4, context = "context", tafonomy = "taf_score")
+fit_vr <- fit_sef(villa_romana, k = 4, context = "context",
+                  tafonomy = "taf_score",
+                  class_scale = TRUE, taf_as_feature = TRUE)
 intr <- detect_intrusions(fit_vr)
 table(intr$direction, useNA = "ifany")
 head(intr[intr$direction == "younger_than_context", ])

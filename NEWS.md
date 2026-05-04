@@ -25,6 +25,15 @@
   (default), `median_iqr`, `weighted_mean`. BCE/CE sign convention
   by default. `rcarbon` is in Suggests.
 
+- New `recommend_setup()` helper: inspects a dataset and returns
+  recommended `fit_sef()` flags (`class_scale`, `taf_as_feature`,
+  `chrono_precision`, `residuality`) based on diagnostic heuristics
+  (number of classes, singleton classes, US-centroid coordinates,
+  US-tied chronology, taf_score informativeness). Reports caveats
+  (e.g. directional intrusions will all be `in_context` when the
+  chronology is US-tied) and prints a ready-to-paste `fit_sef()`
+  call. Closes #2.
+
 ## Documentation
 
 - New vignette subsections demonstrating the three features above.
