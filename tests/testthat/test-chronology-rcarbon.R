@@ -40,3 +40,15 @@ test_that("error if rcarbon is not available (mocked)", {
   # Always-passing surrogate: with rcarbon installed, just verify the function exists.
   expect_true(is.function(chronology_from_rcarbon))
 })
+
+test_that("bce_negative = FALSE preserves ascending bounds (regression for #1)", {
+  skip_if_not_installed_local()
+  cal <- rcarbon::calibrate(x = c(2500, 2400, 2300), errors = c(30, 30, 30), verbose = FALSE)
+  for (m in c("hpd", "median_iqr", "weighted_mean")) {
+    out <- chronology_from_rcarbon(cal, method = m, bce_negative = FALSE)
+    expect_true(all(out$date_max >= out$date_min, na.rm = TRUE),
+                info = paste("ascending bounds violated for method", m))
+    expect_true(all(out$date_min >= 0, na.rm = TRUE),
+                info = paste("raw calBP must be non-negative for method", m))
+  }
+})

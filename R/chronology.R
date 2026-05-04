@@ -93,6 +93,17 @@ chronology_from_rcarbon <- function(cal_dates,
     }
   }
 
+  # Normalise ascending interval bounds: date_min <= date_max regardless of
+  # whether the convention is BCE/CE (negative for BC) or raw calBP. The
+  # per-method blocks above assume bce_negative = TRUE (so the calBP-larger
+  # endpoint becomes the smaller signed year). With bce_negative = FALSE the
+  # ordering would be reversed; pmin/pmax keeps downstream consumers
+  # (fit_sef, chronological overlap logic) safe in both modes.
+  norm_min <- pmin(out_min, out_max)
+  norm_max <- pmax(out_min, out_max)
+  out_min <- norm_min
+  out_max <- norm_max
+
   out <- data.frame(
     id       = ids,
     date_min = out_min,
