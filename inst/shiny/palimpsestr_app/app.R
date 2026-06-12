@@ -46,6 +46,7 @@ ui <- dashboardPage(
       menuItem("Analysis", tabName = "analysis", icon = icon("cogs")),
       menuItem("Plots", tabName = "results", icon = icon("chart-bar")),
       menuItem("Tables", tabName = "tables", icon = icon("table")),
+      menuItem("Type longevity", tabName = "longevity", icon = icon("clock")),
       menuItem("Maps", tabName = "maps", icon = icon("map")),
       menuItem("Report", tabName = "report", icon = icon("file-alt"))
     )
@@ -109,6 +110,34 @@ ui <- dashboardPage(
                                              icon = icon("link"), class = "btn-info"))
               ),
               verbatimTextOutput("taf_merge_status")
+          )
+        ),
+        fluidRow(
+          box(title = "Calibrated radiocarbon import (rcarbon)",
+              status = "info", solidHeader = TRUE, width = 12,
+              collapsible = TRUE, collapsed = TRUE,
+              p("Optional. Upload a CSV with columns ",
+                tags$code("lab_id"), ", ",
+                tags$code("cra"), ", ",
+                tags$code("error"),
+                " (uncalibrated 14C BP and 1-sigma error). The dates will ",
+                "be calibrated with rcarbon and merged into the dataset as ",
+                tags$code("date_min"), "/", tags$code("date_max"),
+                "/", tags$code("date_mid"), "."),
+              fluidRow(
+                column(4, fileInput("rcarbon_csv",
+                                    "CSV with columns lab_id, cra, error",
+                                    accept = ".csv")),
+                column(4, selectInput("rcarbon_method",
+                                      "Reduction method",
+                                      choices = c("hpd", "median_iqr",
+                                                  "weighted_mean"))),
+                column(4, br(), actionButton("rcarbon_run",
+                                             "Calibrate and merge",
+                                             icon = icon("calendar-check"),
+                                             class = "btn-info"))
+              ),
+              verbatimTextOutput("rcarbon_status")
           )
         ),
         fluidRow(
@@ -180,6 +209,24 @@ ui <- dashboardPage(
           tabPanel("Model",
                    verbatimTextOutput("txt_print_fit"),
                    verbatimTextOutput("txt_summary_fit"))
+        )
+      ),
+
+      ## --- Tab: Type longevity ---
+      tabItem(tabName = "longevity",
+        fluidRow(
+          box(title = "Type longevity", status = "primary", solidHeader = TRUE,
+              width = 12,
+              fluidRow(
+                column(4, numericInput("longevity_threshold",
+                                       "Posterior threshold",
+                                       value = 0.1, min = 0, max = 1, step = 0.05)),
+                column(4, br(), downloadButton("longevity_download",
+                                               "Download (xlsx)"))
+              ),
+              plotOutput("longevity_plot", height = "400px"),
+              DT::dataTableOutput("longevity_table")
+          )
         )
       ),
 
@@ -572,8 +619,16 @@ server <- function(input, output, session) {
     req(rv$fit)
     di <- detect_intrusions(rv$fit)
     di <- di[order(di$intrusion_prob, decreasing = TRUE), ]
+    if ("direction" %in% names(di)) {
+      dir_chr <- as.character(di$direction)
+      di$dir_icon <- ifelse(is.na(dir_chr), "",
+                     ifelse(dir_chr == "older_than_context",   "DOWN",
+                     ifelse(dir_chr == "younger_than_context", "UP",
+                     ifelse(dir_chr == "in_context",           "=", ""))))
+    }
+    round_cols <- intersect(c("intrusion_prob", "chrono_gap"), names(di))
     DT::datatable(di, options = list(scrollX = TRUE, pageLength = 15)) |>
-      DT::formatRound(columns = "intrusion_prob", digits = 4)
+      DT::formatRound(columns = round_cols, digits = 4)
   })
 
   output$tbl_us_summary <- DT::renderDataTable({
@@ -594,6 +649,85 @@ server <- function(input, output, session) {
 
   output$txt_print_fit <- renderPrint({ req(rv$fit); print(rv$fit) })
   output$txt_summary_fit <- renderPrint({ req(rv$fit); summary(rv$fit) })
+
+  ## --- Type longevity ---
+
+  longevity_data <- reactive({
+    req(rv$fit)
+    type_longevity(rv$fit, posterior_threshold = input$longevity_threshold)
+  })
+
+  output$longevity_table <- DT::renderDataTable({
+    tl <- longevity_data()
+    show_cols <- intersect(c("class", "longevity_min", "longevity_max",
+                             "longevity_span", "dominant_phase", "n_finds"),
+                           names(tl))
+    DT::datatable(tl[, show_cols, drop = FALSE],
+                  options = list(scrollX = TRUE, pageLength = 15)) |>
+      DT::formatRound(columns = intersect(c("longevity_min", "longevity_max",
+                                            "longevity_span"), show_cols),
+                      digits = 2)
+  })
+
+  output$longevity_plot <- renderPlot({
+    tl <- longevity_data()
+    gg_longevity(tl, rv$fit)
+  })
+
+  output$longevity_download <- downloadHandler(
+    filename = function() paste0("type_longevity_", Sys.Date(), ".xlsx"),
+    content = function(file) {
+      if (!has_openxlsx) stop("Install the openxlsx package to export xlsx")
+      tl <- longevity_data()
+      if ("weight_matrix" %in% names(tl) && is.list(tl$weight_matrix)) {
+        tl$weight_matrix <- vapply(tl$weight_matrix,
+                                   function(w) paste(round(w, 3),
+                                                     collapse = ";"), "")
+      }
+      openxlsx::write.xlsx(tl, file)
+    }
+  )
+
+  ## --- rcarbon import ---
+
+  observeEvent(input$rcarbon_run, {
+    req(input$rcarbon_csv, rv$data)
+    if (!requireNamespace("rcarbon", quietly = TRUE)) {
+      showNotification("Install package 'rcarbon' first.", type = "error")
+      return()
+    }
+    tryCatch({
+      csv <- utils::read.csv(input$rcarbon_csv$datapath, stringsAsFactors = FALSE)
+      req_cols <- c("lab_id", "cra", "error")
+      missing_cols <- setdiff(req_cols, names(csv))
+      if (length(missing_cols))
+        stop("CSV is missing column(s): ",
+             paste(missing_cols, collapse = ", "))
+      cal <- rcarbon::calibrate(x = csv$cra, errors = csv$error,
+                                verbose = FALSE)
+      ch <- chronology_from_rcarbon(cal, method = input$rcarbon_method,
+                                    ids = csv$lab_id)
+      # Drop pre-existing date columns to avoid .x/.y suffixes after merge
+      drop_cols <- intersect(c("date_min", "date_max", "date_mid"),
+                             names(rv$data))
+      d <- rv$data[, setdiff(names(rv$data), drop_cols), drop = FALSE]
+      rv$data <- merge(d, ch, by.x = "id", by.y = "id", all.x = TRUE)
+      showNotification(
+        paste("Calibrated dates merged:", nrow(ch), "labels processed."),
+        type = "message")
+    }, error = function(e)
+      showNotification(paste("rcarbon error:", e$message), type = "error"))
+  })
+
+  output$rcarbon_status <- renderPrint({
+    if (!requireNamespace("rcarbon", quietly = TRUE)) {
+      cat("Package 'rcarbon' not installed. ",
+          "Run install.packages('rcarbon') to enable this feature.\n",
+          sep = "")
+    } else {
+      cat("rcarbon ready. Upload a CSV with columns lab_id, cra, error.\n")
+    }
+  })
 
   ## --- Maps ---
 

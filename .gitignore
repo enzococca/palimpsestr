@@ -13,3 +13,17 @@ docs/*.pdf
 src/*.o
 src/*.so
 src/*.dll
+docs/cover-letter-pci.md
+docs/future-paper-*.md
+docs/email-pci-submission.txt
+docs/zenodo-abstract.txt
+
+# Local real-data files (VRPG / Solarolo) — never commit
+VRPG_*
+*VRPG*
+Reperti*
+*.sql
+analisi_*_report.pdf
+test_v0_13_0.R
+palimpsestr/
+vignettes/*.html

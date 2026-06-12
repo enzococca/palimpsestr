@@ -234,3 +234,64 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
   list(prob = prob, means = means, vars = vars, mix = mix,
        loglik = loglik_trace, converged = converged)
 }
+
+# Compute per-find directional classification using leave-one-out unit envelope.
+# Returns a data.frame with columns `direction` (factor) and `chrono_gap` (numeric).
+.compute_direction <- function(data, context_col, date_min_col, date_max_col) {
+  n <- nrow(data)
+  direction_levels <- c("older_than_context", "in_context", "younger_than_context")
+  out <- data.frame(
+    direction  = factor(rep(NA_character_, n), levels = direction_levels),
+    chrono_gap = rep(NA_real_, n),
+    stringsAsFactors = FALSE
+  )
+
+  has_chrono_cols <- !is.null(date_min_col) && !is.null(date_max_col) &&
+                     date_min_col %in% names(data) && date_max_col %in% names(data)
+  if (!has_chrono_cols) {
+    warning("no chronological columns available; 'direction' set to NA for all rows",
+            call. = FALSE)
+    return(out)
+  }
+  if (is.null(context_col) || !(context_col %in% names(data))) {
+    # Silently return NA when no context; many gg_* helpers call this without one.
+    return(out)
+  }
+
+  d_min <- as.numeric(data[[date_min_col]])
+  d_max <- as.numeric(data[[date_max_col]])
+  # Allow point-dated finds: if exactly one bound is missing, use the other.
+  d_min[is.na(d_min) & !is.na(d_max)] <- d_max[is.na(d_min) & !is.na(d_max)]
+  d_max[is.na(d_max) & !is.na(d_min)] <- d_min[is.na(d_max) & !is.na(d_min)]
+
+  if (all(is.na(d_min)) || all(is.na(d_max))) {
+    warning("no chronological data available; 'direction' set to NA for all rows",
+            call. = FALSE)
+    return(out)
+  }
+
+  ctx <- data[[context_col]]
+  for (u in unique(ctx)) {
+    idx <- which(ctx == u)
+    if (length(idx) <= 1) next  # leave-one-out impossible
+    for (i in idx) {
+      others <- setdiff(idx, i)
+      others <- others[!is.na(d_min[others]) & !is.na(d_max[others])]
+      if (length(others) == 0) next
+      if (is.na(d_min[i]) || is.na(d_max[i])) next
+      U_min <- min(d_min[others])
+      U_max <- max(d_max[others])
+      if (d_max[i] < U_min) {
+        out$direction[i]  <- "older_than_context"
+        out$chrono_gap[i] <- d_max[i] - U_min  # negative
+      } else if (d_min[i] > U_max) {
+        out$direction[i]  <- "younger_than_context"
+        out$chrono_gap[i] <- d_min[i] - U_max  # positive
+      } else {
+        out$direction[i]  <- "in_context"
+        out$chrono_gap[i] <- 0
+      }
+    }
+  }
+  out
+}

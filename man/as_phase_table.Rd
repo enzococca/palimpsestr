@@ -29,6 +29,8 @@ Other diagnostics:
 \code{\link{ese}()},
 \code{\link{pdi}()},
 \code{\link{phase_diagnostic_table}()},
-\code{\link{predict_phase}()}
+\code{\link{predict_phase}()},
+\code{\link{recommend_setup}()},
+\code{\link{type_longevity}()}
 }
 \concept{diagnostics}

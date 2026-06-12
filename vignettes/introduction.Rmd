@@ -421,6 +421,75 @@ as_plotly(gg_intrusions(fit))
 
 The SEF framework does not replace the Harris Matrix. Rather, it extends it. The Harris Matrix remains indispensable for documenting observed physical relationships between depositional units. What palimpsestr adds is a quantitative, probabilistic layer of analysis that operates on find-level data within those units --- precisely the scale at which palimpsest formation is most problematic.
 
+## Setup recommendations (v0.13.0)
+
+Real-world archaeological datasets often have subtle structural properties
+that strongly affect which `fit_sef()` flags should be enabled --- for
+example, coordinates assigned at the unit centroid rather than per find,
+chronology inherited from the unit's archaeological period, highly
+imbalanced class distributions, or informative taphonomic scores.
+The `recommend_setup()` helper inspects a dataset and returns the
+suggested flags plus diagnostic warnings:
+
+```{r recommend-setup}
+rec <- recommend_setup(villa_romana, context = "context", tafonomy = "taf_score")
+print(rec)
+```
+
+For `villa_romana` the helper detects that (i) coordinates are at unit
+centroid, (ii) chronology is US-tied (every find inherits its unit's
+period), (iii) taphonomic scores are informative (range 0.30--1.00),
+and that the empirically optimal setup is `class_scale = TRUE` plus
+`taf_as_feature = TRUE`. The same call also issues an explicit warning
+that `detect_intrusions()` direction will be `in_context` for every
+row on this dataset --- directional diagnostics require per-find
+typological dating, not unit-level chronology.
+
+## Directional intrusion diagnostics (v0.13.0)
+
+```{r directional-intrusions, fig.cap = "Distribution of intrusion directions across stratigraphic units."}
+fit_vr <- fit_sef(villa_romana, k = 4, context = "context",
+                  tafonomy = "taf_score",
+                  class_scale = TRUE, taf_as_feature = TRUE)
+intr <- detect_intrusions(fit_vr)
+table(intr$direction, useNA = "ifany")
+head(intr[intr$direction == "younger_than_context", ])
+```
+
+The `direction` column distinguishes **older-than-context** finds (residuals
+redeposited from earlier deposits) from **younger-than-context** finds
+(latent intrusions, often signalling unrecognised cuts and refills).
+The `chrono_gap` column gives the signed mismatch in years.
+
+## Type longevity (v0.13.0)
+
+```{r type-longevity, fig.cap = "Posterior-weighted longevity envelope per cultural class."}
+tl <- type_longevity(fit_vr)
+head(tl[order(-tl$longevity_span), c("class", "longevity_min", "longevity_max", "longevity_span", "n_finds")])
+if (requireNamespace("ggplot2", quietly = TRUE)) gg_longevity(tl, fit_vr)
+```
+
+Long-lived classes (e.g. `tegula`, `dolium`) span multiple phases
+with non-negligible posterior weight; short-lived classes are confined
+to a single phase.
+
+## Calibrated radiocarbon import (v0.13.0)
+
+```{r rcarbon-adapter, eval = requireNamespace("rcarbon", quietly = TRUE)}
+cal <- rcarbon::calibrate(x = c(2500, 2400, 2350), errors = c(30, 30, 30), verbose = FALSE)
+chrono_df <- chronology_from_rcarbon(cal, method = "hpd")
+chrono_df
+# Merge into your main data:
+# my_data <- merge(my_data, chrono_df, by = "id")
+# fit_sef(my_data, ...)
+```
+
+The adapter takes calibrated probability densities from
+`rcarbon::calibrate()` and returns the chronological-interval columns
+(`date_min`, `date_max`, `date_mid`) used by `fit_sef()`. Three
+reduction methods are available: HPD (default), median+IQR, and
+weighted mean +/- 2 SD.
+
 ## Model Limitations and Methodological Notes
 
 ### Diagonal Covariance Assumption
