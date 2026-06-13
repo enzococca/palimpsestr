@@ -50,6 +50,7 @@ Other diagnostics:
 \code{\link[=detect_intrusions]{detect_intrusions()}},
 \code{\link[=ese]{ese()}},
 \code{\link[=pdi]{pdi()}},
+\code{\link[=phase_composition]{phase_composition()}},
 \code{\link[=phase_diagnostic_table]{phase_diagnostic_table()}},
 \code{\link[=predict_phase]{predict_phase()}},
 \code{\link[=recommend_setup]{recommend_setup()}}

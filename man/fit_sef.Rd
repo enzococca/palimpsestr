@@ -23,7 +23,9 @@ fit_sef(
   residuality = FALSE,
   class_scale = FALSE,
   subclass = NULL,
-  var_structure = c("diagonal", "spherical")
+  var_structure = c("diagonal", "spherical"),
+  class_model = c("multinomial", "gaussian"),
+  class_smoothing = 1
 )
 }
 \arguments{
@@ -86,6 +88,24 @@ variances absorb any rescaling of the feature columns, so the domain
 initialisation; under \code{"spherical"} the weights define the
 relative precision of the dimensions, are identifiable, and can be
 selected by \code{\link{optimize_weights}}.}
+
+\item{class_model}{Either \code{"multinomial"} (default) or
+\code{"gaussian"}. Under \code{"multinomial"} the class (or
+\code{subclass}) label is modelled as a per-phase categorical
+distribution, giving a Gaussian-times-multinomial mixed-type mixture.
+Under \code{"gaussian"} (the behaviour up to v0.14.0) the class label is
+one-hot encoded into the Gaussian feature block; because zero/one dummies
+make finds of different classes almost perfectly separable, that model
+tends to produce over-confident assignments (entropy near 0, PDI near 1).
+The multinomial model is recommended; the Gaussian model is retained for
+backward compatibility.}
+
+\item{class_smoothing}{Non-negative Dirichlet pseudo-count for the
+categorical class probabilities under \code{class_model = "multinomial"}
+(default: 1). The pseudo-count is shrunk towards the global class
+frequencies, keeping every per-phase class probability strictly positive;
+larger values pull the phase class profiles towards the overall
+distribution, \code{0} removes the shrinkage entirely.}
 }
 \value{
 An S3 object of class \code{sef_fit}.

@@ -54,8 +54,13 @@ cv_sef <- function(data, k_values = 2:6, n_folds = 5, seed = 1, ...) {
       test_ll <- tryCatch({
         coords <- fit_train$coords
         chrono <- fit_train$chrono
-        class_col <- fit_train$class_col
         w <- null_default(fit_train$weights, c(ws = 1, wz = 1, wt = 1, wc = 1))
+        # Under the multinomial class model the class label is not one-hot
+        # encoded into the feature block, so the test feature matrix must omit
+        # it too (otherwise its dimension would not match the trained model).
+        multinom <- identical(null_default(fit_train$class_model, "gaussian"), "multinomial")
+        class_col <- if (multinom) NULL else fit_train$class_col
+        subclass_col <- if (multinom) NULL else fit_train$subclass
         # Build training features to capture scale parameters
         feat_train <- feature_matrix(train_data, coords = coords,
                                       chrono = chrono, class_col = class_col,
@@ -64,7 +69,7 @@ cv_sef <- function(data, k_values = 2:6, n_folds = 5, seed = 1, ...) {
                                       taf_col = fit_train$tafonomy,
                                       context_col = if (null_default(fit_train$residuality, FALSE)) fit_train$context else NULL,
                                       class_scale = null_default(fit_train$class_scale, FALSE),
-                                      subclass_col = fit_train$subclass,
+                                      subclass_col = subclass_col,
                                       weights = w)
         train_center <- attr(feat_train, "scaled:center")
         train_scale <- attr(feat_train, "scaled:scale")
@@ -77,11 +82,14 @@ cv_sef <- function(data, k_values = 2:6, n_folds = 5, seed = 1, ...) {
                                      taf_col = fit_train$tafonomy,
                                      context_col = if (null_default(fit_train$residuality, FALSE)) fit_train$context else NULL,
                                      class_scale = null_default(fit_train$class_scale, FALSE),
-                                     subclass_col = fit_train$subclass,
+                                     subclass_col = subclass_col,
                                      weights = w)
-        # Compute log-likelihood under trained model
+        # Compute log-likelihood under trained model (joint Gaussian +
+        # categorical when the multinomial class model is used).
         log_dens <- diag_log_density(feat_test, fit_train$centroids,
                                       fit_train$variances)
+        log_dens <- log_dens + cat_test_contrib(fit_train, test_data,
+                                                nrow(test_data), fit_train$k)
         log_mix <- log(pmax(fit_train$mixture_weights, 1e-12))
         log_post <- sweep(log_dens, 2, log_mix, FUN = "+")
         m <- apply(log_post, 1, max)

@@ -215,13 +215,64 @@ diag_log_density <- function(features, means, vars) {
 # (weighted) feature space, i.e. v_jd = sigma_j^2 / w_d^2 on the original
 # scale -- the structure under which domain weights become identifiable and
 # can be selected by cross-validation.
+# Categorical (multinomial) log-density of the class labels under per-component
+# class-probability vectors. `cat_indicator` is the n x L one-hot matrix of the
+# class labels; `cat_prob` is the k x L matrix of component class probabilities.
+# Returns an n x k matrix of log theta_{j, class(i)}.
+cat_log_density <- function(cat_indicator, cat_prob) {
+  cat_indicator %*% t(log(pmax(cat_prob, 1e-12)))
+}
+
+# Categorical log-density contribution (n_test x k) of a held-out set under a
+# fitted model. Returns a zero matrix when the fit used the Gaussian class
+# model. Test classes unseen in training contribute 0 (class label treated as
+# uninformative for that find).
+cat_test_contrib <- function(fit, test_data, n_test, k) {
+  if (is.null(fit$cat_prob)) return(matrix(0, n_test, k))
+  encode_col <- if (!is.null(fit$subclass)) fit$subclass else fit$class_col
+  lev <- colnames(fit$cat_prob)
+  lab <- factor(as.character(test_data[[encode_col]]), levels = lev)
+  ind <- matrix(0, n_test, length(lev))
+  known <- !is.na(lab)
+  if (any(known)) ind[cbind(which(known), as.integer(lab)[known])] <- 1
+  ind %*% t(log(pmax(fit$cat_prob, 1e-12)))
+}
+
+# var_structure = "diagonal": free per-dimension variances (default). Note
+# that free diagonal variances absorb any rescaling of the feature columns,
+# so domain weights are not identifiable under this structure.
+# var_structure = "spherical": one shared variance per component in the
+# (weighted) feature space.
+#
+# When `cat_labels` is supplied the class label is modelled as a per-component
+# categorical distribution (a Gaussian x Multinomial mixed-type mixture)
+# instead of as one-hot Gaussian columns. `cat_alpha` is the total Dirichlet
+# pseudo-count, shrunk towards the global class frequencies `cat_global`,
+# which keeps every class probability strictly positive and prevents the
+# overconfident (entropy ~ 0) fits that one-hot Gaussian columns produced.
 em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_obs = NULL,
-                        strat_penalty = NULL, var_structure = "diagonal") {
+                        strat_penalty = NULL, var_structure = "diagonal",
+                        cat_labels = NULL, cat_alpha = 1) {
   n <- nrow(features)
   p <- ncol(features)
   k <- ncol(prob_init)
   prob <- normalize_rows(prob_init)
   if (is.null(weights_obs)) weights_obs <- rep(1, n)
+
+  use_cat <- !is.null(cat_labels)
+  if (use_cat) {
+    cat_fac <- factor(cat_labels)
+    cat_levels <- levels(cat_fac)
+    L <- length(cat_levels)
+    cat_ind <- matrix(0, n, L)
+    cat_ind[cbind(seq_len(n), as.integer(cat_fac))] <- 1
+    # Global weighted class frequencies for the Dirichlet shrinkage target.
+    cat_global <- colSums(cat_ind * weights_obs)
+    cat_global <- cat_global / sum(cat_global)
+    cat_prob <- matrix(1 / L, k, L)
+  } else {
+    cat_prob <- NULL
+  }
 
   loglik_trace <- numeric(max_iter)
   prev_ll <- -Inf
@@ -239,6 +290,7 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
         means[j, ] <- features[idx, ]
         vars[j, ] <- rep(1, p)
         mix[j] <- 1 / k
+        if (use_cat) cat_prob[j, ] <- cat_global
       } else {
         means[j, ] <- colSums(features * rj) / sw
         dif <- sweep(features, 2, means[j, ], FUN = "-")
@@ -247,11 +299,16 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
           vars[j, ] <- rep(mean(vars[j, ]), p)
         }
         mix[j] <- sw
+        if (use_cat) {
+          n_jl <- colSums(cat_ind * rj)  # weighted class counts in component j
+          cat_prob[j, ] <- (n_jl + cat_alpha * cat_global) / (sw + cat_alpha)
+        }
       }
     }
     mix <- mix / sum(mix)
 
     logdens <- diag_log_density(features, means, vars)
+    if (use_cat) logdens <- logdens + cat_log_density(cat_ind, cat_prob)
     logpost <- sweep(logdens, 2, log(pmax(mix, 1e-12)), FUN = "+")
 
     if (!is.null(strat_penalty)) {
@@ -287,13 +344,19 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
   # The trace above is the penalized EM objective (used for convergence and
   # init selection); BIC/ICL must be built from the true mixture likelihood.
   logdens <- diag_log_density(features, means, vars)
+  if (use_cat) logdens <- logdens + cat_log_density(cat_ind, cat_prob)
   lp <- sweep(logdens, 2, log(pmax(mix, 1e-12)), FUN = "+")
   mu <- apply(lp, 1, max)
   loglik_unpen <- sum(log(rowSums(exp(lp - mu))) + mu)
 
+  if (use_cat) {
+    rownames(cat_prob) <- NULL
+    colnames(cat_prob) <- cat_levels
+  }
+
   list(prob = prob, means = means, vars = vars, mix = mix,
        loglik = loglik_trace, loglik_unpen = loglik_unpen,
-       converged = converged)
+       cat_prob = cat_prob, converged = converged)
 }
 
 # Compute per-find directional classification using leave-one-out unit envelope.

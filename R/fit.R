@@ -44,6 +44,22 @@
 #'   initialisation; under \code{"spherical"} the weights define the
 #'   relative precision of the dimensions, are identifiable, and can be
 #'   selected by \code{\link{optimize_weights}}.
+#' @param class_model Either \code{"multinomial"} (default) or
+#'   \code{"gaussian"}. Under \code{"multinomial"} the class (or
+#'   \code{subclass}) label is modelled as a per-phase categorical
+#'   distribution, giving a Gaussian-times-multinomial mixed-type mixture.
+#'   Under \code{"gaussian"} (the behaviour up to v0.14.0) the class label is
+#'   one-hot encoded into the Gaussian feature block; because zero/one dummies
+#'   make finds of different classes almost perfectly separable, that model
+#'   tends to produce over-confident assignments (entropy near 0, PDI near 1).
+#'   The multinomial model is recommended; the Gaussian model is retained for
+#'   backward compatibility.
+#' @param class_smoothing Non-negative Dirichlet pseudo-count for the
+#'   categorical class probabilities under \code{class_model = "multinomial"}
+#'   (default: 1). The pseudo-count is shrunk towards the global class
+#'   frequencies, keeping every per-phase class probability strictly positive;
+#'   larger values pull the phase class profiles towards the overall
+#'   distribution, \code{0} removes the shrinkage entirely.
 #' @return An S3 object of class \code{sef_fit}.
 #' @seealso \code{\link{archaeo_sim}}, \code{\link{compare_k}},
 #'   \code{\link{pdi}}, \code{\link{detect_intrusions}}
@@ -77,8 +93,11 @@ fit_sef <- function(data,
                     residuality = FALSE,
                     class_scale = FALSE,
                     subclass = NULL,
-                    var_structure = c("diagonal", "spherical")) {
+                    var_structure = c("diagonal", "spherical"),
+                    class_model = c("multinomial", "gaussian"),
+                    class_smoothing = 1) {
   var_structure <- match.arg(var_structure)
+  class_model <- match.arg(class_model)
   check_required_columns(data, c(coords, chrono, class))
   if (!is.null(tafonomy)) check_required_columns(data, tafonomy)
   if (!is.null(context)) check_required_columns(data, context)
@@ -86,14 +105,30 @@ fit_sef <- function(data,
   if (k < 1) stop("k must be >= 1", call. = FALSE)
   if (em_iter < 1) stop("em_iter must be >= 1", call. = FALSE)
   if (n_init < 1) stop("n_init must be >= 1", call. = FALSE)
+  if (!is.numeric(class_smoothing) || class_smoothing < 0) {
+    stop("class_smoothing must be a non-negative number", call. = FALSE)
+  }
   weights <- validate_weights(weights)
 
-  feat <- feature_matrix(data, coords = coords, chrono = chrono, class_col = class,
+  # Under the multinomial class model the class label is modelled as a
+  # per-component categorical distribution, so it is NOT one-hot encoded into
+  # the Gaussian feature block. The column that would have been encoded
+  # (subclass if supplied, else class) becomes the categorical block instead.
+  use_multinom <- (class_model == "multinomial")
+  encode_col <- if (!is.null(subclass)) subclass else class
+  cat_labels <- if (use_multinom) data[[encode_col]] else NULL
+  if (use_multinom && class_scale) {
+    warning("class_scale is ignored when class_model = \"multinomial\" ",
+            "(there are no one-hot class columns to scale).", call. = FALSE)
+  }
+
+  feat <- feature_matrix(data, coords = coords, chrono = chrono,
+                         class_col = if (use_multinom) NULL else class,
                          add_chrono_precision = chrono_precision,
                          add_taf = taf_as_feature, taf_col = tafonomy,
                          context_col = if (residuality && !is.null(context)) context else NULL,
                          class_scale = class_scale,
-                         subclass_col = subclass,
+                         subclass_col = if (use_multinom) NULL else subclass,
                          weights = weights)
   penalty <- build_context_penalty(data, context_col = context, harris = harris)
   taf <- if (!is.null(tafonomy)) pmin(pmax(data[[tafonomy]], 0), 1) else rep(0, nrow(data))
@@ -128,7 +163,9 @@ fit_sef <- function(data,
       tol = em_tol,
       weights_obs = 1 - 0.5 * taf,
       strat_penalty = strat_pen,
-      var_structure = var_structure
+      var_structure = var_structure,
+      cat_labels = cat_labels,
+      cat_alpha = class_smoothing
     )
 
     final_ll <- tail(em$loglik, 1)
@@ -161,10 +198,17 @@ fit_sef <- function(data,
   # log-likelihood, and would bias comparisons across K or across settings.
   loglik <- em$loglik_unpen
   loglik_penalized <- tail(em$loglik, 1)
+  # Gaussian parameters on the numeric block (means + variances + mixture
+  # weights), plus, under the multinomial class model, k*(L-1) free
+  # categorical parameters.
   npar <- if (var_structure == "spherical") {
-    k * (ncol(feat) + 2) - 1
+    k * (ncol(feat) + 1) + (k - 1)
   } else {
-    k * (2 * ncol(feat) + 1) - 1
+    k * (2 * ncol(feat)) + (k - 1)
+  }
+  if (use_multinom) {
+    L <- ncol(em$cat_prob)
+    npar <- npar + k * (L - 1)
   }
   bic <- -2 * loglik + log(max(nrow(data), 1)) * npar
 
@@ -179,6 +223,10 @@ fit_sef <- function(data,
     k = k,
     weights = weights,
     var_structure = var_structure,
+    class_model = class_model,
+    class_smoothing = class_smoothing,
+    cat_prob = em$cat_prob,
+    cat_levels = if (use_multinom) colnames(em$cat_prob) else NULL,
     phase = phase,
     phase_prob = prob,
     entropy = ent,
@@ -216,6 +264,39 @@ fit_sef <- function(data,
   out
 }
 
+#' Per-phase class composition
+#'
+#' Returns the estimated categorical class profile of each phase from a fit
+#' made with \code{class_model = "multinomial"}: row \code{j} gives the
+#' probability that a find assigned to phase \code{j} belongs to each material
+#' class. This is the model-based counterpart of cross-tabulating finds by
+#' phase and class, and is directly interpretable (e.g. "phase 2 is dominated
+#' by amphorae and fine ware").
+#'
+#' @param object A \code{sef_fit} object fitted with
+#'   \code{class_model = "multinomial"}.
+#' @return A data.frame with a \code{phase} column and one column per class
+#'   level; each row sums to 1.
+#' @seealso \code{\link{fit_sef}}, \code{\link{as_phase_table}}
+#' @family diagnostics
+#' @examples
+#' x <- archaeo_sim(n = 80, k = 3, seed = 1)
+#' fit <- fit_sef(x, k = 3)
+#' phase_composition(fit)
+#' @export
+phase_composition <- function(object) {
+  if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
+  if (is.null(object$cat_prob)) {
+    stop("phase_composition() requires a fit made with class_model = \"multinomial\".",
+         call. = FALSE)
+  }
+  out <- data.frame(phase = seq_len(nrow(object$cat_prob)),
+                    as.data.frame(object$cat_prob, check.names = FALSE),
+                    check.names = FALSE, stringsAsFactors = FALSE)
+  rownames(out) <- NULL
+  out
+}
+
 #' Reorder phases by mean depth
 #'
 #' Relabels phases so that phase 1 corresponds to the deepest (oldest)
@@ -249,6 +330,9 @@ reorder_phases <- function(object) {
   object$centroids <- object$centroids[new_order, , drop = FALSE]
   object$variances <- object$variances[new_order, , drop = FALSE]
   object$mixture_weights <- object$mixture_weights[new_order]
+  if (!is.null(object$cat_prob)) {
+    object$cat_prob <- object$cat_prob[new_order, , drop = FALSE]
+  }
   object
 }
 
@@ -274,6 +358,9 @@ print.sef_fit <- function(x, ...) {
   cat(sprintf("PDI: %.3f
 ", x$model_stats$pdi))
   cat(sprintf("Converged: %s\n", if (x$converged) "yes" else "NO"))
+  if (!is.null(x$class_model)) {
+    cat(sprintf("Class model: %s\n", x$class_model))
+  }
   if (!is.null(x$n_init) && x$n_init > 1) cat(sprintf("Initialisations: %d\n", x$n_init))
   invisible(x)
 }
