@@ -1,3 +1,26 @@
+# palimpsestr 0.17.0
+
+## Noise / outlier mixture component
+
+- **New `fit_sef(noise = FALSE, noise_prior = 0.05)`.** When `TRUE`, a uniform
+  background component is added to the mixture (Fraley & Raftery, 1998). Finds
+  that fit no Gaussian phase accumulate posterior probability on it, so the fit
+  gains a `noise_prob` vector that is a **genuine posterior probability of
+  being an outlier/intrusion** — unlike the previous composite score, it is not
+  forced onto `[0, 1]` by rescaling, so a clean assemblage need not contain a
+  probability-1 intrusion. As a side effect the noise component absorbs extreme
+  finds, keeping them out of the phase centroid and variance estimates
+  (robust phase estimation). The reported `phase_prob` is then the distribution
+  over phases conditional on a find not being noise.
+
+- **`detect_intrusions()` now returns the model-based posterior** in its
+  `intrusion_prob` column whenever the fit was made with `noise = TRUE`,
+  falling back to the heuristic composite (rescaled entropy + energy +
+  inverse local SEI) otherwise. The directional columns are unchanged.
+
+- The option is propagated through `bootstrap_sef()` and exposed in the Shiny
+  app.
+
 # palimpsestr 0.16.0
 
 This release adds two model-based treatments of evidence that the EM engine
