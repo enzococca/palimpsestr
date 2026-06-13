@@ -110,6 +110,8 @@ optimize_weights <- function(data, k, weight_grid = NULL, n_folds = 3,
                                                 nrow(test_data), fit_train$k)
         log_mix <- log(pmax(fit_train$mixture_weights, 1e-12))
         log_post <- sweep(log_dens, 2, log_mix, FUN = "+")
+        nc <- noise_test_contrib(fit_train, test_data, nrow(test_data))
+        if (!is.null(nc)) log_post <- cbind(log_post, nc)
         m <- apply(log_post, 1, max)
         ll_weighted_space <- sum(log(rowSums(exp(log_post - m))) + m)
         # Jacobian correction: the weights rescale the feature space, so
