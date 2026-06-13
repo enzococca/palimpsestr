@@ -77,10 +77,11 @@ test_that("fit_sef backward compatible with no new params", {
 test_that("fit_sef works with all 5 improvements", {
   x <- archaeo_sim(n = 60, k = 2, seed = 1)
   x$subclass <- paste0(x$class, "_", sample(letters[1:3], 60, replace = TRUE))
+  # class_scale only applies to the one-hot Gaussian class block.
   fit <- fit_sef(x, k = 2, tafonomy = "taf_score", context = "context",
                  chrono_precision = TRUE, taf_as_feature = TRUE,
                  residuality = TRUE, class_scale = TRUE,
-                 subclass = "subclass")
+                 subclass = "subclass", class_model = "gaussian")
   expect_s3_class(fit, "sef_fit")
   expect_true(fit$chrono_precision)
   expect_true(fit$taf_as_feature)

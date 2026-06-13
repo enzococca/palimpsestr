@@ -2,8 +2,12 @@
 
 test_that("weights enter the likelihood: different weights give different fits", {
   x <- archaeo_sim(n = 80, k = 3, seed = 7)
-  f_lo <- fit_sef(x, k = 3, weights = c(ws = 0.25, wz = 1, wt = 4, wc = 1), seed = 1)
-  f_hi <- fit_sef(x, k = 3, weights = c(ws = 4, wz = 1, wt = 0.25, wc = 1), seed = 1)
+  # class_model = "gaussian" exercises the full weighted feature block,
+  # including the one-hot class columns scaled by wc.
+  f_lo <- fit_sef(x, k = 3, weights = c(ws = 0.25, wz = 1, wt = 4, wc = 1),
+                  seed = 1, class_model = "gaussian")
+  f_hi <- fit_sef(x, k = 3, weights = c(ws = 4, wz = 1, wt = 0.25, wc = 1),
+                  seed = 1, class_model = "gaussian")
   expect_false(identical(f_lo$centroids, f_hi$centroids))
   expect_false(isTRUE(all.equal(f_lo$model_stats$loglik, f_hi$model_stats$loglik)))
 })
@@ -62,7 +66,11 @@ test_that("em_diag_gmm no longer exposes the dead taf parameters", {
 
 test_that("reported loglik is the true unpenalized mixture likelihood", {
   x <- archaeo_sim(n = 60, k = 2, seed = 4)
-  fit <- fit_sef(x, k = 2, context = "context", tafonomy = "taf_score", seed = 1)
+  # Pin to the Gaussian class model so the manual reconstruction below (which
+  # uses the one-hot feature matrix) matches; the joint Gaussian + categorical
+  # likelihood is verified in test-class-multinomial.R.
+  fit <- fit_sef(x, k = 2, context = "context", tafonomy = "taf_score", seed = 1,
+                 class_model = "gaussian")
   feat <- palimpsestr:::feature_matrix(x, c("x", "y", "z"),
                                        c("date_min", "date_max"), "class",
                                        weights = c(ws = 1, wz = 1, wt = 1, wc = 1))

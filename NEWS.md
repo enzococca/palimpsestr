@@ -1,3 +1,46 @@
+# palimpsestr 0.15.0
+
+## Mixed-type likelihood for the class label
+
+- **The class label is now modelled as a per-phase categorical distribution**
+  (a Gaussian-times-multinomial mixed-type mixture), controlled by the new
+  `class_model` argument to `fit_sef()`. `"multinomial"` is the default;
+  `"gaussian"` reproduces the previous one-hot behaviour and is kept for
+  backward compatibility.
+
+  Up to v0.14.0 the class label was one-hot encoded into the Gaussian feature
+  block. Because zero/one dummies make finds of different classes almost
+  perfectly separable, this had two undesirable effects: per-component
+  variances on the dummy columns collapsed to the floor (over-confident
+  assignments), and — more importantly — the class label could **split a
+  single stratigraphic unit across several phases**, even though a unit is one
+  depositional event. Under the multinomial model the numeric evidence
+  (space, depth, chronology) drives the phase assignment and the class label
+  only tilts it softly, so units with finds of mixed classes stay coherent.
+
+- **New `class_smoothing` argument** (default 1): a Dirichlet pseudo-count,
+  shrunk towards the global class frequencies, that keeps every per-phase
+  class probability strictly positive. `0` removes the shrinkage.
+
+- **New `phase_composition()` accessor**: returns the estimated per-phase
+  class profile (row `j` = probability that a find in phase `j` belongs to
+  each class). The model-based, directly interpretable counterpart of a
+  phase-by-class cross-tabulation, stored on the fit as `$cat_prob`.
+
+- `cv_sef()`, `optimize_weights()`, and `bootstrap_sef()` propagate the
+  class model and include the categorical term in the held-out likelihood;
+  `reorder_phases()` reorders the per-phase class profiles; BIC/ICL use the
+  correct mixed-type parameter count (`k(L-1)` categorical parameters instead
+  of treating the dummies as Gaussian).
+
+Note: on datasets recorded at stratigraphic-unit resolution (finds inheriting
+US-centroid coordinates and US-tied chronology, e.g. the bundled
+`villa_romana`), phase assignments remain near-certain under either model
+because there are only as many distinct numeric points as there are units;
+that certainty reflects the data resolution, not the model. The multinomial
+model's benefit there is keeping units coherent and yielding interpretable
+per-phase class profiles.
+
 # palimpsestr 0.14.0
 
 This release is a statistical-correctness pass on the core engine. Several
