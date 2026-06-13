@@ -10,7 +10,11 @@
 #' @param seed Random seed for fold assignment.
 #' @param ... Additional arguments passed to \code{\link{fit_sef}}.
 #' @return A data.frame with columns \code{k}, \code{fold},
-#'   \code{train_loglik}, \code{test_loglik}, \code{train_pdi}.
+#'   \code{train_loglik}, \code{test_loglik}, \code{train_pdi}. The
+#'   \code{test_loglik} carries the same Jacobian correction as
+#'   \code{\link{optimize_weights}}, so it is comparable across weight
+#'   configurations (not only across \code{k}); with default weights the
+#'   correction is zero.
 #' @seealso \code{\link{compare_k}}, \code{\link{fit_sef}}
 #' @family validation
 #' @examples
@@ -93,7 +97,14 @@ cv_sef <- function(data, k_values = 2:6, n_folds = 5, seed = 1, ...) {
         log_mix <- log(pmax(fit_train$mixture_weights, 1e-12))
         log_post <- sweep(log_dens, 2, log_mix, FUN = "+")
         m <- apply(log_post, 1, max)
-        sum(log(rowSums(exp(log_post - m))) + m)
+        ll <- sum(log(rowSums(exp(log_post - m))) + m)
+        # Jacobian correction (as in optimize_weights): map the weighted-space
+        # density back to the common unweighted scale so test_loglik is
+        # comparable across weight configurations, not just across K. With
+        # default weights this adds 0; across K at fixed weights it is a
+        # constant that cancels.
+        fw <- attr(feat_test, "feature_weights")
+        ll + nrow(test_data) * sum(log(fw))
       }, error = function(e) NA_real_)
 
       results[[length(results) + 1]] <- data.frame(
