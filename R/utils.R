@@ -274,6 +274,24 @@ cat_test_contrib <- function(fit, test_data, n_test, k) {
   ind %*% t(log(pmax(fit$cat_prob, 1e-12)))
 }
 
+# Log-density column (n_test-vector) of the uniform noise component for held-
+# out data, or NULL when the fit had no noise component. Includes the noise
+# mixing weight and, under the multinomial model, the global class frequency,
+# matching the training-time noise component so held-out scoring is complete.
+noise_test_contrib <- function(fit, test_data, n_test) {
+  if (!isTRUE(fit$noise) || is.null(fit$noise_weight)) return(NULL)
+  ld <- rep(log(pmax(fit$noise_weight, 1e-12)) + fit$noise_logdens, n_test)
+  if (!is.null(fit$cat_global)) {
+    encode_col <- if (!is.null(fit$subclass)) fit$subclass else fit$class_col
+    lev <- names(fit$cat_global)
+    if (is.null(lev)) lev <- colnames(fit$cat_prob)
+    lab <- factor(as.character(test_data[[encode_col]]), levels = lev)
+    g <- log(pmax(fit$cat_global, 1e-12))
+    ld <- ld + ifelse(is.na(lab), 0, g[as.integer(lab)])
+  }
+  ld
+}
+
 # var_structure = "diagonal": free per-dimension variances (default). Note
 # that free diagonal variances absorb any rescaling of the feature columns,
 # so domain weights are not identifiable under this structure.
@@ -319,6 +337,7 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
     # Global weighted class frequencies for the Dirichlet shrinkage target.
     cat_global <- colSums(cat_ind * weights_obs)
     cat_global <- cat_global / sum(cat_global)
+    names(cat_global) <- cat_levels
     cat_prob <- matrix(1 / L, k, L)
   } else {
     cat_prob <- NULL
@@ -448,14 +467,18 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
 
   # Output phase distribution is conditional on not being noise (rows sum to 1).
   noise_prob <- NULL
+  noise_weight <- NULL
   if (use_noise) {
     noise_prob <- noise_resp
+    noise_weight <- mix0
     prob <- normalize_rows(prob)
   }
 
   list(prob = prob, means = means, vars = vars, mix = mix,
        loglik = loglik_trace, loglik_unpen = loglik_unpen,
-       cat_prob = cat_prob, noise_prob = noise_prob, converged = converged)
+       cat_prob = cat_prob, cat_global = if (use_cat) cat_global else NULL,
+       noise_prob = noise_prob, noise_weight = noise_weight,
+       converged = converged)
 }
 
 # Compute per-find directional classification using leave-one-out unit envelope.

@@ -297,6 +297,7 @@ fit_sef <- function(data,
     L <- ncol(em$cat_prob)
     npar <- npar + k * (L - 1)
   }
+  if (noise) npar <- npar + 1   # the noise component's mixing weight
   bic <- -2 * loglik + log(max(nrow(data), 1)) * npar
 
   out <- list(
@@ -318,7 +319,10 @@ fit_sef <- function(data,
     noise = noise,
     noise_prior = noise_prior,
     noise_prob = em$noise_prob,
+    noise_weight = em$noise_weight,
+    noise_logdens = noise_logdens,
     cat_prob = em$cat_prob,
+    cat_global = em$cat_global,
     cat_levels = if (use_multinom) colnames(em$cat_prob) else NULL,
     phase = phase,
     phase_prob = prob,

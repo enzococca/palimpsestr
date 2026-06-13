@@ -1,3 +1,20 @@
+# palimpsestr 0.17.1
+
+Bug fixes for noise-component model selection (addresses code review on the
+0.17.0 pull request).
+
+- **Held-out scoring now includes the noise component.** `cv_sef()` and
+  `optimize_weights()` scored only the Gaussian phases of a `noise = TRUE`
+  fit, so the uniform component was omitted and outlier held-out points were
+  mis-scored (their mass was missing and the Gaussian weights no longer summed
+  to one). The fit now stores the noise mixing weight (`noise_weight`), its
+  log-density (`noise_logdens`), and the global class frequencies
+  (`cat_global`), and both evaluators add the noise component to the held-out
+  likelihood.
+- **BIC/ICL now count the noise mixing weight** as one extra parameter, so
+  `compare_k(..., noise = TRUE)` no longer gives noise models a free parameter
+  relative to non-noise fits.
+
 # palimpsestr 0.17.0
 
 ## Noise / outlier mixture component
