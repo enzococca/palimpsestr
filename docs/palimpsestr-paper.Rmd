@@ -40,7 +40,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
 \noindent
 **Abstract**
 
-This paper presents \texttt{palimpsestr}, an R package and Shiny application dedicated to the **identification and probabilistic decomposition** of archaeological palimpsests --- deposits in which material from multiple occupation phases is superimposed and partially intermixed. Such deposits represent one of the most persistent analytical challenges in field archaeology, and existing tools (Harris Matrix recording systems, $k$-means spatial clustering, GIS overlays) typically address only one evidence domain at a time. \texttt{palimpsestr} implements the Stratigraphic Entanglement Field (SEF) framework, which integrates four evidence domains --- horizontal coordinates, vertical elevation, chronological range, and cultural class --- into a single diagonal-covariance Gaussian mixture model fitted by Expectation-Maximisation. The model is augmented with optional taphonomic weighting and stratigraphic entanglement penalties derived from the Harris Matrix. Three interpretable diagnostics --- the Stratigraphic Entanglement Index (SEI), Excavation Stratigraphic Energy (ESE), and Palimpsest Dissolution Index (PDI) --- allow practitioners to assess deposit coherence, detect potentially redeposited finds, and evaluate the reliability of chronological attribution at the find, unit, and phase levels. The framework supports archaeologists in three principal interpretive tasks: assessing the reliability and coherence of stratigraphic units (distinguishing genuine palimpsests from recording errors); identifying intrusive finds with respect to both their typology and their stratigraphic position; and providing the basis for future statistical estimation of type longevity (the duration of use of pottery and material categories). The package supports CSV/TSV/Excel/SQLite/PostgreSQL data import, GIS export to GeoPackage via the \texttt{sf} package, publication-quality plots via \texttt{ggplot2} and interactive plots via \texttt{plotly}, and includes a built-in Shiny dashboard for non-programmatic use. Version 0.12.0 introduces five optional feature-space enhancements (chronological precision weighting, residuality detection, class scaling, taphonomic score as feature, sub-class encoding) developed in response to real-world testing. We present an overview of the application's functions and demonstrate its use through a case study at the multi-period Roman villa of Poggio Gramignano (Lugnano in Teverina, Italy). We also discuss the methodological assumptions of the SEF framework --- in particular the implicit assumption of horizontal stratigraphy and the limited diagnostic power of the current intrusion score with respect to the direction of the chronological mismatch --- and outline planned developments for the next release.
+This paper presents \texttt{palimpsestr}, an R package and Shiny application dedicated to the **identification and probabilistic decomposition** of archaeological palimpsests --- deposits in which material from multiple occupation phases is superimposed and partially intermixed. Such deposits represent one of the most persistent analytical challenges in field archaeology, and existing tools (Harris Matrix recording systems, $k$-means spatial clustering, GIS overlays) typically address only one evidence domain at a time. \texttt{palimpsestr} implements the Stratigraphic Entanglement Field (SEF) framework, which integrates four evidence domains --- horizontal coordinates, vertical elevation, chronological range, and cultural class --- into a single diagonal-covariance Gaussian mixture model fitted by Expectation-Maximisation. The model is augmented with optional taphonomic weighting and stratigraphic entanglement penalties derived from the Harris Matrix. Three interpretable diagnostics --- the Stratigraphic Entanglement Index (SEI), Excavation Stratigraphic Energy (ESE), and Palimpsest Dissolution Index (PDI) --- allow practitioners to assess deposit coherence, detect potentially redeposited finds, and evaluate the reliability of chronological attribution at the find, unit, and phase levels. The framework supports archaeologists in three principal interpretive tasks: assessing the reliability and coherence of stratigraphic units (distinguishing genuine palimpsests from recording errors); identifying intrusive finds with respect to both their typology and their stratigraphic position; and providing the basis for future statistical estimation of type longevity (the duration of use of pottery and material categories). The package supports CSV/TSV/Excel/SQLite/PostgreSQL data import, GIS export to GeoPackage via the \texttt{sf} package, publication-quality plots via \texttt{ggplot2} and interactive plots via \texttt{plotly}, and includes a built-in Shiny dashboard for non-programmatic use. Since the original release the statistical core has been substantially refined: the cultural class is now modelled as a per-phase categorical distribution (a Gaussian-times-multinomial mixed-type mixture) rather than as one-hot Gaussian columns, so that stratigraphic units are no longer split across phases by typology; the spatial and vertical similarity kernels are bounded and scale-invariant; the domain weights enter the likelihood and can be cross-validated; a uniform noise component yields a genuine posterior probability of intrusion and shields phase estimates from outliers; and optional treatments propagate per-find dating uncertainty and apply the stratigraphic constraint as a dynamically updated Neighborhood-EM field. The intrusion diagnostic also distinguishes the \emph{direction} of the chronological mismatch (residual vs. latent-feature), and a companion helper (\texttt{recommend\_setup()}) inspects a dataset and reports when its recording resolution limits the achievable inference. We present an overview of the application's functions and demonstrate its use through a case study at the multi-period Roman villa of Poggio Gramignano (Lugnano in Teverina, Italy). We also discuss the methodological assumptions of the SEF framework --- in particular the implicit assumption of horizontal stratigraphy and the dependence of phase resolution on the spatial and chronological recording resolution of the data --- and outline planned developments.
 
 \noindent
 **Keywords**: archaeological methods, palimpsest analysis, probabilistic clustering, Gaussian mixture model, Harris Matrix, R package, Shiny application, post-excavation stratigraphy
@@ -59,7 +59,7 @@ The intended archaeological contribution is threefold. First, \texttt{palimpsest
 
 \texttt{palimpsestr} is freely available under MIT licence on GitHub (\url{https://github.com/enzococca/palimpsestr}). The package supports data import from CSV, TSV, Excel, SQLite, and PostgreSQL (including the PyArchInit database schema widely used in Italian archaeological practice), and provides GIS export to GeoPackage via the \texttt{sf} package, supporting integration with QGIS workflows. A built-in Shiny dashboard (\texttt{launch\_app()}) provides a point-and-click interface for archaeologists without R programming experience.
 
-The remainder of this paper is organised as follows. Section "Methodological framework" introduces the Stratigraphic Entanglement Field formalism, the Gaussian mixture model and its extensions, and the three diagnostic statistics. Section "Software overview" describes installation, package architecture, and the Shiny dashboard. Section "Data preparation" details the data formats and required columns. Sections "Core functions" and "Visualisation" describe the principal model-fitting and plotting functions. Section "Case study: Poggio Gramignano" demonstrates the application on a real-world multi-period Roman villa dataset. Section "Limitations and future development" discusses the package's known caveats, the v0.12.0 feature-space improvements, and avenues for future work.
+The remainder of this paper is organised as follows. Section "Methodological framework" introduces the Stratigraphic Entanglement Field formalism, the Gaussian mixture model and its extensions, and the three diagnostic statistics. Section "Software overview" describes installation, package architecture, and the Shiny dashboard. Section "Data preparation" details the data formats and required columns. Sections "Core functions" and "Visualisation" describe the principal model-fitting and plotting functions. Section "Case study: Poggio Gramignano" demonstrates the application on a real-world multi-period Roman villa dataset. Section "Limitations and future development" discusses the package's known caveats, the methodological developments since the first release, and avenues for future work.
 
 # Methodological framework
 
@@ -68,20 +68,22 @@ The remainder of this paper is organised as follows. Section "Methodological fra
 The Stratigraphic Entanglement Index (SEI) quantifies how strongly two finds $i$ and $j$ are *entangled*, i.e. how much joint evidence supports their co-occurrence within the same depositional event. For each pair of finds, the SEI is defined as the weighted sum of four contributions:
 
 $$
-SEI_{ij} = \frac{w_s}{d_{xy}(i,j) + \epsilon} + \frac{w_z}{\max(|z_i - z_j|, z_{\text{floor}})} + w_t \cdot O_t(i,j) + w_c \cdot \mathbb{1}[c_i = c_j]
+SEI_{ij} = w_s \, e^{-d_{xy}(i,j)/h_{xy}} + w_z \, e^{-|z_i - z_j|/h_{z}} + w_t \cdot O_t(i,j) + w_c \cdot \mathbb{1}[c_i = c_j]
 $$
 
-where $d_{xy}(i,j)$ is the Euclidean distance in the horizontal plane (with a small $\epsilon$ preventing division by zero), $|z_i - z_j|$ is the absolute vertical separation (with a $z_{\text{floor}}$ minimum threshold), $O_t(i,j)$ is the chronological overlap ratio computed from the intersection of the temporal ranges $[t_{\min,i}, t_{\max,i}]$ and $[t_{\min,j}, t_{\max,j}]$ relative to their union, and $\mathbb{1}[c_i = c_j]$ is an indicator function equal to 1 when both finds belong to the same cultural class. The weights $w_s, w_z, w_t, w_c$ default to unity but allow the analyst to encode prior knowledge about which evidence domains are most reliable for a given site.
+where $d_{xy}(i,j)$ is the Euclidean distance in the horizontal plane, $|z_i - z_j|$ is the absolute vertical separation, $O_t(i,j)$ is the chronological overlap ratio computed from the intersection of the temporal ranges $[t_{\min,i}, t_{\max,i}]$ and $[t_{\min,j}, t_{\max,j}]$ relative to their union, and $\mathbb{1}[c_i = c_j]$ is an indicator function equal to 1 when both finds belong to the same cultural class. The spatial and vertical proximities are expressed by bounded exponential kernels with data-driven bandwidths $h_{xy}$ and $h_z$ (the median of the positive pairwise separations on each axis). This formulation, adopted to correct an earlier $1/d$ form, is scale-invariant (independent of the measurement unit of the site grid) and robust to coincident coordinates: two finds recorded at the same grid square no longer collapse every other spatial affinity towards zero. The weights $w_s, w_z, w_t, w_c$ default to unity but allow the analyst to encode prior knowledge about which evidence domains are most reliable for a given site.
 
-Each component is normalised to $[0, 1]$ within the dataset before weighting, ensuring that the four evidence domains contribute on a comparable scale. The resulting SEI matrix can be used both as a regularisation term during model fitting (encouraging strongly entangled finds to receive similar phase assignments) and as the basis for the Excavation Stratigraphic Energy diagnostic.
+Each component lies in $[0, 1]$, ensuring that the four evidence domains contribute on a comparable scale. The resulting SEI matrix can be used both as a regularisation term during model fitting (encouraging strongly entangled finds to receive similar phase assignments) and as the basis for the Excavation Stratigraphic Energy diagnostic. SEI values are normalised within each dataset and are not directly comparable across sites.
 
 ## Diagonal Gaussian Mixture EM
 
-Phase decomposition proceeds via a Gaussian mixture model fitted by Expectation-Maximisation (EM, Dempster et al. 1977). The feature matrix for each find is constructed by concatenating: scaled horizontal coordinates $(x, y)$, vertical coordinate $(z)$, temporal midpoint and span of the date range $(t_{\text{mid}}, t_{\text{span}})$, and a one-hot encoding of the cultural class variable. The algorithm is initialised via $k$-means; the resulting hard assignments are converted to softmax probabilities. The EM procedure then iterates between an E-step (computing posterior phase membership probabilities given current parameters) and an M-step (updating mixture weights, means, and diagonal covariance matrices given current memberships).
+Phase decomposition proceeds via a mixed-type finite mixture model fitted by Expectation-Maximisation (EM, Dempster et al. 1977). The numeric feature vector for each find concatenates the standardised horizontal coordinates $(x, y)$, vertical coordinate $(z)$, and the temporal midpoint and span of the date range $(t_{\text{mid}}, t_{\text{span}})$; these continuous dimensions are modelled by a diagonal-covariance Gaussian within each phase. The cultural class is modelled separately, as a **per-phase categorical (multinomial) distribution**: each phase $k$ carries a probability vector $\theta_k$ over the material classes, and the joint per-find density is the product of the Gaussian (numeric) and categorical (class) likelihoods. This mixed-type "location model" replaces the earlier scheme in which the class was one-hot encoded into the Gaussian block. The change is consequential: zero/one dummies treated as Gaussian make finds of different classes almost perfectly separable, which both produced over-confident assignments and, more seriously, could split a single stratigraphic unit across several phases purely by typology. Under the categorical model the numeric evidence drives the phase assignment and the class only tilts it, so units of mixed material composition remain coherent (Section "Case study"). The per-phase class profiles $\theta_k$ are a directly interpretable by-product, returned by \texttt{phase\_composition()}; a Dirichlet pseudo-count, shrunk towards the global class frequencies, keeps every class probability strictly positive.
 
-Two modifications distinguish the SEF framework from a standard Gaussian mixture. First, **taphonomic weighting**: when a per-find taphonomic integrity score (taf\_score, ranging from 0 = fully disturbed to 1 = pristine in situ) is supplied, it is used to down-weight poorly preserved items in the M-step responsibility calculation, reducing their influence on cluster centroids. A complementary additive penalty in the E-step posterior discourages confident assignment of disturbed finds to any single phase. Second, **stratigraphic entanglement penalties**: the SEI matrix is incorporated as a soft constraint on the E-step posterior, encouraging finds with high mutual entanglement to receive similar phase assignments.
+The algorithm is initialised via $k$-means (with multiple restarts, repeated across several random initialisations, the best EM solution being retained); the resulting hard assignments are converted to softmax probabilities. The EM procedure then iterates between an E-step (computing posterior phase membership probabilities) and an M-step (updating mixing weights, Gaussian means and variances, and the categorical profiles). The domain weights $w_s, w_z, w_t, w_c$ scale the corresponding standardised feature dimensions, so they enter the mixture likelihood and can be selected by cross-validation (\texttt{optimize\_weights()}); the reported log-likelihood, BIC and ICL are computed from the unpenalised mixture density so that comparisons across $K$ and across settings are well posed.
 
-The diagonal-covariance assumption (i.e. independence between features within each phase) is a deliberate parsimony choice. With typical archaeological datasets ($n = 50$--500 finds, feature space $p \sim 7$--20), full covariance would risk overfitting; the BIC selection criterion naturally favours diagonal models when data are limited.
+Several optional refinements extend the basic model. **Taphonomic weighting**: when a per-find taphonomic integrity score (taf\_score, $0$ = fully disturbed to $1$ = pristine in situ) is supplied, it down-weights poorly preserved items in the M-step, reducing their influence on the phase parameters. **Stratigraphic constraint**: the context/Harris structure is incorporated as a soft penalty on the E-step posterior; it may be applied statically or, with \texttt{strat\_dynamic = TRUE}, as a Neighborhood-EM / hidden-Markov-random-field term recomputed from the current posteriors at every iteration (Ambroise and Govaert 1997), which rewards each find for sharing its unit's phase. **Chronological uncertainty**: with \texttt{chrono\_uncertainty = TRUE} the dating-interval width of each find is propagated into the temporal likelihood as a measurement variance $(t_{\max}-t_{\min})^2/12$, so coarsely dated finds rely less on chronology. **Noise component**: with \texttt{noise = TRUE} a uniform background component (Fraley and Raftery 1998) is added; finds that fit no phase accumulate posterior on it, yielding a genuine outlier probability (Section "Diagnostic statistics") and keeping extreme finds out of the phase estimates.
+
+The diagonal-covariance assumption (conditional independence between numeric features within each phase) is a deliberate parsimony choice. With typical archaeological datasets ($n = 50$--500 finds, numeric feature space $p \sim 5$--8), full covariance would risk overfitting; the BIC selection criterion naturally favours diagonal models when data are limited.
 
 ## Diagnostic statistics
 
@@ -93,7 +95,7 @@ Three statistics summarise different aspects of the decomposition:
 
 - **Shannon entropy** ($H_i$) of each find's phase-probability vector, $H_i = -\sum_k p_{ik} \log p_{ik}$. Low entropy indicates confident assignment; high entropy signals ambiguity at phase boundaries or within heavily mixed zones.
 
-- **Intrusion score**: a composite metric combining high entropy, high ESE, and low SEI connectivity. Finds exceeding a threshold (default 0.5) are flagged as candidate intrusions.
+- **Intrusion score**: a per-find probability of being out of context. When the model is fitted with a noise component (\texttt{noise = TRUE}), this is the posterior probability of the uniform background component --- a genuine probability that, unlike a rescaled composite, is not forced onto $[0,1]$ and need not flag any find when the assemblage is clean. Otherwise it falls back to a heuristic composite of high entropy, high ESE, and low SEI connectivity. The accompanying \texttt{detect\_intrusions()} output also classifies each flagged find by the \emph{direction} of its chronological mismatch with its stratigraphic unit --- \emph{older-than-context} (likely residual material) or \emph{younger-than-context} (a possible unrecognised cut or intrusion, i.e. a latent feature) --- together with the signed offset in years.
 
 # Software overview
 
@@ -193,7 +195,7 @@ The principal function is \texttt{fit\_sef()}, which fits the Gaussian mixture m
 
 \bigskip
 
-The \texttt{n\_init} argument controls the number of random initialisations: the run with the highest log-likelihood is retained, mitigating the risk of local optima. The returned object stores phase assignments (\texttt{\$phase}), soft probabilities (\texttt{\$phase\_prob}), per-find entropy and energy, the SEI matrix and its row sums, and a list of model statistics including PDI, BIC, and ICL. The \texttt{print} and \texttt{summary} methods produce concise textual summaries.
+The \texttt{n\_init} argument controls the number of random initialisations (default 5): the run with the highest EM objective is retained, mitigating the risk of local optima. The class model is selected with \texttt{class\_model} (\texttt{"multinomial"}, the default, or \texttt{"gaussian"} for the legacy one-hot behaviour); the optional refinements described above are toggled with \texttt{chrono\_uncertainty}, \texttt{strat\_dynamic}, and \texttt{noise}. The returned object stores phase assignments (\texttt{\$phase}), soft probabilities (\texttt{\$phase\_prob}), per-find entropy and energy, the per-phase class profiles (\texttt{\$cat\_prob}), the noise posterior (\texttt{\$noise\_prob}, when enabled), the SEI matrix and its row sums, and a list of model statistics including PDI, BIC, and ICL. The \texttt{print} and \texttt{summary} methods produce concise textual summaries, and \texttt{phase\_composition()} returns the per-phase typological profile as a table.
 
 ## Phase count selection
 
@@ -228,7 +230,7 @@ The function \texttt{validate\_phases\_harris()} flags inversions in the assigne
 
 ## Intrusion detection and per-US summaries
 
-The function \texttt{detect\_intrusions()} computes a composite intrusion probability for each find, combining rescaled entropy, ESE, and inverse local SEI. Finds with intrusion probability above a configurable threshold (default 0.5) are flagged for closer examination. The function \texttt{us\_summary\_table()} aggregates diagnostics per stratigraphic unit, reporting dominant phase, **purity** (proportion of finds in the dominant phase), mean entropy, mean ESE, and intrusion count. Units with purity below 70% are flagged as palimpsests.
+The function \texttt{detect\_intrusions()} returns, for each find, an intrusion probability --- the noise-component posterior when the model was fitted with \texttt{noise = TRUE}, otherwise the heuristic composite --- together with the directional classification (\emph{older-} / \emph{younger-than-context}) and the signed chronological offset. Finds above a configurable threshold (default 0.5) are flagged for closer examination. The function \texttt{us\_summary\_table()} aggregates diagnostics per stratigraphic unit, reporting dominant phase, **purity** (proportion of finds in the dominant phase), mean entropy, mean ESE, and intrusion count; units with low purity are candidate palimpsests. A companion helper, \texttt{recommend\_setup()}, inspects a dataset and reports recommended \texttt{fit\_sef()} options together with caveats about the recording resolution --- for example, it warns when coordinates are recorded at stratigraphic-unit (rather than find) level, or when the chronology is unit-tied, both of which cap the achievable within-unit resolution.
 
 # Visualisation
 
@@ -258,38 +260,38 @@ Poggio Gramignano (VRPG) is a multi-period Roman villa with an annexed Late Anti
 
 ## Phase count selection
 
-The function \texttt{compare\_k()} was used to evaluate model fit across $K = 2, \dots, 7$, with all v0.12.0 feature-space enhancements activated (chronological precision, residuality, class scaling, taphonomic score as feature). Figure \ref{fig:compare-k} reports the resulting diagnostics: the BIC reaches a clear inflection at $K = 4$, which also coincides with the four macro-events archaeologically distinguishable at the site (Pre-Roman occupation, Late Imperial structural deposits, Late Antique structural collapse, Late Antique cemetery). $K = 4$ was therefore selected as the operational solution. We use the term *macro-event* rather than "phase" deliberately: these four groupings are widely separated in time (collectively spanning $\sim$1100 years) and were chosen to reflect the principal depositional regimes documented on site, not to claim a fine chronological resolution that the data cannot support. Within each macro-event finer subdivisions exist, but their resolution is limited by the precision of the typological dating of the inventoried material.
+The function \texttt{compare\_k()} was used to evaluate model fit across $K = 2, \dots, 7$ under the current default model (per-phase categorical class, Harris constraint, taphonomic weighting). Before fitting, \texttt{recommend\_setup()} was run on the dataset; it reported that the coordinates are recorded at stratigraphic-unit centroid level (only 54 distinct $(x,y,z)$ triples for 615 finds) and that the chronology is unit-tied (six distinct date intervals), and accordingly cautioned that the analysis can resolve phases only at the unit and macro-event level, not within units. Figure \ref{fig:compare-k} reports the resulting diagnostics. The BIC continues to decrease beyond $K = 4$, favouring a finer partition (minimum near $K = 6$) consistent with the diversity of the 17 material classes; however, the additional components beyond four subdivide the dominant Late Antique material typologically rather than chronologically. We therefore retain $K = 4$ as the operational solution, corresponding to the four macro-events archaeologically distinguishable at the site (Pre-Roman occupation, Late Imperial structural deposits, Late Antique structural collapse, Late Antique cemetery). We use the term *macro-event* rather than "phase" deliberately: these four groupings are widely separated in time (collectively spanning $\sim$1100 years) and reflect the principal depositional regimes documented on site, not a fine chronological resolution that the unit-level recording cannot support.
 
 ```{r compare-k, fig.cap="\\label{fig:compare-k}Phase-count selection diagnostics from compare\\_k(): BIC (lower is better), PDI (higher is better), and mean entropy across K = 2--7. The BIC inflection at K = 4 coincides with the four macro-periods of the site."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/compare_k.png")
+knitr::include_graphics("figs-v017/compare_k.png")
 ```
 
 ## Phase composition
 
-A four-event model with Harris constraint, taphonomic weighting, and the v0.12.0 feature-space enhancements recovered groupings coherent with the site periodisation (Table \ref{tab:vrpg-phases}). Event 1 groups Pre-Roman finds (concentrated in US 210, an early pit beneath the villa foundations) together with residual Late Antique material from levelling deposits; Event 2 captures Late Imperial structural deposits (construction material, amphorae, glass and coins) accumulated during the late phase of habitational use of the villa; Event 3 isolates a small but typologically distinctive group of specialised material (lithics, samples, painted plaster, scraps) related to structural collapse and abandonment; Event 4 (the dominant fraction, 68.8%) corresponds to the Late Antique cemetery, dominated by ceramics and amphorae used in the burial rites.
+A four-event model with Harris constraint, taphonomic weighting, the per-phase categorical class model, and a noise component recovered groupings coherent with the site periodisation (Table \ref{tab:vrpg-phases}). The per-phase class profiles returned by \texttt{phase\_composition()} are reported alongside the event sizes: every macro-event is dominated by ceramic material (as expected for the assemblage), with the secondary classes distinguishing them --- metal and construction material in the deepest event, amphorae and glass in the intermediate events, and a near-pure ceramic group corresponding to the typologically homogeneous fraction. Mapped against the site stratigraphy, the deepest event groups Pre-Roman and residual material, the intermediate events capture Late Imperial and Late Antique structural deposits, and the shallowest, dominant event corresponds to the Late Antique cemetery.
 
 \begin{table}[H]
 \centering
-\caption{VRPG phase composition (K=4, v0.12.0).}\label{tab:vrpg-phases}
+\caption{VRPG phase composition (K=4, v0.17, per-phase categorical class model). Class shares are the estimated per-phase profiles from \texttt{phase\_composition()}; phases are ordered by mean depth (1 = deepest).}\label{tab:vrpg-phases}
 \small
-\begin{tabular}{clrrlr}
+\begin{tabular}{clrrl}
 \toprule
-Phase & Interpretation & N & \% & Dominant materials & Mean taf \\
+Phase & Macro-event & N & \% & Dominant material classes (share) \\
 \midrule
-1 & Pre-Roman + residual & 117 & 19.0 & Ceramics, metals, fauna & 0.803 \\
-2 & Late Imperial structural deposits & 50 & 8.1 & Construction, amphorae, glass & 0.740 \\
-3 & Specialised/residual & 25 & 4.1 & Lithics, samples, waste & 0.712 \\
-4 & Late Antique cemetery & 423 & 68.8 & Ceramics, amphorae, glass, coins & 0.780 \\
+1 & Pre-Roman + residual & 119 & 19.3 & Ceramic 40\%, metal 14\%, construction 11\% \\
+2 & Homogeneous ceramic group & 41 & 6.7 & Ceramic 91\%, amphorae 3\%, construction 3\% \\
+3 & Late structural deposits & 135 & 22.0 & Ceramic 55\%, amphorae 20\%, glass 12\% \\
+4 & Late Antique cemetery & 320 & 52.0 & Ceramic 81\%, amphorae 12\%, construction 4\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The model achieved $PDI = 1.000$, identified 8 finds (1.3%) as potential intrusions, and classified 38/54 stratigraphic units (70%) as pure (purity > 90%).
+The model achieved $PDI = 0.999$ with mean entropy $0.002$, and the noise component identified 10 finds (1.6\%) as probable out-of-context items. Crucially, all 54 stratigraphic units remained internally coherent (every unit assigned to a single phase). This contrasts with the legacy one-hot Gaussian class model, which split 27 of the 54 units across multiple phases --- a fragmentation driven by material class rather than stratigraphy, and a direct illustration of the methodological correction introduced by the categorical class model.
 
 ## EM convergence
 
 ```{r convergence, fig.cap="\\label{fig:convergence}EM convergence trace for the K = 4 model. The log-likelihood stabilises within 30 iterations, indicating a robust local optimum. The package retains the best-of-10 random initialisations."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/convergence.png")
+knitr::include_graphics("figs-v017/convergence.png")
 ```
 
 ## Spatial diagnostics
@@ -297,27 +299,27 @@ knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/conver
 The phase-field map (Figure \ref{fig:phasefield}) reveals the spatial distribution of the four events on the excavation grid. The Late Antique cemetery (Event 4) dominates the principal excavated area; Pre-Roman finds (Event 1, in orange) are concentrated in the deeper areas around US 210; the Late Imperial structural deposits (Event 2) and the specialised/residual group (Event 3) are scattered between the cemetery and the abandoned residential structures.
 
 ```{r phasefield, fig.cap="\\label{fig:phasefield}VRPG: dominant phase assignment from gg\\_phasefield(). Each point is a find; colour indicates phase, point size reflects assignment confidence (inverse entropy)."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/phasefield.png")
+knitr::include_graphics("figs-v017/phasefield.png")
 ```
 
-The entropy map (Figure \ref{fig:entropy}) confirms that phase assignments are highly confident across the entire dataset: entropy values approach zero everywhere, indicating that the model is rarely uncertain about the phase of any individual find. This is partly an artefact of the high-dimensional feature space (which separates phases sharply) and partly a reflection of the genuine separability of the four periods at this site.
+The entropy map (Figure \ref{fig:entropy}) shows that phase assignments are highly confident across the dataset: entropy values approach zero almost everywhere. At this site that confidence is principally a property of the recording resolution rather than of the model: because coordinates and dates are recorded at stratigraphic-unit level, the 615 finds occupy only 54 distinct positions in the numeric feature space, and those 54 unit-points are well separated into the four macro-events. The model is therefore (correctly) certain about the macro-event of each unit. Recovering genuine within-unit uncertainty --- and hence informative entropy and PDI at the find level --- would require find-level coordinates and per-find typological dating; the package's \texttt{recommend\_setup()} flags this limitation explicitly for the present dataset. Where such resolution is available, the optional \texttt{chrono\_uncertainty} treatment propagates the dating-interval width into the entropy, so that coarsely dated finds are no longer reported as falsely certain.
 
 ```{r entropy, fig.cap="\\label{fig:entropy}VRPG: spatial distribution of Shannon entropy from gg\\_entropy(). Dark = confident assignment to a single phase; bright = ambiguous assignment. Entropy is uniformly low, indicating high model confidence."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/entropy.png")
+knitr::include_graphics("figs-v017/entropy.png")
 ```
 
 The energy map (Figure \ref{fig:energy}) is more informative: ESE values vary across the site, with elevated values in zones where finds of different phases are spatially adjacent. These zones correspond to known levelling and accumulation deposits where the cemetery overlaid earlier structures.
 
 ```{r energy, fig.cap="\\label{fig:energy}VRPG: Excavation Stratigraphic Energy (ESE) field from gg\\_energy(). Dark = stable deposit (find surrounded by same-phase neighbours); bright = local disruption zone."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/energy.png")
+knitr::include_graphics("figs-v017/energy.png")
 ```
 
 ## Intrusion detection
 
-The intrusion-probability map (Figure \ref{fig:intrusions}) flags 8 finds with intrusion probability above 0.5. These are predominantly non-ceramic items in ceramic-dominated contexts (US 304, a *dolium*-fragment hearth; US 151, an isolated amphora; US 276, an isolated metal find).
+The intrusion-probability map (Figure \ref{fig:intrusions}) flags 10 finds whose noise-component posterior exceeds 0.5. Because this is the posterior of a uniform background component rather than a rescaled composite, the score is a genuine probability of being out of context and identifies items that fit none of the four macro-events well --- predominantly atypical material in otherwise homogeneous contexts. The directional classification reports all dated finds as \emph{in-context}, the expected outcome when the chronology is unit-tied: with a single date interval per unit, no find can be older or younger than its own unit's envelope, and \texttt{recommend\_setup()} anticipates this. Directional residual/intrusion diagnostics become informative only with per-find typological dating.
 
 ```{r intrusions, fig.cap="\\label{fig:intrusions}VRPG: intrusion detection from gg\\_intrusions(top\\_n = 10). Circled finds with labels are the highest-scoring suspects, computed from a composite of high entropy, high ESE, and low SEI connectivity."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/intrusions.png")
+knitr::include_graphics("figs-v017/intrusions.png")
 ```
 
 ## Vertical phase profile
@@ -325,7 +327,7 @@ knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/intrus
 The vertical profile (Figure \ref{fig:profile}) shows that the four phases occupy stratigraphically coherent depth ranges, with Phase 4 (Late Antique cemetery, in pink) at the shallowest levels and Phase 1 (Pre-Roman + residual, in orange) at the deepest. The partial overlap between Phases 2 and 3 reflects the spatial proximity of structural collapses and accumulation deposits.
 
 ```{r profile, fig.cap="\\label{fig:profile}VRPG: vertical phase profile from gg\\_phase\\_profile(). Depth (z) on vertical axis, easting on horizontal axis; colours indicate phases. The stratigraphic ordering of phases is preserved by the model."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/phase_profile.png")
+knitr::include_graphics("figs-v017/phase_profile.png")
 ```
 
 ## Maps on excavation plan
@@ -333,68 +335,65 @@ knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/phase_
 The function \texttt{gg\_map()} overlays model output on the actual excavation plan geometries imported from the PyArchInit database. Figure \ref{fig:map-phase} shows the dominant phase per US polygon; Figure \ref{fig:map-entropy} the mean entropy per US; Figure \ref{fig:map-energy} the mean ESE per US; Figure \ref{fig:map-intrusion} the mean intrusion probability per US.
 
 ```{r map-phase, fig.cap="\\label{fig:map-phase}VRPG: dominant phase per US polygon (gg\\_map, layer = 'phase'). US polygons are coloured by their dominant phase; individual finds are overlaid as points."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/map_phase.png")
+knitr::include_graphics("figs-v017/map_phase.png")
 ```
 
 ```{r map-entropy, fig.cap="\\label{fig:map-entropy}VRPG: mean entropy per US polygon (gg\\_map, layer = 'entropy'). Bright zones flag US with mixed-phase finds (potential palimpsests)."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/map_entropy.png")
+knitr::include_graphics("figs-v017/map_entropy.png")
 ```
 
 ```{r map-energy, fig.cap="\\label{fig:map-energy}VRPG: mean ESE per US polygon (gg\\_map, layer = 'energy'). Bright zones indicate US with high local stratigraphic disruption."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/map_energy.png")
+knitr::include_graphics("figs-v017/map_energy.png")
 ```
 
 ```{r map-intrusion, fig.cap="\\label{fig:map-intrusion}VRPG: mean intrusion probability per US polygon (gg\\_map, layer = 'intrusion'). Highlights US containing potentially redeposited or out-of-context finds."}
-knitr::include_graphics("/Users/enzo/Downloads/rrichiesta2/risultati/v012/map_intrusion.png")
+knitr::include_graphics("figs-v017/map_intrusion.png")
 ```
 
 ## Validation against the excavator's interpretation
 
-Twelve units were classified as palimpsests (purity < 70%); these correspond to known levelling fills and accumulation layers (US 76, US 287, US 307, US 297). The interpretation provided by the second author (Roberto Montagnetti, on-site coordinator of the Poggio Gramignano excavations) confirmed:
+The known levelling fills and accumulation layers at the site (US 76, US 287, US 297, US 307) had been identified on stratigraphic grounds by the second author (Roberto Montagnetti, on-site coordinator of the Poggio Gramignano excavations):
 
-- **US 307** as a levelling layer with material from various periods quarried from adjacent areas;
-- **US 287** as an accumulation layer with multi-period material;
-- **US 76** as a levelling fill used to raise floor levels;
-- **US 304** as a combustion deposit inside a *dolium*-fragment hearth (the model flagged the heterogeneous content but the mixing here is functional, not depositional --- a known limitation discussed in the next section).
+- **US 307**: a levelling layer with material from various periods quarried from adjacent areas;
+- **US 287**: an accumulation layer with multi-period material;
+- **US 76**: a levelling fill used to raise floor levels;
+- **US 304**: a combustion deposit inside a *dolium*-fragment hearth, whose heterogeneity is functional rather than depositional.
 
-Following this validation, taphonomic scores for US 76, US 287, US 297, and US 307 were lowered (from 0.7 to 0.3--0.4) to reflect the residual nature of their material; the analysis presented here uses these corrected values.
+The way these units enter the model differs from earlier versions, and the difference is instructive. Under the legacy one-hot class model their typological heterogeneity drove a low unit purity, so they surfaced as low-purity "palimpsest" units; but the same mechanism also fragmented many genuinely coherent units, making purity an unreliable signal. Under the corrected categorical model every unit is assigned coherently, and the residual character of these fills is instead encoded through their taphonomic scores --- lowered (from 0.7 to 0.3--0.4) on the basis of the on-site interpretation to reflect the redeposited nature of their material --- which down-weight them in the phase estimation, and, where atypical, through the noise component. This is the appropriate level of inference for unit-resolution data: the model cannot resolve mixing \emph{within} a unit whose finds share a single coordinate and date, but it correctly keeps stratigraphic units intact, ranks them by taphonomic reliability, and isolates unit-level outliers. Detecting within-unit palimpsests would require find-level recording, which motivates the planned case study on a higher-resolution deposit (Section "Future development").
 
 # Limitations and future development
 
-Field testing on the case study highlighted several limitations and motivated the v0.12.0 feature-space improvements summarised below.
+Field testing on the case study highlighted several limitations and motivated the methodological developments summarised below.
 
 ## Limitations
 
 - **Horizontal-stratigraphy assumption**: the model treats the vertical coordinate $z$ as a proxy for relative chronological position. This assumption is valid only when the deposit accumulates by sub-horizontal strata, undisturbed by significant anthropogenic features. It is **not valid** for inclined deposits, slope-collapses, the fills of cuts (pits, ditches, post-holes), or terraced sediments, where finds at different $z$ values may belong to a single depositional event. The taphonomic score partly compensates by down-weighting fills (typically taf $<$ 0.5), but users should be aware that the model is most reliable on horizontally stratified deposits and apply caution in geometrically complex contexts.
-- **Direction of intrusions is not yet diagnosed**: the package currently flags finds whose multi-dimensional position is anomalous within their assigned phase, but it does not distinguish between two archaeologically distinct cases. An *older-than-context* find (e.g. a Pre-Roman ceramic in a Late Antique fill) is typically **residual material** redeposited during levelling -- of limited cumulative significance. A *younger-than-context* find (e.g. a Late Antique coin in a Pre-Roman pit fill) is more diagnostically powerful: under the standard archaeological rule that "the most recent find dates the context", such a find may signal an unrecognised intrusion -- a later cut and re-fill missed during excavation, i.e. a **latent feature**. Distinguishing these two regimes is planned for the next release (see *Future development*).
-- **Functional vs. depositional mixing**: the model flags any heterogeneous context as anomalous, even when the heterogeneity is functional (e.g. a hearth such as VRPG US 304). Distinguishing functional mixing from disturbance requires excavator interpretation.
-- **Class-driven partitioning when temporal evidence is weak**: when most finds carry coarse dating, the cultural class dimension can dominate the clustering, producing typological rather than chronological phases. The v0.12.0 feature-space enhancements (especially \texttt{class\_scale}) mitigate this effect.
-- **PDI saturation**: the PDI tends to approach unity in datasets with sharp class differentiation, even when phases overlap chronologically. Bootstrap confidence intervals (\texttt{bootstrap\_sef()}) provide more informative uncertainty quantification.
-- **Diagonal covariance**: the assumption of conditional independence between features within phases is conservative; full-covariance variants are not currently implemented.
+- **Resolution-bound inference**: the achievable phase resolution is bounded by the spatial and chronological resolution of the data. When finds inherit stratigraphic-unit centroid coordinates and unit-tied dates (as in the case study), the model can only resolve phases at the unit and macro-event level, and find-level entropy/PDI become uninformative (saturating near 0 and 1 respectively) --- a property of the recording, not of the model. \texttt{recommend\_setup()} detects and reports this situation. Find-level recording and per-find typological dating are required to recover within-unit mixing.
+- **Functional vs. depositional mixing**: the model flags heterogeneous or outlying material even when the heterogeneity is functional (e.g. a hearth such as VRPG US 304). Distinguishing functional mixing from disturbance requires excavator interpretation.
+- **Direction diagnostics require per-find dating**: the *older-* / *younger-than-context* classification (introduced in v0.13) is informative only when finds within a unit carry distinct chronologies; under unit-tied dating every find is necessarily in-context.
+- **Diagonal covariance**: the assumption of conditional independence between numeric features within phases is conservative; full-covariance variants are not currently implemented.
 - **SEI normalisation is within-dataset**: absolute SEI values are not comparable across sites. Cross-site comparisons should rely on derived statistics (PDI, mean entropy, ARI).
 - **Scalability**: the SEI and ESE matrices are $O(n^2)$ in memory; for $n > 2000$ users should employ \texttt{sei\_sparse()} or the \texttt{max\_dist} parameter.
 
-## Feature-space improvements (v0.12.0)
+## Methodological development since the first release
 
-In response to the case study, version 0.12.0 introduces five optional feature-space enhancements:
+Field testing motivated a sequence of methodological refinements, all of which are optional or backward-compatible at their defaults. An initial set of feature-space enhancements (chronological precision weighting, residuality detection, class scaling, taphonomic score as a feature, sub-class encoding) was followed by a more thorough revision of the statistical core:
 
-1. **Chronological precision weighting** (\texttt{chrono\_precision}): adds $1/t_{\text{span}}$ as a feature, giving higher weight to precisely dated finds.
-2. **Residuality detection** (\texttt{residuality}): captures the chronological mismatch between each find and its context mean, requiring a *context* column.
-3. **Class scaling** (\texttt{class\_scale}): multiplies one-hot class columns by $1/\sqrt{n_{\text{classes}}}$ so their cumulative energy matches a single numeric feature.
-4. **Taphonomic score as feature** (\texttt{taf\_as\_feature}): in addition to its EM-weight role, makes \texttt{taf\_score} an explicit dimension so that finds with similar preservation cluster together.
-5. **Sub-class encoding** (\texttt{subclass}): allows finer typological distinctions (e.g. *ceramica\_impasto* vs. *ceramica\_sigillata*) without altering the main \texttt{class} column.
-
-Empirical testing on VRPG showed BIC improvements of approximately 10,000 points and an increase from 33 to 38 pure stratigraphic units after activating the four enhancements applicable to this dataset (subclass encoding requires sub-typological information not currently coded in the database). These improvements are optional and disabled by default to preserve backward compatibility.
+1. **Active, cross-validatable weights**: the domain weights $w_s, w_z, w_t, w_c$ now scale the feature dimensions and enter the mixture likelihood, so \texttt{optimize\_weights()} can select them by cross-validated held-out log-likelihood (with a Jacobian correction that makes configurations comparable).
+2. **Bounded, scale-invariant similarity kernels**: the spatial and vertical SEI/ESE components use exponential kernels with data-driven bandwidths, removing the dependence on the site's measurement unit and the sensitivity to coincident coordinates.
+3. **Per-phase categorical class model** (default): replacing one-hot Gaussian columns, this prevents typology from fragmenting stratigraphic units and yields interpretable per-phase class profiles (\texttt{phase\_composition()}). On the case-study data it reduced the number of units split across phases from 27 to 0.
+4. **Genuine likelihood-based model selection**: BIC and ICL are computed from the unpenalised mixture density and account for the categorical and noise parameters.
+5. **Per-find chronological uncertainty** (\texttt{chrono\_uncertainty}) and **dynamic Neighborhood-EM stratigraphic field** (\texttt{strat\_dynamic}), which propagate dating-interval widths and recompute the stratigraphic constraint from the current posteriors, respectively.
+6. **Noise / outlier component** (\texttt{noise}): a uniform background component yielding a genuine posterior probability of intrusion and robust phase estimation.
+7. **Directional intrusion diagnostics** and a **setup adviser** (\texttt{recommend\_setup()}) that reports data-resolution caveats; **type-longevity** estimation (\texttt{type\_longevity()}, \texttt{gg\_longevity()}); and an **rcarbon adapter** (\texttt{chronology\_from\_rcarbon()}) for calibrated $^{14}$C dates.
 
 ## Future development
 
-Several developments are planned in response to user feedback (notably from M. Cattani, see Acknowledgements) and to the limitations discussed above:
+Several further developments are planned in response to user feedback (notably from M. Cattani, see Acknowledgements) and to the limitations discussed above:
 
-- **Directional intrusion diagnostics** (planned for v0.13.0): a new column in the \texttt{detect\_intrusions()} output classifying flagged finds as *older-than-context* (likely residual material from earlier deposits redeposited during levelling) or *younger-than-context* (likely indicators of unrecognised cuts and refills, i.e. latent features). The distinction is computed by comparing each flagged find's chronological midpoint against the mean midpoint of its stratigraphic unit. This addresses one of the main interpretive needs identified by archaeologists during preliminary use of the package.
-- **Validation on dendrochronologically dated sites**: the Poggio Gramignano case study uses periodisation-based dating, with a chronological resolution of $\sim$25--300 years per period. To stress-test the framework on a deposit with annual-resolution chronology, a future case study is planned on the Lago Lucone pile-dwelling site (Gavardo, BS, Italy), where dendrochronological dating provides yearly-resolved temporal anchors for the Bronze Age occupation phases. Such a dataset would allow direct evaluation of how feature-space precision translates into phase-recovery accuracy.
-- **Type longevity and production-duration estimation**: a derived statistic, computed once the depositional events are estimated, that returns the temporal range during which each cultural class (or sub-class) is associated with non-negligible posterior membership. This would provide a principled, model-based estimate of the **duration of production and use** of pottery types, metal artefact forms, and other typologically defined categories. The same machinery that flags residuality at the find level can be inverted to characterise, at the type level, the chronological window in which the type is most strongly anchored.
-- **Calibrated radiocarbon integration**: support for calibrated $^{14}$C distributions via the \texttt{rcarbon} package (Crema and Bevan 2021), beginning with the cemetery skeletal remains under analysis at Poggio Gramignano.
-- **Methodological extensions**: full-covariance and Bayesian variants of the mixture model; spatial-autocorrelation-aware likelihoods; automated detection of sub-typological structure within homogeneous classes; and direct ingestion of OxCal phase models.
+- **Validation on find-resolution, dendrochronologically dated sites**: the Poggio Gramignano case study uses unit-level recording with periodisation-based dating. To exercise the find-level machinery (within-unit entropy, directional intrusions, chronological-uncertainty propagation) a future case study is planned on the Lago Lucone pile-dwelling site (Gavardo, BS, Italy), where piece-plotted finds and dendrochronological dating provide yearly-resolved, find-level anchors for the Bronze Age occupation. Such a dataset would allow direct evaluation of how recording resolution translates into phase-recovery accuracy.
+- **Within-class structure and OxCal integration**: automated detection of sub-typological structure within homogeneous classes, and direct ingestion of OxCal phase models alongside the existing \texttt{rcarbon} pathway.
+- **Methodological extensions**: full-covariance and fully Bayesian variants of the mixture model; spatial-autocorrelation-aware likelihoods; and tighter coupling between the noise component and the directional intrusion diagnostics.
 
 The package will continue to be developed in response to user feedback through the GitHub issue tracker.
 
@@ -402,11 +401,11 @@ The package will continue to be developed in response to user feedback through t
 
 \texttt{palimpsestr} fills a long-standing methodological gap between qualitative stratigraphic reasoning and quantitative spatial analysis. By jointly modelling spatial proximity, vertical distribution, chronological overlap, and cultural similarity, the Stratigraphic Entanglement Field framework produces soft phase assignments that acknowledge --- rather than suppress --- the inherent uncertainty of mixed deposits. The three diagnostic statistics (SEI, ESE, PDI) provide interpretable summaries at the find, deposit, and assemblage levels respectively, and the package is fully integrated with established archaeological data sources (CSV, Excel, SQLite, PostgreSQL, PyArchInit) and GIS workflows (\texttt{sf}, GeoPackage, QGIS). The Shiny dashboard makes the framework accessible to archaeologists without R programming experience.
 
-The Poggio Gramignano case study illustrates the framework's strengths on temporally diverse deposits with rich material categories: the model successfully recovers four archaeologically coherent phases, identifies known levelling deposits as palimpsests, and produces interpretable visual outputs that integrate directly with excavation plan geometries. The validation by the excavator confirmed the relevance of the model output and motivated the optional feature-space improvements in version 0.12.0. \texttt{palimpsestr} is intended as a complement to, not a substitute for, the Harris Matrix and traditional stratigraphic recording: it adds a quantitative, probabilistic layer of analysis that operates at the find level, precisely the scale at which palimpsest formation is most problematic and least well-served by existing tools.
+The Poggio Gramignano case study illustrates both the framework's strengths and the central role of recording resolution. On temporally diverse deposits with rich material categories the model recovers four archaeologically coherent macro-events, keeps every stratigraphic unit internally consistent, ranks units by taphonomic reliability, isolates unit-level outliers through the noise component, and produces interpretable visual outputs that integrate directly with excavation plan geometries. It also makes explicit, through \texttt{recommend\_setup()}, that unit-level coordinates and unit-tied dating cap the inference at the unit and macro-event level --- a transparency that guides the analyst towards the find-level recording needed to resolve within-unit palimpsests. \texttt{palimpsestr} is intended as a complement to, not a substitute for, the Harris Matrix and traditional stratigraphic recording: it adds a quantitative, probabilistic layer of analysis that operates, where the data allow, at the find level --- precisely the scale at which palimpsest formation is most problematic and least well-served by existing tools.
 
 # Data and code availability
 
-The \texttt{palimpsestr} package (version 0.12.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. Reproducibility scripts for the case study are available in the repository.
+The \texttt{palimpsestr} package (version 0.17.1 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures in this paper were regenerated under version 0.17.1; the reproducibility script is available in the repository (\texttt{docs/regen\_casestudy\_v017.R}).
 
 # Author contributions
 
@@ -423,13 +422,16 @@ The author declares no conflict of interest.
 # References
 
 \noindent
+Ambroise, C., & Govaert, G. (1997). Constrained clustering and Kohonen self-organizing maps. *Journal of Classification*, 14(2), 215--237. \url{https://doi.org/10.1007/s003579900012}
+
+\noindent
 Bailey, G. (2007). Time perspectives, palimpsests and the archaeology of time. *Journal of Anthropological Archaeology*, 26(2), 198--223. \url{https://doi.org/10.1016/j.jaa.2006.08.002}
 
 \noindent
 Bronk Ramsey, C. (2009). Bayesian analysis of radiocarbon dates. *Radiocarbon*, 51(1), 337--360. \url{https://doi.org/10.1017/S0033822200033865}
 
 \noindent
-Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.12.0. Zenodo. \url{https://doi.org/10.5281/zenodo.19881542}
+Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.17.1. Zenodo. \url{https://doi.org/10.5281/zenodo.19881542}
 
 \noindent
 Conolly, J., & Lake, M. (2006). *Geographical Information Systems in Archaeology*. Cambridge Manuals in Archaeology. Cambridge: Cambridge University Press. ISBN 978-0-521-79744-3. \url{https://doi.org/10.1017/CBO9780511807459}
@@ -439,6 +441,9 @@ Crema, E. R., & Bevan, A. (2021). Inference from large sets of radiocarbon dates
 
 \noindent
 Dempster, A. P., Laird, N. M., & Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *Journal of the Royal Statistical Society: Series B (Methodological)*, 39(1), 1--22. \url{https://doi.org/10.1111/j.2517-6161.1977.tb01600.x}
+
+\noindent
+Fraley, C., & Raftery, A. E. (1998). How many clusters? Which clustering method? Answers via model-based cluster analysis. *The Computer Journal*, 41(8), 578--588. \url{https://doi.org/10.1093/comjnl/41.8.578}
 
 \noindent
 Harris, E. C. (1989). *Principles of Archaeological Stratigraphy* (2nd ed.). London and San Diego: Academic Press. ISBN 978-0-12-326651-4.
