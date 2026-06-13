@@ -71,6 +71,17 @@
 #'   probabilities. Unlike \code{chrono_precision} (which adds \code{1/tspan}
 #'   as an extra feature), this is a model-based treatment of the dating
 #'   uncertainty.
+#' @param strat_dynamic Logical (default \code{FALSE}). If \code{TRUE} and
+#'   \code{context} is provided, the stratigraphic constraint is applied as a
+#'   Neighborhood-EM / hidden-Markov-random-field term recomputed from the
+#'   current phase posteriors at every E-step, instead of the static penalty
+#'   frozen from the initial clustering. Each find is rewarded for sharing the
+#'   phase of its stratigraphic-unit neighbours, encouraging units to stay
+#'   coherent as the fit evolves (Ambroise & Govaert, 1997). Any \code{harris}
+#'   penalty continues to be applied statically.
+#' @param strat_beta Non-negative strength of the dynamic stratigraphic field
+#'   (default 1); only used when \code{strat_dynamic = TRUE}. \code{0} disables
+#'   the field.
 #' @return An S3 object of class \code{sef_fit}.
 #' @seealso \code{\link{archaeo_sim}}, \code{\link{compare_k}},
 #'   \code{\link{pdi}}, \code{\link{detect_intrusions}}
@@ -107,7 +118,9 @@ fit_sef <- function(data,
                     var_structure = c("diagonal", "spherical"),
                     class_model = c("multinomial", "gaussian"),
                     class_smoothing = 1,
-                    chrono_uncertainty = FALSE) {
+                    chrono_uncertainty = FALSE,
+                    strat_dynamic = FALSE,
+                    strat_beta = 1) {
   var_structure <- match.arg(var_structure)
   class_model <- match.arg(class_model)
   check_required_columns(data, c(coords, chrono, class))
@@ -145,6 +158,18 @@ fit_sef <- function(data,
   penalty <- build_context_penalty(data, context_col = context, harris = harris)
   taf <- if (!is.null(tafonomy)) pmin(pmax(data[[tafonomy]], 0), 1) else rep(0, nrow(data))
 
+  if (!is.numeric(strat_beta) || strat_beta < 0) {
+    stop("strat_beta must be a non-negative number", call. = FALSE)
+  }
+  nem_affinity <- NULL
+  if (strat_dynamic) {
+    nem_affinity <- build_context_affinity(data, context_col = context)
+    if (is.null(nem_affinity) && is.null(harris)) {
+      warning("strat_dynamic = TRUE but no usable context/Harris structure; ",
+              "the dynamic stratigraphic field has no effect.", call. = FALSE)
+    }
+  }
+
   # Per-find chronological measurement variance on the temporal (`tmid`)
   # dimension. Modelling the date as uniform on [date_min, date_max] gives
   # variance span^2 / 12; converted to the standardised, weighted feature
@@ -173,8 +198,20 @@ fit_sef <- function(data,
     if (!is.finite(scale0) || scale0 <= 0) scale0 <- 1
     prob0 <- softmax_negdist(feat, centers0, scale = scale0)
 
+    # Stratigraphic penalty. The static path (default) freezes a per-phase
+    # penalty from the k-means clustering; the dynamic path (strat_dynamic)
+    # replaces the context part with a Neighborhood-EM field recomputed from
+    # the current posteriors each E-step. Any Harris penalty stays static.
     strat_pen <- NULL
-    if (!is.null(context) || !is.null(harris)) {
+    if (strat_dynamic) {
+      if (!is.null(harris)) {
+        strat_pen <- sapply(seq_len(k), function(j) {
+          idx <- which(km$cluster == j)
+          if (length(idx) == 0) return(rep(0, nrow(data)))
+          rowMeans(validate_harris(harris, nrow(data))[, idx, drop = FALSE])
+        })
+      }
+    } else if (!is.null(context) || !is.null(harris)) {
       strat_pen <- sapply(seq_len(k), function(j) {
         idx <- which(km$cluster == j)
         if (length(idx) == 0) return(rep(0, nrow(data)))
@@ -194,7 +231,9 @@ fit_sef <- function(data,
       var_structure = var_structure,
       cat_labels = cat_labels,
       cat_alpha = class_smoothing,
-      extra_var = extra_var
+      extra_var = extra_var,
+      nem_affinity = if (strat_dynamic) nem_affinity else NULL,
+      nem_beta = if (strat_dynamic) strat_beta else 0
     )
 
     final_ll <- tail(em$loglik, 1)
@@ -255,6 +294,8 @@ fit_sef <- function(data,
     class_model = class_model,
     class_smoothing = class_smoothing,
     chrono_uncertainty = chrono_uncertainty,
+    strat_dynamic = strat_dynamic,
+    strat_beta = strat_beta,
     cat_prob = em$cat_prob,
     cat_levels = if (use_multinom) colnames(em$cat_prob) else NULL,
     phase = phase,

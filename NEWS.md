@@ -1,3 +1,39 @@
+# palimpsestr 0.16.0
+
+This release adds two model-based treatments of evidence that the EM engine
+previously simplified away: per-find dating uncertainty, and the
+stratigraphic constraint. Both are opt-in and off by default, so existing
+fits are unchanged.
+
+## Per-find chronological uncertainty
+
+- **New `fit_sef(chrono_uncertainty = FALSE)`.** When `TRUE`, a find's dating
+  interval width is propagated into the likelihood instead of collapsing the
+  interval to its mid-point. The mid-date is modelled as observed with a
+  measurement variance `(date_max - date_min)^2 / 12` (a uniform prior over
+  the interval), added to the temporal dimension's component variance in the
+  E-step and removed from the component variance estimate by method-of-moments
+  deconvolution in the M-step. Finds with wide dating ranges then rely less on
+  chronology and carry their dating uncertainty into the phase probabilities.
+  Unlike `chrono_precision` (which adds `1/tspan` as a feature), this is a
+  model-based treatment of the uncertainty. The internal `diag_log_density()`
+  gains an `extra_var` argument.
+
+## Dynamic (Neighborhood-EM) stratigraphic constraint
+
+- **New `fit_sef(strat_dynamic = FALSE, strat_beta = 1)`.** The stratigraphic
+  context constraint was previously a static penalty frozen from the k-means
+  initialisation: if the EM moved assignments, the penalty still reflected the
+  starting clusters. With `strat_dynamic = TRUE` it becomes a Neighborhood-EM /
+  hidden-Markov-random-field term recomputed from the current phase posteriors
+  at every E-step (Ambroise & Govaert, 1997): each find is rewarded for
+  sharing the phase of its stratigraphic-unit neighbours, so units stay
+  coherent as the fit evolves. `strat_beta` sets the field strength; any
+  `harris` penalty continues to be applied statically.
+
+- Both options are propagated through `bootstrap_sef()` and exposed in the
+  Shiny app.
+
 # palimpsestr 0.15.0
 
 ## Mixed-type likelihood for the class label

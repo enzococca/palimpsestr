@@ -199,6 +199,20 @@ build_context_penalty <- function(data, context_col = NULL, harris = NULL,
 # effective variance of observation i in component j on dimension d is then
 # vars[j, d] + extra_var[i, d], so a find with a wide dating interval has a
 # flatter density on the temporal dimension.
+# Row-normalised same-context affinity matrix for the Neighborhood-EM field:
+# A[i, i'] = 1 / (size of i's context - 1) when i and i' share a context, else
+# 0; zero diagonal. Row i then averages the posteriors of i's context-mates.
+# Returns NULL when no usable context structure is present.
+build_context_affinity <- function(data, context_col) {
+  if (is.null(context_col) || !(context_col %in% names(data))) return(NULL)
+  ctx <- as.character(data[[context_col]])
+  A <- outer(ctx, ctx, FUN = "==") * 1
+  diag(A) <- 0
+  rs <- rowSums(A)
+  if (all(rs == 0)) return(NULL)         # every context is a singleton
+  A / pmax(rs, 1)
+}
+
 diag_log_density <- function(features, means, vars, extra_var = NULL) {
   n <- nrow(features)
   k <- nrow(means)
@@ -262,9 +276,16 @@ cat_test_contrib <- function(fit, test_data, n_test, k) {
 # pseudo-count, shrunk towards the global class frequencies `cat_global`,
 # which keeps every class probability strictly positive and prevents the
 # overconfident (entropy ~ 0) fits that one-hot Gaussian columns produced.
+# `nem_affinity` (n x n, non-negative, zero diagonal) and `nem_beta` enable a
+# Neighborhood-EM / hidden-MRF field (Ambroise & Govaert 1997): each E-step
+# adds nem_beta * (nem_affinity %*% prob) to the log-posterior, rewarding each
+# find for sharing the phase of its stratigraphic neighbours. Unlike a static
+# penalty the field is recomputed from the current posteriors every iteration.
 em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_obs = NULL,
                         strat_penalty = NULL, var_structure = "diagonal",
-                        cat_labels = NULL, cat_alpha = 1, extra_var = NULL) {
+                        cat_labels = NULL, cat_alpha = 1, extra_var = NULL,
+                        nem_affinity = NULL, nem_beta = 0) {
+  use_nem <- !is.null(nem_affinity) && nem_beta > 0
   n <- nrow(features)
   p <- ncol(features)
   k <- ncol(prob_init)
@@ -333,6 +354,10 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
 
     if (!is.null(strat_penalty)) {
       logpost <- logpost - strat_penalty
+    }
+    if (use_nem) {
+      # Mean-field NEM: reward agreement with the current neighbour posteriors.
+      logpost <- logpost + nem_beta * (nem_affinity %*% prob)
     }
 
     m <- apply(logpost, 1, max)
