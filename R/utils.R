@@ -194,16 +194,28 @@ build_context_penalty <- function(data, context_col = NULL, harris = NULL,
   pen
 }
 
-diag_log_density <- function(features, means, vars) {
+# `extra_var`, when supplied, is an n x p matrix of per-observation, per-
+# dimension additional variance (e.g. chronological measurement error). The
+# effective variance of observation i in component j on dimension d is then
+# vars[j, d] + extra_var[i, d], so a find with a wide dating interval has a
+# flatter density on the temporal dimension.
+diag_log_density <- function(features, means, vars, extra_var = NULL) {
   n <- nrow(features)
   k <- nrow(means)
   p <- ncol(features)
   out <- matrix(0, n, k)
   log2pi <- log(2 * pi)
   for (j in seq_len(k)) {
-    vj <- pmax(vars[j, ], 1e-8)
-    dif <- sweep(features, 2, means[j, ], FUN = "-")
-    out[, j] <- -0.5 * (rowSums((dif ^ 2) / rep(vj, each = n)) + sum(log(vj)) + p * log2pi)
+    if (is.null(extra_var)) {
+      vj <- pmax(vars[j, ], 1e-8)
+      dif <- sweep(features, 2, means[j, ], FUN = "-")
+      out[, j] <- -0.5 * (rowSums((dif ^ 2) / rep(vj, each = n)) + sum(log(vj)) + p * log2pi)
+    } else {
+      eff <- sweep(extra_var, 2, vars[j, ], FUN = "+")   # n x p effective var
+      eff <- pmax(eff, 1e-8)
+      dif <- sweep(features, 2, means[j, ], FUN = "-")
+      out[, j] <- -0.5 * (rowSums((dif ^ 2) / eff) + rowSums(log(eff)) + p * log2pi)
+    }
   }
   out
 }
@@ -252,7 +264,7 @@ cat_test_contrib <- function(fit, test_data, n_test, k) {
 # overconfident (entropy ~ 0) fits that one-hot Gaussian columns produced.
 em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_obs = NULL,
                         strat_penalty = NULL, var_structure = "diagonal",
-                        cat_labels = NULL, cat_alpha = 1) {
+                        cat_labels = NULL, cat_alpha = 1, extra_var = NULL) {
   n <- nrow(features)
   p <- ncol(features)
   k <- ncol(prob_init)
@@ -294,7 +306,15 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
       } else {
         means[j, ] <- colSums(features * rj) / sw
         dif <- sweep(features, 2, means[j, ], FUN = "-")
-        vars[j, ] <- pmax(colSums((dif ^ 2) * rj) / sw, 1e-6)
+        raw_var <- colSums((dif ^ 2) * rj) / sw
+        if (!is.null(extra_var)) {
+          # Method-of-moments deconvolution: the raw second moment includes the
+          # known per-find measurement variance, so subtract its weighted mean
+          # to recover the latent component variance.
+          mean_meas <- colSums(extra_var * rj) / sw
+          raw_var <- raw_var - mean_meas
+        }
+        vars[j, ] <- pmax(raw_var, 1e-6)
         if (var_structure == "spherical") {
           vars[j, ] <- rep(mean(vars[j, ]), p)
         }
@@ -307,7 +327,7 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
     }
     mix <- mix / sum(mix)
 
-    logdens <- diag_log_density(features, means, vars)
+    logdens <- diag_log_density(features, means, vars, extra_var = extra_var)
     if (use_cat) logdens <- logdens + cat_log_density(cat_ind, cat_prob)
     logpost <- sweep(logdens, 2, log(pmax(mix, 1e-12)), FUN = "+")
 
@@ -343,7 +363,7 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
   # Unpenalized observed-data log-likelihood at the final parameters.
   # The trace above is the penalized EM objective (used for convergence and
   # init selection); BIC/ICL must be built from the true mixture likelihood.
-  logdens <- diag_log_density(features, means, vars)
+  logdens <- diag_log_density(features, means, vars, extra_var = extra_var)
   if (use_cat) logdens <- logdens + cat_log_density(cat_ind, cat_prob)
   lp <- sweep(logdens, 2, log(pmax(mix, 1e-12)), FUN = "+")
   mu <- apply(lp, 1, max)
