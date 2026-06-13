@@ -37,10 +37,10 @@ aggregate(test_loglik ~ k, data = cv, FUN = mean)
 \seealso{
 \code{\link{compare_k}}, \code{\link{fit_sef}}
 
-Other validation: 
-\code{\link{adjusted_rand_index}()},
-\code{\link{bootstrap_sef}()},
-\code{\link{confusion_matrix}()},
-\code{\link{optimize_weights}()}
+Other validation:
+\code{\link[=adjusted_rand_index]{adjusted_rand_index()}},
+\code{\link[=bootstrap_sef]{bootstrap_sef()}},
+\code{\link[=confusion_matrix]{confusion_matrix()}},
+\code{\link[=optimize_weights]{optimize_weights()}}
 }
 \concept{validation}

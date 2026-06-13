@@ -33,8 +33,8 @@ export_results(fit, dir = tempdir())
 \seealso{
 \code{\link{us_summary_table}}, \code{\link{as_phase_table}}
 
-Other export: 
-\code{\link{phase_transition_matrix}()},
-\code{\link{us_summary_table}()}
+Other export:
+\code{\link[=phase_transition_matrix]{phase_transition_matrix()}},
+\code{\link[=us_summary_table]{us_summary_table()}}
 }
 \concept{export}

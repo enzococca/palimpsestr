@@ -11,6 +11,7 @@ optimize_weights(
   n_folds = 3,
   seed = 1,
   verbose = TRUE,
+  var_structure = "spherical",
   ...
 )
 }
@@ -28,6 +29,9 @@ optimize_weights(
 
 \item{verbose}{Print progress (default: TRUE).}
 
+\item{var_structure}{Variance structure used for the weight-selection
+fits (default: \code{"spherical"}; see Details).}
+
 \item{...}{Additional arguments passed to \code{\link{fit_sef}}.}
 }
 \value{
@@ -42,6 +46,21 @@ Tests a grid of weight configurations and selects the one that
 maximises the mean held-out log-likelihood across folds. This
 provides a data-driven alternative to manual weight specification.
 }
+\details{
+Since v0.14.0 the weights scale the feature dimensions and therefore
+enter the mixture likelihood (in earlier versions they only affected
+the SEI matrix, so the cross-validated objective was invariant to
+them). Two technical points make the comparison meaningful. First,
+free diagonal variances absorb any rescaling of the feature columns,
+so weight selection is performed under
+\code{var_structure = "spherical"}, where the weights define the
+relative precision of the dimensions and are identifiable; the
+returned \code{best_weights} are therefore meant to be used with
+\code{fit_sef(..., var_structure = "spherical")}. Second, held-out
+log-likelihoods are mapped back to the common unweighted feature
+scale via a Jacobian correction (\eqn{n_{test} \sum_d \log w_d}) so
+that configurations with different weights are directly comparable.
+}
 \examples{
 \donttest{
 x <- archaeo_sim(n = 80, k = 3, seed = 1)
@@ -52,10 +71,10 @@ opt$best_weights
 \seealso{
 \code{\link{fit_sef}}, \code{\link{cv_sef}}
 
-Other validation: 
-\code{\link{adjusted_rand_index}()},
-\code{\link{bootstrap_sef}()},
-\code{\link{confusion_matrix}()},
-\code{\link{cv_sef}()}
+Other validation:
+\code{\link[=adjusted_rand_index]{adjusted_rand_index()}},
+\code{\link[=bootstrap_sef]{bootstrap_sef()}},
+\code{\link[=confusion_matrix]{confusion_matrix()}},
+\code{\link[=cv_sef]{cv_sef()}}
 }
 \concept{validation}

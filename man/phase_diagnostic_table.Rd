@@ -25,13 +25,13 @@ names(pdt)
 \seealso{
 \code{\link{as_phase_table}}, \code{\link{as_sf_phase}}
 
-Other diagnostics: 
-\code{\link{as_phase_table}()},
-\code{\link{detect_intrusions}()},
-\code{\link{ese}()},
-\code{\link{pdi}()},
-\code{\link{predict_phase}()},
-\code{\link{recommend_setup}()},
-\code{\link{type_longevity}()}
+Other diagnostics:
+\code{\link[=as_phase_table]{as_phase_table()}},
+\code{\link[=detect_intrusions]{detect_intrusions()}},
+\code{\link[=ese]{ese()}},
+\code{\link[=pdi]{pdi()}},
+\code{\link[=predict_phase]{predict_phase()}},
+\code{\link[=recommend_setup]{recommend_setup()}},
+\code{\link[=type_longevity]{type_longevity()}}
 }
 \concept{diagnostics}

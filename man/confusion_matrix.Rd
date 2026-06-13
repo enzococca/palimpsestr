@@ -26,10 +26,10 @@ confusion_matrix(fit, x$true_phase)
 \seealso{
 \code{\link{adjusted_rand_index}}
 
-Other validation: 
-\code{\link{adjusted_rand_index}()},
-\code{\link{bootstrap_sef}()},
-\code{\link{cv_sef}()},
-\code{\link{optimize_weights}()}
+Other validation:
+\code{\link[=adjusted_rand_index]{adjusted_rand_index()}},
+\code{\link[=bootstrap_sef]{bootstrap_sef()}},
+\code{\link[=cv_sef]{cv_sef()}},
+\code{\link[=optimize_weights]{optimize_weights()}}
 }
 \concept{validation}

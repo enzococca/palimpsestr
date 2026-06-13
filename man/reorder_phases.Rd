@@ -25,9 +25,9 @@ fit <- reorder_phases(fit)
 \seealso{
 \code{\link{fit_sef}}
 
-Other fitting: 
-\code{\link{compare_k}()},
-\code{\link{fit_sef}()},
-\code{\link{sef_summary}()}
+Other fitting:
+\code{\link[=compare_k]{compare_k()}},
+\code{\link[=fit_sef]{fit_sef()}},
+\code{\link[=sef_summary]{sef_summary()}}
 }
 \concept{fitting}

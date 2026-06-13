@@ -32,7 +32,7 @@ if (requireNamespace("sf", quietly = TRUE)) {
 \seealso{
 \code{\link{as_sf_links}}, \code{\link{phase_diagnostic_table}}
 
-Other GIS: 
-\code{\link{as_sf_links}()}
+Other GIS:
+\code{\link[=as_sf_links]{as_sf_links()}}
 }
 \concept{GIS}

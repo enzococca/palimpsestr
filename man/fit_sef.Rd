@@ -17,12 +17,13 @@ fit_sef(
   seed = 1,
   em_iter = 100,
   em_tol = 1e-05,
-  n_init = 1,
+  n_init = 5,
   chrono_precision = FALSE,
   taf_as_feature = FALSE,
   residuality = FALSE,
   class_scale = FALSE,
-  subclass = NULL
+  subclass = NULL,
+  var_structure = c("diagonal", "spherical")
 )
 }
 \arguments{
@@ -42,7 +43,13 @@ fit_sef(
 
 \item{k}{Integer number of phases to estimate.}
 
-\item{weights}{Named numeric vector with components \code{ws}, \code{wz}, \code{wt}, \code{wc}.}
+\item{weights}{Named numeric vector with components \code{ws}, \code{wz},
+\code{wt}, \code{wc} (all strictly positive). Since v0.14.0 the weights
+scale the standardised feature dimensions (\code{ws}: planar coordinates,
+\code{wz}: depth, \code{wt}: chronology-derived features, \code{wc}:
+class block) and therefore enter the mixture likelihood, in addition to
+weighting the SEI components. \code{\link{optimize_weights}} can select
+them by cross-validation.}
 
 \item{seed}{Random seed for reproducibility.}
 
@@ -51,7 +58,8 @@ fit_sef(
 \item{em_tol}{Convergence tolerance on the log-likelihood.}
 
 \item{n_init}{Number of random initialisations. The run with the
-highest log-likelihood is retained (default: 1).}
+highest EM objective is retained (default: 5). The EM objective is
+multimodal, so a single initialisation risks a poor local optimum.}
 
 \item{chrono_precision}{Logical. If TRUE, add 1/tspan as a feature
 giving higher weight to precisely dated finds (default: FALSE).}
@@ -69,6 +77,15 @@ single numeric feature (default: FALSE).}
 
 \item{subclass}{Optional column name for sub-class labels. If provided,
 used instead of \code{class} for one-hot encoding in the feature matrix.}
+
+\item{var_structure}{Either \code{"diagonal"} (default) for free
+per-dimension component variances, or \code{"spherical"} for one shared
+variance per component in the weighted feature space. Free diagonal
+variances absorb any rescaling of the feature columns, so the domain
+\code{weights} influence a diagonal fit only through the
+initialisation; under \code{"spherical"} the weights define the
+relative precision of the dimensions, are identifiable, and can be
+selected by \code{\link{optimize_weights}}.}
 }
 \value{
 An S3 object of class \code{sef_fit}.
@@ -92,9 +109,9 @@ summary(fit)
 \code{\link{archaeo_sim}}, \code{\link{compare_k}},
 \code{\link{pdi}}, \code{\link{detect_intrusions}}
 
-Other fitting: 
-\code{\link{compare_k}()},
-\code{\link{reorder_phases}()},
-\code{\link{sef_summary}()}
+Other fitting:
+\code{\link[=compare_k]{compare_k()}},
+\code{\link[=reorder_phases]{reorder_phases()}},
+\code{\link[=sef_summary]{sef_summary()}}
 }
 \concept{fitting}

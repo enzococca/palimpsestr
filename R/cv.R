@@ -55,6 +55,7 @@ cv_sef <- function(data, k_values = 2:6, n_folds = 5, seed = 1, ...) {
         coords <- fit_train$coords
         chrono <- fit_train$chrono
         class_col <- fit_train$class_col
+        w <- null_default(fit_train$weights, c(ws = 1, wz = 1, wt = 1, wc = 1))
         # Build training features to capture scale parameters
         feat_train <- feature_matrix(train_data, coords = coords,
                                       chrono = chrono, class_col = class_col,
@@ -63,7 +64,8 @@ cv_sef <- function(data, k_values = 2:6, n_folds = 5, seed = 1, ...) {
                                       taf_col = fit_train$tafonomy,
                                       context_col = if (null_default(fit_train$residuality, FALSE)) fit_train$context else NULL,
                                       class_scale = null_default(fit_train$class_scale, FALSE),
-                                      subclass_col = fit_train$subclass)
+                                      subclass_col = fit_train$subclass,
+                                      weights = w)
         train_center <- attr(feat_train, "scaled:center")
         train_scale <- attr(feat_train, "scaled:scale")
         # Standardise test data using training center/scale
@@ -75,7 +77,8 @@ cv_sef <- function(data, k_values = 2:6, n_folds = 5, seed = 1, ...) {
                                      taf_col = fit_train$tafonomy,
                                      context_col = if (null_default(fit_train$residuality, FALSE)) fit_train$context else NULL,
                                      class_scale = null_default(fit_train$class_scale, FALSE),
-                                     subclass_col = fit_train$subclass)
+                                     subclass_col = fit_train$subclass,
+                                     weights = w)
         # Compute log-likelihood under trained model
         log_dens <- diag_log_density(feat_test, fit_train$centroids,
                                       fit_train$variances)

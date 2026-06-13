@@ -33,7 +33,7 @@ GeoJSON, or a PostGIS database for use with \code{\link{gg_map}}.
 \seealso{
 \code{\link{gg_map}}, \code{\link{read_db}}
 
-Other data-import: 
-\code{\link{read_db}()}
+Other data-import:
+\code{\link[=read_db]{read_db()}}
 }
 \concept{data-import}

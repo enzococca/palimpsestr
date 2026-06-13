@@ -23,22 +23,22 @@ plot_phasefield(fit)
 \seealso{
 \code{\link{gg_phasefield}} for the ggplot2/plotly version.
 
-Other plotting: 
-\code{\link{as_plotly}()},
-\code{\link{gg_bootstrap}()},
-\code{\link{gg_compare_k}()},
-\code{\link{gg_confusion}()},
-\code{\link{gg_convergence}()},
-\code{\link{gg_cv}()},
-\code{\link{gg_energy}()},
-\code{\link{gg_entropy}()},
-\code{\link{gg_intrusions}()},
-\code{\link{gg_map}()},
-\code{\link{gg_phase_profile}()},
-\code{\link{gg_phasefield}()},
-\code{\link{gg_weights}()},
-\code{\link{plot_energy}()},
-\code{\link{plot_entropy}()},
-\code{\link{plot_sei_profile}()}
+Other plotting:
+\code{\link[=as_plotly]{as_plotly()}},
+\code{\link[=gg_bootstrap]{gg_bootstrap()}},
+\code{\link[=gg_compare_k]{gg_compare_k()}},
+\code{\link[=gg_confusion]{gg_confusion()}},
+\code{\link[=gg_convergence]{gg_convergence()}},
+\code{\link[=gg_cv]{gg_cv()}},
+\code{\link[=gg_energy]{gg_energy()}},
+\code{\link[=gg_entropy]{gg_entropy()}},
+\code{\link[=gg_intrusions]{gg_intrusions()}},
+\code{\link[=gg_map]{gg_map()}},
+\code{\link[=gg_phase_profile]{gg_phase_profile()}},
+\code{\link[=gg_phasefield]{gg_phasefield()}},
+\code{\link[=gg_weights]{gg_weights()}},
+\code{\link[=plot_energy]{plot_energy()}},
+\code{\link[=plot_entropy]{plot_entropy()}},
+\code{\link[=plot_sei_profile]{plot_sei_profile()}}
 }
 \concept{plotting}

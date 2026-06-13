@@ -4,10 +4,17 @@
 \alias{detect_intrusions}
 \title{Detect potentially intrusive observations}
 \usage{
-detect_intrusions(object)
+detect_intrusions(object, envelope = c(0.05, 0.95))
 }
 \arguments{
 \item{object}{A \code{sef_fit} object.}
+
+\item{envelope}{Numeric vector of two probabilities giving the quantiles
+of the other finds' dating bounds used as the leave-one-out unit
+envelope for the directional classification. The default
+\code{c(0.05, 0.95)} is robust to a single chronological outlier within
+the context; use \code{c(0, 1)} for the strict min/max envelope used
+prior to v0.14.0.}
 }
 \value{
 A data.frame with columns \code{id}, \code{intrusion_prob},
@@ -29,13 +36,13 @@ head(di[order(di$intrusion_prob, decreasing = TRUE), ])
 \code{\link{gg_intrusions}}, \code{\link{fit_sef}},
 \code{\link{type_longevity}}
 
-Other diagnostics: 
-\code{\link{as_phase_table}()},
-\code{\link{ese}()},
-\code{\link{pdi}()},
-\code{\link{phase_diagnostic_table}()},
-\code{\link{predict_phase}()},
-\code{\link{recommend_setup}()},
-\code{\link{type_longevity}()}
+Other diagnostics:
+\code{\link[=as_phase_table]{as_phase_table()}},
+\code{\link[=ese]{ese()}},
+\code{\link[=pdi]{pdi()}},
+\code{\link[=phase_diagnostic_table]{phase_diagnostic_table()}},
+\code{\link[=predict_phase]{predict_phase()}},
+\code{\link[=recommend_setup]{recommend_setup()}},
+\code{\link[=type_longevity]{type_longevity()}}
 }
 \concept{diagnostics}
