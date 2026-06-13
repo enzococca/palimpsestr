@@ -82,6 +82,17 @@
 #' @param strat_beta Non-negative strength of the dynamic stratigraphic field
 #'   (default 1); only used when \code{strat_dynamic = TRUE}. \code{0} disables
 #'   the field.
+#' @param noise Logical (default \code{FALSE}). If \code{TRUE}, a uniform
+#'   background ("noise") component is added to the mixture (Fraley & Raftery,
+#'   1998). Finds that fit no Gaussian phase accumulate posterior probability
+#'   on it, so the fit stores a \code{noise_prob} vector that is a genuine
+#'   posterior probability of being an outlier/intrusion (used by
+#'   \code{\link{detect_intrusions}} in place of the heuristic composite
+#'   score), and extreme finds are kept out of the phase centroid and variance
+#'   estimates. The reported \code{phase_prob} is then the distribution over
+#'   phases conditional on a find not being noise.
+#' @param noise_prior Initial mixing weight of the noise component, strictly
+#'   between 0 and 1 (default 0.05); only used when \code{noise = TRUE}.
 #' @return An S3 object of class \code{sef_fit}.
 #' @seealso \code{\link{archaeo_sim}}, \code{\link{compare_k}},
 #'   \code{\link{pdi}}, \code{\link{detect_intrusions}}
@@ -120,7 +131,9 @@ fit_sef <- function(data,
                     class_smoothing = 1,
                     chrono_uncertainty = FALSE,
                     strat_dynamic = FALSE,
-                    strat_beta = 1) {
+                    strat_beta = 1,
+                    noise = FALSE,
+                    noise_prior = 0.05) {
   var_structure <- match.arg(var_structure)
   class_model <- match.arg(class_model)
   check_required_columns(data, c(coords, chrono, class))
@@ -161,6 +174,10 @@ fit_sef <- function(data,
   if (!is.numeric(strat_beta) || strat_beta < 0) {
     stop("strat_beta must be a non-negative number", call. = FALSE)
   }
+  if (!is.numeric(noise_prior) || noise_prior <= 0 || noise_prior >= 1) {
+    stop("noise_prior must be a number strictly between 0 and 1", call. = FALSE)
+  }
+  noise_logdens <- if (noise) noise_log_density(feat) else NULL
   nem_affinity <- NULL
   if (strat_dynamic) {
     nem_affinity <- build_context_affinity(data, context_col = context)
@@ -233,7 +250,9 @@ fit_sef <- function(data,
       cat_alpha = class_smoothing,
       extra_var = extra_var,
       nem_affinity = if (strat_dynamic) nem_affinity else NULL,
-      nem_beta = if (strat_dynamic) strat_beta else 0
+      nem_beta = if (strat_dynamic) strat_beta else 0,
+      noise_logdens = noise_logdens,
+      noise_init = noise_prior
     )
 
     final_ll <- tail(em$loglik, 1)
@@ -296,6 +315,9 @@ fit_sef <- function(data,
     chrono_uncertainty = chrono_uncertainty,
     strat_dynamic = strat_dynamic,
     strat_beta = strat_beta,
+    noise = noise,
+    noise_prior = noise_prior,
+    noise_prob = em$noise_prob,
     cat_prob = em$cat_prob,
     cat_levels = if (use_multinom) colnames(em$cat_prob) else NULL,
     phase = phase,
@@ -519,8 +541,10 @@ predict_phase <- function(object) {
 
 #' Detect potentially intrusive observations
 #'
-#' Combines rescaled entropy, energy, and inverse local SEI into a composite
-#' intrusion probability score.
+#' Returns a per-find intrusion probability. When the model was fitted with
+#' \code{noise = TRUE}, \code{intrusion_prob} is the posterior probability of
+#' the uniform noise component (a genuine outlier probability). Otherwise it is
+#' the heuristic composite of rescaled entropy, energy, and inverse local SEI.
 #'
 #' @param object A \code{sef_fit} object.
 #' @param envelope Numeric vector of two probabilities giving the quantiles
@@ -544,10 +568,16 @@ predict_phase <- function(object) {
 #' @export
 detect_intrusions <- function(object, envelope = c(0.05, 0.95)) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
-  z_entropy <- rescale01(object$entropy)
-  z_energy  <- rescale01(object$energy)
-  z_sei     <- 1 - rescale01(object$local_sei)
-  score     <- (z_entropy + z_energy + z_sei) / 3
+  if (!is.null(object$noise_prob)) {
+    # Model-based: the posterior probability of the uniform noise component is
+    # a genuine outlier probability, not a forced [0, 1] rescaling.
+    score <- object$noise_prob
+  } else {
+    z_entropy <- rescale01(object$entropy)
+    z_energy  <- rescale01(object$energy)
+    z_sei     <- 1 - rescale01(object$local_sei)
+    score     <- (z_entropy + z_energy + z_sei) / 3
+  }
 
   date_min_col <- if (length(object$chrono) >= 1) object$chrono[1] else NULL
   date_max_col <- if (length(object$chrono) >= 2) object$chrono[2] else NULL

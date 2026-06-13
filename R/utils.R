@@ -199,6 +199,16 @@ build_context_penalty <- function(data, context_col = NULL, harris = NULL,
 # effective variance of observation i in component j on dimension d is then
 # vars[j, d] + extra_var[i, d], so a find with a wide dating interval has a
 # flatter density on the temporal dimension.
+# Constant log-density of the uniform background (noise) component: minus the
+# log hypervolume of the feature bounding box (Fraley & Raftery 1998). Zero-
+# width dimensions are skipped so the volume stays positive and finite.
+noise_log_density <- function(features) {
+  ranges <- apply(features, 2, function(col) diff(range(col)))
+  ranges <- ranges[is.finite(ranges) & ranges > 0]
+  if (length(ranges) == 0) return(0)
+  -sum(log(ranges))
+}
+
 # Row-normalised same-context affinity matrix for the Neighborhood-EM field:
 # A[i, i'] = 1 / (size of i's context - 1) when i and i' share a context, else
 # 0; zero diagonal. Row i then averages the posteriors of i's context-mates.
@@ -281,11 +291,18 @@ cat_test_contrib <- function(fit, test_data, n_test, k) {
 # adds nem_beta * (nem_affinity %*% prob) to the log-posterior, rewarding each
 # find for sharing the phase of its stratigraphic neighbours. Unlike a static
 # penalty the field is recomputed from the current posteriors every iteration.
+# A `noise_logdens` scalar adds a uniform background component (Fraley &
+# Raftery 1998): a (k+1)-th mixture component with constant log-density
+# log(1 / hypervolume). Finds that fit no Gaussian phase accumulate posterior
+# on it, yielding a genuine outlier probability and keeping extreme finds out
+# of the Gaussian phase estimates. `noise_init` is its initial mixing weight.
 em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_obs = NULL,
                         strat_penalty = NULL, var_structure = "diagonal",
                         cat_labels = NULL, cat_alpha = 1, extra_var = NULL,
-                        nem_affinity = NULL, nem_beta = 0) {
+                        nem_affinity = NULL, nem_beta = 0,
+                        noise_logdens = NULL, noise_init = 0.05) {
   use_nem <- !is.null(nem_affinity) && nem_beta > 0
+  use_noise <- !is.null(noise_logdens)
   n <- nrow(features)
   p <- ncol(features)
   k <- ncol(prob_init)
@@ -305,6 +322,11 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
     cat_prob <- matrix(1 / L, k, L)
   } else {
     cat_prob <- NULL
+  }
+
+  if (use_noise) {
+    noise_resp <- rep(noise_init, n)
+    if (use_cat) noise_cat_ld <- as.numeric(cat_ind %*% log(pmax(cat_global, 1e-12)))
   }
 
   loglik_trace <- numeric(max_iter)
@@ -346,7 +368,14 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
         }
       }
     }
-    mix <- mix / sum(mix)
+    if (use_noise) {
+      mix0 <- sum(noise_resp * weights_obs)
+      tot <- sum(mix) + mix0
+      mix <- mix / tot
+      mix0 <- mix0 / tot
+    } else {
+      mix <- mix / sum(mix)
+    }
 
     logdens <- diag_log_density(features, means, vars, extra_var = extra_var)
     if (use_cat) logdens <- logdens + cat_log_density(cat_ind, cat_prob)
@@ -360,6 +389,13 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
       logpost <- logpost + nem_beta * (nem_affinity %*% prob)
     }
 
+    if (use_noise) {
+      # Append the uniform background component as a (k+1)-th column.
+      lognoise <- log(pmax(mix0, 1e-12)) + noise_logdens
+      if (use_cat) lognoise <- lognoise + noise_cat_ld
+      logpost <- cbind(logpost, lognoise)
+    }
+
     m <- apply(logpost, 1, max)
     stable <- exp(logpost - m)
     rs <- rowSums(stable)
@@ -369,7 +405,13 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
                        iter, n_degen), call. = FALSE)
       rs[rs <= 0] <- 1
     }
-    prob <- stable / rs
+    full <- stable / rs
+    if (use_noise) {
+      prob <- full[, seq_len(k), drop = FALSE]
+      noise_resp <- full[, k + 1]
+    } else {
+      prob <- full
+    }
 
     ll <- sum(log(rs) + m)
     loglik_trace[iter] <- ll
@@ -391,6 +433,11 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
   logdens <- diag_log_density(features, means, vars, extra_var = extra_var)
   if (use_cat) logdens <- logdens + cat_log_density(cat_ind, cat_prob)
   lp <- sweep(logdens, 2, log(pmax(mix, 1e-12)), FUN = "+")
+  if (use_noise) {
+    lognoise <- log(pmax(mix0, 1e-12)) + noise_logdens
+    if (use_cat) lognoise <- lognoise + noise_cat_ld
+    lp <- cbind(lp, lognoise)
+  }
   mu <- apply(lp, 1, max)
   loglik_unpen <- sum(log(rowSums(exp(lp - mu))) + mu)
 
@@ -399,9 +446,16 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
     colnames(cat_prob) <- cat_levels
   }
 
+  # Output phase distribution is conditional on not being noise (rows sum to 1).
+  noise_prob <- NULL
+  if (use_noise) {
+    noise_prob <- noise_resp
+    prob <- normalize_rows(prob)
+  }
+
   list(prob = prob, means = means, vars = vars, mix = mix,
        loglik = loglik_trace, loglik_unpen = loglik_unpen,
-       cat_prob = cat_prob, converged = converged)
+       cat_prob = cat_prob, noise_prob = noise_prob, converged = converged)
 }
 
 # Compute per-find directional classification using leave-one-out unit envelope.

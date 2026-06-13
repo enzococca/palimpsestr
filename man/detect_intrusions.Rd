@@ -23,8 +23,10 @@ A data.frame with columns \code{id}, \code{intrusion_prob},
 (numeric, signed offset in years).
 }
 \description{
-Combines rescaled entropy, energy, and inverse local SEI into a composite
-intrusion probability score.
+Returns a per-find intrusion probability. When the model was fitted with
+\code{noise = TRUE}, \code{intrusion_prob} is the posterior probability of
+the uniform noise component (a genuine outlier probability). Otherwise it is
+the heuristic composite of rescaled entropy, energy, and inverse local SEI.
 }
 \examples{
 x <- archaeo_sim(n = 60, k = 2, seed = 1)

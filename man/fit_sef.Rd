@@ -28,7 +28,9 @@ fit_sef(
   class_smoothing = 1,
   chrono_uncertainty = FALSE,
   strat_dynamic = FALSE,
-  strat_beta = 1
+  strat_beta = 1,
+  noise = FALSE,
+  noise_prior = 0.05
 )
 }
 \arguments{
@@ -134,6 +136,19 @@ penalty continues to be applied statically.}
 \item{strat_beta}{Non-negative strength of the dynamic stratigraphic field
 (default 1); only used when \code{strat_dynamic = TRUE}. \code{0} disables
 the field.}
+
+\item{noise}{Logical (default \code{FALSE}). If \code{TRUE}, a uniform
+background ("noise") component is added to the mixture (Fraley & Raftery,
+1998). Finds that fit no Gaussian phase accumulate posterior probability
+on it, so the fit stores a \code{noise_prob} vector that is a genuine
+posterior probability of being an outlier/intrusion (used by
+\code{\link{detect_intrusions}} in place of the heuristic composite
+score), and extreme finds are kept out of the phase centroid and variance
+estimates. The reported \code{phase_prob} is then the distribution over
+phases conditional on a find not being noise.}
+
+\item{noise_prior}{Initial mixing weight of the noise component, strictly
+between 0 and 1 (default 0.05); only used when \code{noise = TRUE}.}
 }
 \value{
 An S3 object of class \code{sef_fit}.
