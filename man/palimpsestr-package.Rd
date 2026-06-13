@@ -20,5 +20,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Enzo Cocca \email{enzo.ccc@gmail.com} (\href{https://orcid.org/0000-0002-8096-2810}{ORCID})
 
+Authors:
+\itemize{
+  \item Enzo Cocca \email{enzo.ccc@gmail.com} (\href{https://orcid.org/0000-0002-8096-2810}{ORCID})
+}
+
 }
 \keyword{internal}

@@ -25,8 +25,8 @@ us_summary_table(fit)
 \seealso{
 \code{\link{export_results}}, \code{\link{phase_diagnostic_table}}
 
-Other export: 
-\code{\link{export_results}()},
-\code{\link{phase_transition_matrix}()}
+Other export:
+\code{\link[=export_results]{export_results()}},
+\code{\link[=phase_transition_matrix]{phase_transition_matrix()}}
 }
 \concept{export}

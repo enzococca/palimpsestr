@@ -10,8 +10,12 @@
 #' @param weights Named numeric vector with components \code{ws}, \code{wz},
 #'   \code{wt}, \code{wc}.  Each component is normalised to \eqn{[0, 1]} before
 #'   weighting, so the weights represent relative importance.
-#' @param eps Small value to avoid division by zero in spatial distance.
-#' @param z_floor Minimum vertical denominator.
+#' @param eps Deprecated and ignored (kept for backward compatibility).
+#'   Since v0.14.0 the spatial component uses a bounded exponential kernel
+#'   with a data-driven bandwidth, so no epsilon guard is needed.
+#' @param z_floor Deprecated and ignored (kept for backward compatibility).
+#'   Since v0.14.0 the vertical component uses a bounded exponential kernel
+#'   with a data-driven bandwidth, so no floor is needed.
 #' @param max_dist Maximum spatial distance for pair inclusion. When
 #'   \code{NULL} (default), all pairs are computed. For large datasets
 #'   (n > 2000), setting this to a reasonable neighbourhood radius
@@ -51,7 +55,6 @@ sei_matrix <- function(data,
 
   # Vertical separation
   dz <- abs(outer(z, z, "-"))
-  dz <- pmax(dz, z_floor)
 
   # Chronological overlap (vectorized)
   mins_max <- outer(a, a, pmax)
@@ -65,12 +68,14 @@ sei_matrix <- function(data,
   # Class match
   oc <- outer(cl, cl, "==") * 1
 
-  # Normalize each component to [0, 1]
-  sp_comp <- 1 / (ds + eps)
-  sp_comp <- sp_comp / max(sp_comp[sp_comp < Inf], na.rm = TRUE)
-
-  vt_comp <- 1 / dz
-  vt_comp <- vt_comp / max(vt_comp[vt_comp < Inf], na.rm = TRUE)
+  # Bounded exponential kernels with data-driven bandwidths (median of the
+  # positive pairwise separations). Unlike the former 1/d kernel normalised
+  # by its maximum -- whose scale was set by the single closest pair, so one
+  # near-duplicate pair crushed every other affinity towards zero -- this is
+  # scale-invariant, robust to duplicate coordinates, and keeps each
+  # component genuinely spread over [0, 1].
+  sp_comp <- exp(-ds / .median_bandwidth(ds))
+  vt_comp <- exp(-dz / .median_bandwidth(dz))
 
   # ot and oc are already in [0, 1]
 

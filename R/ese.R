@@ -8,7 +8,10 @@
 #' @param chrono Character vector with minimum and maximum dating columns.
 #' @param class_col Class column name.
 #' @param beta Numeric vector of length 4: weights for spatial, vertical,
-#'   temporal, and class mismatch.
+#'   temporal, and class mismatch. Since v0.14.0 each component is
+#'   normalised to \eqn{[0, 1]} before weighting, so the energy is
+#'   independent of the measurement unit of the coordinates and the betas
+#'   express relative importance.
 #' @param neighbourhood Maximum XY distance for neighbour inclusion.
 #'   When \code{NULL}, all observations contribute.
 #' @return A numeric vector of local energy values.
@@ -47,7 +50,13 @@ ese <- function(data,
 
   oc <- outer(cl, cl, "==") * 1
 
-  contrib <- beta[1] * ds + beta[2] * dz + beta[3] * (1 - ot) + beta[4] * (1 - oc)
+  # All four components are normalised to [0, 1] before weighting (the
+  # spatial and vertical terms via bounded exponential kernels with
+  # data-driven bandwidths), so the beta weights express relative importance
+  # and the energy does not depend on the measurement unit of the site grid.
+  sp_mis <- 1 - exp(-ds / .median_bandwidth(ds))
+  vt_mis <- 1 - exp(-dz / .median_bandwidth(dz))
+  contrib <- beta[1] * sp_mis + beta[2] * vt_mis + beta[3] * (1 - ot) + beta[4] * (1 - oc)
   diag(contrib) <- 0
 
   if (!is.null(neighbourhood)) {

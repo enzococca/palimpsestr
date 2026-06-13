@@ -30,9 +30,9 @@ print(ck)
 \seealso{
 \code{\link{fit_sef}}, \code{\link{gg_compare_k}}
 
-Other fitting: 
-\code{\link{fit_sef}()},
-\code{\link{reorder_phases}()},
-\code{\link{sef_summary}()}
+Other fitting:
+\code{\link[=fit_sef]{fit_sef()}},
+\code{\link[=reorder_phases]{reorder_phases()}},
+\code{\link[=sef_summary]{sef_summary()}}
 }
 \concept{fitting}

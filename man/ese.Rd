@@ -23,7 +23,10 @@ ese(
 \item{class_col}{Class column name.}
 
 \item{beta}{Numeric vector of length 4: weights for spatial, vertical,
-temporal, and class mismatch.}
+temporal, and class mismatch. Since v0.14.0 each component is
+normalised to \eqn{[0, 1]} before weighting, so the energy is
+independent of the measurement unit of the coordinates and the betas
+express relative importance.}
 
 \item{neighbourhood}{Maximum XY distance for neighbour inclusion.
 When \code{NULL}, all observations contribute.}
@@ -43,13 +46,13 @@ summary(e)
 \seealso{
 \code{\link{fit_sef}}, \code{\link{gg_energy}}
 
-Other diagnostics: 
-\code{\link{as_phase_table}()},
-\code{\link{detect_intrusions}()},
-\code{\link{pdi}()},
-\code{\link{phase_diagnostic_table}()},
-\code{\link{predict_phase}()},
-\code{\link{recommend_setup}()},
-\code{\link{type_longevity}()}
+Other diagnostics:
+\code{\link[=as_phase_table]{as_phase_table()}},
+\code{\link[=detect_intrusions]{detect_intrusions()}},
+\code{\link[=pdi]{pdi()}},
+\code{\link[=phase_diagnostic_table]{phase_diagnostic_table()}},
+\code{\link[=predict_phase]{predict_phase()}},
+\code{\link[=recommend_setup]{recommend_setup()}},
+\code{\link[=type_longevity]{type_longevity()}}
 }
 \concept{diagnostics}

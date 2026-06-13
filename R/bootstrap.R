@@ -37,6 +37,7 @@ bootstrap_sef <- function(object, n_boot = 100, conf = 0.95,
   context <- object$context
   em_iter <- length(object$em_loglik) + 20  # allow extra iterations
   n_init <- if (!is.null(object$n_init)) object$n_init else 1
+  weights <- null_default(object$weights, c(ws = 1, wz = 1, wt = 1, wc = 1))
 
   results <- matrix(NA_real_, nrow = n_boot, ncol = 5)
   colnames(results) <- c("pdi", "mean_entropy", "mean_energy", "loglik", "ari")
@@ -51,7 +52,8 @@ bootstrap_sef <- function(object, n_boot = 100, conf = 0.95,
       suppressWarnings(fit_sef(
         data = boot_data, coords = coords, chrono = chrono,
         class = class_col, tafonomy = tafonomy, context = context,
-        k = k, seed = b, em_iter = em_iter, n_init = n_init,
+        k = k, weights = weights, seed = b, em_iter = em_iter, n_init = n_init,
+        var_structure = null_default(object$var_structure, "diagonal"),
         chrono_precision = null_default(object$chrono_precision, FALSE),
         taf_as_feature = null_default(object$taf_as_feature, FALSE),
         residuality = null_default(object$residuality, FALSE),

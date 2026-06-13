@@ -25,8 +25,8 @@ summary(lsei)
 \seealso{
 \code{\link{sei_matrix}}
 
-Other SEI: 
-\code{\link{sei_matrix}()},
-\code{\link{sei_sparse}()}
+Other SEI:
+\code{\link[=sei_matrix]{sei_matrix()}},
+\code{\link[=sei_sparse]{sei_sparse()}}
 }
 \concept{SEI}

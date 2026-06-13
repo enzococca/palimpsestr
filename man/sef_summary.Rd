@@ -23,9 +23,9 @@ sef_summary(fit)
 \seealso{
 \code{\link{fit_sef}}, \code{\link{pdi}}
 
-Other fitting: 
-\code{\link{compare_k}()},
-\code{\link{fit_sef}()},
-\code{\link{reorder_phases}()}
+Other fitting:
+\code{\link[=compare_k]{compare_k()}},
+\code{\link[=fit_sef]{fit_sef()}},
+\code{\link[=reorder_phases]{reorder_phases()}}
 }
 \concept{fitting}

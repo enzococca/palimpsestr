@@ -1,3 +1,74 @@
+# palimpsestr 0.14.0
+
+This release is a statistical-correctness pass on the core engine. Several
+parameters that were silently inert are now active, and three diagnostics
+that depended on the measurement scale or were distorted by single outliers
+have been made scale-invariant and robust. Fits produced with non-default
+weights, and the output of `optimize_weights()`, will differ from 0.13.0;
+default-weight fits are affected only by the more careful BIC/ICL accounting
+and the new multi-start default.
+
+## Statistical corrections
+
+- **Domain weights now enter the model.** `weights = c(ws, wz, wt, wc)`
+  previously affected only the SEI matrix, leaving `fit_sef()` — and hence
+  the cross-validated objective of `optimize_weights()` — completely
+  invariant to them. The weights now scale the corresponding standardised
+  feature dimensions (`ws`: planar coordinates, `wz`: depth, `wt`:
+  chronology-derived features, `wc`: the one-hot class block), so they
+  genuinely influence the mixture likelihood. Weights must be strictly
+  positive; they are stored on the fit and propagated by `bootstrap_sef()`,
+  `cv_sef()`, and `optimize_weights()`.
+
+- **New `var_structure` argument to `fit_sef()`** (`"diagonal"`, default, or
+  `"spherical"`). Free diagonal variances absorb any per-dimension rescaling,
+  so domain weights are not identifiable under a diagonal fit; the
+  `"spherical"` structure (one shared variance per component) makes them
+  identifiable. `optimize_weights()` now selects weights under
+  `var_structure = "spherical"` and corrects each held-out log-likelihood by
+  the Jacobian of the weighting (`n_test * sum(log(w_d))`) so configurations
+  with different weights are directly comparable.
+
+- **Taphonomic down-weighting is no longer applied twice.** `fit_sef()`
+  passed `weights_obs = 1 - 0.5 * taf` *and* the EM multiplied by
+  `(1 - 0.5 * taf)` again, so a find with `taf = 1` contributed at weight
+  0.25 instead of the documented 0.5. It is now applied exactly once.
+
+- **Removed the inert `taf_weight_e` term.** It subtracted a per-row constant
+  from every mixture component, which cancels exactly in the softmax and so
+  had no effect on the posteriors (only on the reported log-likelihood). The
+  dead `taf`, `taf_weight_m`, and `taf_weight_e` arguments were removed from
+  the internal EM.
+
+- **BIC and ICL are now built from the true unpenalized mixture
+  likelihood.** With a stratigraphic penalty the EM objective is a penalized
+  criterion, not a log-likelihood; using it biased comparisons across `K` and
+  across context settings. `model_stats$loglik` is the unpenalized
+  likelihood; the penalized EM objective is available as
+  `model_stats$loglik_penalized`. The `"spherical"` structure also gets its
+  own (smaller) parameter count in the BIC.
+
+- **SEI and ESE spatial/vertical components are now scale-invariant and
+  robust to duplicate coordinates.** The former `1/d` kernel normalised by
+  its maximum was dominated by the single closest pair, so one near-duplicate
+  pair (e.g. two finds sharing a grid square) collapsed every other spatial
+  affinity towards zero. Both components now use a bounded exponential kernel
+  `exp(-d / h)` with a data-driven bandwidth `h` (median pairwise
+  separation). `ese()` consequently no longer depends on the measurement unit
+  of the site grid. The `eps` and `z_floor` arguments of `sei_matrix()` are
+  deprecated and ignored.
+
+- **`detect_intrusions()` directional envelope is now robust.** The
+  leave-one-out unit envelope used a strict min/max over the other finds, so
+  a single chronological outlier in a unit could mask genuinely
+  residual/intrusive neighbours. A new `envelope` argument (default
+  `c(0.05, 0.95)`) uses robust quantiles; pass `c(0, 1)` for the previous
+  min/max behaviour.
+
+- **`n_init` now defaults to 5** (was 1) and k-means initialisation uses
+  `nstart = 5`. The EM objective is multimodal, so a single start risked a
+  poor local optimum.
+
 # palimpsestr 0.13.0
 
 ## New features

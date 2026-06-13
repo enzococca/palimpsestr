@@ -284,9 +284,9 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 
 For the real Poggio Gramignano data, no ground truth is available. Validation relies on archaeological coherence: the model should recover phases consistent with the site periodisation, and flag known disturbed contexts (levelling fills, backfills) as mixed.
 
-## Sensitivity Analysis of SEI Weights
+## Sensitivity Analysis of Domain Weights
 
-The SEI combines four evidence domains (spatial, vertical, temporal, cultural) with configurable weights. To assess how weight choices affect the results, we compare three configurations:
+The model combines four evidence domains (spatial, vertical, temporal, cultural) with configurable weights `c(ws, wz, wt, wc)`. Since version 0.14.0 these weights scale the corresponding feature dimensions and therefore enter the mixture likelihood directly (in earlier versions they affected only the SEI matrix). To assess how weight choices affect the results, we compare three configurations:
 
 ```{r sensitivity}
 configs <- list(
@@ -312,7 +312,7 @@ knitr::kable(sens, digits = 4,
              caption = "Sensitivity of PDI, mean entropy, and intrusion count to weight configuration.")
 ```
 
-The results show that the model is reasonably robust to weight variation, though emphasising the most informative domain for a given site can improve performance. The `optimize_weights()` function provides a data-driven approach to weight selection via cross-validated log-likelihood.
+Because the weights now reshape the feature space, they genuinely change the recovered phases — emphasising the most informative domain for a given site improves separability, while down-weighting a noisy domain reduces spurious structure. The `optimize_weights()` function provides a data-driven approach to weight selection via cross-validated held-out log-likelihood; it fits under `var_structure = "spherical"` (the structure under which the weights are statistically identifiable) and corrects for the Jacobian of the weighting so that configurations are directly comparable. The returned weights are intended to be used with `fit_sef(..., var_structure = "spherical")`.
 
 ## Bootstrap Confidence Intervals
 

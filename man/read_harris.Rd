@@ -26,8 +26,8 @@ matrix aligned with the find-level data.
 \seealso{
 \code{\link{harris_from_contexts}}, \code{\link{fit_sef}}
 
-Other harris: 
-\code{\link{harris_from_contexts}()},
-\code{\link{validate_phases_harris}()}
+Other harris:
+\code{\link[=harris_from_contexts]{harris_from_contexts()}},
+\code{\link[=validate_phases_harris]{validate_phases_harris()}}
 }
 \concept{harris}

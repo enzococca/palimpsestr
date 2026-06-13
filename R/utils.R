@@ -23,6 +23,15 @@ chrono_overlap <- function(a1, b1, a2, b2) {
   as.numeric(out)
 }
 
+# Median of the positive off-diagonal entries of a symmetric separation
+# matrix; falls back to 1 when every pair is co-located.
+.median_bandwidth <- function(d) {
+  v <- d[upper.tri(d)]
+  v <- v[is.finite(v) & v > 0]
+  if (length(v) == 0) return(1)
+  stats::median(v)
+}
+
 safe_entropy <- function(p) {
   p <- p[p > 0 & is.finite(p)]
   if (length(p) == 0) return(0)
@@ -35,13 +44,29 @@ normalize_rows <- function(x) {
   x / rs
 }
 
+validate_weights <- function(weights) {
+  req <- c("ws", "wz", "wt", "wc")
+  if (is.null(names(weights)) || !all(req %in% names(weights))) {
+    stop("weights must be a named vector with components ws, wz, wt, wc",
+         call. = FALSE)
+  }
+  w <- as.numeric(weights[req])
+  names(w) <- req
+  if (any(!is.finite(w)) || any(w <= 0)) {
+    stop("weights must be finite and positive", call. = FALSE)
+  }
+  w
+}
+
 feature_matrix <- function(data, coords, chrono, class_col = NULL,
                            center = NULL, scale = NULL,
                            add_chrono_precision = FALSE,
                            add_taf = FALSE, taf_col = NULL,
                            context_col = NULL,
                            class_scale = FALSE,
-                           subclass_col = NULL) {
+                           subclass_col = NULL,
+                           weights = NULL) {
+  if (!is.null(weights)) weights <- validate_weights(weights)
   x <- as.matrix(data[, coords, drop = FALSE])
   tmid <- rowMeans(as.matrix(data[, chrono, drop = FALSE]))
   tspan <- data[[chrono[2]]] - data[[chrono[1]]]
@@ -83,6 +108,20 @@ feature_matrix <- function(data, coords, chrono, class_col = NULL,
   sc_center <- attr(out, "scaled:center")
   sc_scale <- attr(out, "scaled:scale")
 
+  # Domain weights scale the standardised columns so that they enter the
+  # mixture likelihood: ws -> planar coords, wz -> depth, wt -> chronology-
+  # derived features, wc -> class block (applied below).
+  colw_num <- rep(1, ncol(out))
+  names(colw_num) <- colnames(out)
+  if (!is.null(weights)) {
+    colw_num[names(colw_num) %in% coords[1:2]] <- weights[["ws"]]
+    colw_num[names(colw_num) == coords[3]] <- weights[["wz"]]
+    chrono_feats <- intersect(c("tmid", "tspan", "chrono_precision", "residuality"),
+                              names(colw_num))
+    colw_num[chrono_feats] <- weights[["wt"]]
+    out <- sweep(out, 2, colw_num, FUN = "*")
+  }
+
   # One-hot encode class (or subclass)
   encode_col <- if (!is.null(subclass_col) && subclass_col %in% names(data)) {
     subclass_col
@@ -90,6 +129,7 @@ feature_matrix <- function(data, coords, chrono, class_col = NULL,
     class_col
   }
 
+  n_class_cols <- 0
   if (!is.null(encode_col)) {
     mm <- stats::model.matrix(~ . - 1, data = data.frame(class_tmp = as.factor(data[[encode_col]])))
     colnames(mm) <- sub("^class_tmp", "class_", colnames(mm))
@@ -97,9 +137,15 @@ feature_matrix <- function(data, coords, chrono, class_col = NULL,
     if (class_scale && ncol(mm) > 0) {
       mm <- mm * (1 / sqrt(ncol(mm)))
     }
+    if (!is.null(weights)) {
+      mm <- mm * weights[["wc"]]
+    }
+    n_class_cols <- ncol(mm)
     out <- cbind(out, mm)
   }
 
+  wc_val <- if (is.null(weights)) 1 else weights[["wc"]]
+  attr(out, "feature_weights") <- c(colw_num, rep(wc_val, n_class_cols))
   if (!is.null(sc_center)) attr(out, "scaled:center") <- sc_center
   if (!is.null(sc_scale)) attr(out, "scaled:scale") <- sc_scale
   out
@@ -162,15 +208,20 @@ diag_log_density <- function(features, means, vars) {
   out
 }
 
+# var_structure = "diagonal": free per-dimension variances (default). Note
+# that free diagonal variances absorb any rescaling of the feature columns,
+# so domain weights are not identifiable under this structure.
+# var_structure = "spherical": one shared variance per component in the
+# (weighted) feature space, i.e. v_jd = sigma_j^2 / w_d^2 on the original
+# scale -- the structure under which domain weights become identifiable and
+# can be selected by cross-validation.
 em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_obs = NULL,
-                        strat_penalty = NULL, taf = NULL,
-                        taf_weight_m = 0.5, taf_weight_e = 0.15) {
+                        strat_penalty = NULL, var_structure = "diagonal") {
   n <- nrow(features)
   p <- ncol(features)
   k <- ncol(prob_init)
   prob <- normalize_rows(prob_init)
   if (is.null(weights_obs)) weights_obs <- rep(1, n)
-  if (is.null(taf)) taf <- rep(0, n)
 
   loglik_trace <- numeric(max_iter)
   prev_ll <- -Inf
@@ -181,7 +232,7 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
     mix <- numeric(k)
 
     for (j in seq_len(k)) {
-      rj <- prob[, j] * weights_obs * (1 - taf_weight_m * taf)
+      rj <- prob[, j] * weights_obs
       sw <- sum(rj)
       if (sw <= 1e-8) {
         idx <- sample.int(n, 1)
@@ -192,6 +243,9 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
         means[j, ] <- colSums(features * rj) / sw
         dif <- sweep(features, 2, means[j, ], FUN = "-")
         vars[j, ] <- pmax(colSums((dif ^ 2) * rj) / sw, 1e-6)
+        if (var_structure == "spherical") {
+          vars[j, ] <- rep(mean(vars[j, ]), p)
+        }
         mix[j] <- sw
       }
     }
@@ -202,9 +256,6 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
 
     if (!is.null(strat_penalty)) {
       logpost <- logpost - strat_penalty
-    }
-    if (!is.null(taf) && taf_weight_e > 0) {
-      logpost <- logpost - matrix(taf * taf_weight_e, nrow = n, ncol = k)
     }
 
     m <- apply(logpost, 1, max)
@@ -231,13 +282,32 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
   }
 
   converged <- (length(loglik_trace) < max_iter)
+
+  # Unpenalized observed-data log-likelihood at the final parameters.
+  # The trace above is the penalized EM objective (used for convergence and
+  # init selection); BIC/ICL must be built from the true mixture likelihood.
+  logdens <- diag_log_density(features, means, vars)
+  lp <- sweep(logdens, 2, log(pmax(mix, 1e-12)), FUN = "+")
+  mu <- apply(lp, 1, max)
+  loglik_unpen <- sum(log(rowSums(exp(lp - mu))) + mu)
+
   list(prob = prob, means = means, vars = vars, mix = mix,
-       loglik = loglik_trace, converged = converged)
+       loglik = loglik_trace, loglik_unpen = loglik_unpen,
+       converged = converged)
 }
 
 # Compute per-find directional classification using leave-one-out unit envelope.
+# `envelope` gives the quantiles of the other finds' bounds used as the unit
+# envelope: c(0.05, 0.95) (default) is robust to a single outlier in the
+# context; c(0, 1) reproduces the strict min/max envelope.
 # Returns a data.frame with columns `direction` (factor) and `chrono_gap` (numeric).
-.compute_direction <- function(data, context_col, date_min_col, date_max_col) {
+.compute_direction <- function(data, context_col, date_min_col, date_max_col,
+                               envelope = c(0.05, 0.95)) {
+  if (!is.numeric(envelope) || length(envelope) != 2 ||
+      any(envelope < 0) || any(envelope > 1) || envelope[1] > envelope[2]) {
+    stop("envelope must be two probabilities in [0, 1] with envelope[1] <= envelope[2]",
+         call. = FALSE)
+  }
   n <- nrow(data)
   direction_levels <- c("older_than_context", "in_context", "younger_than_context")
   out <- data.frame(
@@ -279,8 +349,10 @@ em_diag_gmm <- function(features, prob_init, max_iter = 25, tol = 1e-5, weights_
       others <- others[!is.na(d_min[others]) & !is.na(d_max[others])]
       if (length(others) == 0) next
       if (is.na(d_min[i]) || is.na(d_max[i])) next
-      U_min <- min(d_min[others])
-      U_max <- max(d_max[others])
+      U_min <- as.numeric(stats::quantile(d_min[others], probs = envelope[1],
+                                          names = FALSE, na.rm = TRUE))
+      U_max <- as.numeric(stats::quantile(d_max[others], probs = envelope[2],
+                                          names = FALSE, na.rm = TRUE))
       if (d_max[i] < U_min) {
         out$direction[i]  <- "older_than_context"
         out$chrono_gap[i] <- d_max[i] - U_min  # negative

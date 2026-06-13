@@ -25,8 +25,8 @@ validate_phases_harris(fit)
 \seealso{
 \code{\link{harris_from_contexts}}, \code{\link{us_summary_table}}
 
-Other harris: 
-\code{\link{harris_from_contexts}()},
-\code{\link{read_harris}()}
+Other harris:
+\code{\link[=harris_from_contexts]{harris_from_contexts()}},
+\code{\link[=read_harris]{read_harris()}}
 }
 \concept{harris}

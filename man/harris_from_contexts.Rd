@@ -37,8 +37,8 @@ dim(H)
 \seealso{
 \code{\link{fit_sef}}, \code{\link{read_harris}}
 
-Other harris: 
-\code{\link{read_harris}()},
-\code{\link{validate_phases_harris}()}
+Other harris:
+\code{\link[=read_harris]{read_harris()}},
+\code{\link[=validate_phases_harris]{validate_phases_harris()}}
 }
 \concept{harris}

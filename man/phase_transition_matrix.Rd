@@ -26,8 +26,8 @@ phase_transition_matrix(fit)
 \seealso{
 \code{\link{us_summary_table}}
 
-Other export: 
-\code{\link{export_results}()},
-\code{\link{us_summary_table}()}
+Other export:
+\code{\link[=export_results]{export_results()}},
+\code{\link[=us_summary_table]{us_summary_table()}}
 }
 \concept{export}

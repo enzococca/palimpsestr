@@ -11,12 +11,19 @@
 #' @param context Optional column name for stratigraphic unit labels.
 #' @param harris Optional \eqn{n \times n}{n x n} matrix of pairwise stratigraphic penalties.
 #' @param k Integer number of phases to estimate.
-#' @param weights Named numeric vector with components \code{ws}, \code{wz}, \code{wt}, \code{wc}.
+#' @param weights Named numeric vector with components \code{ws}, \code{wz},
+#'   \code{wt}, \code{wc} (all strictly positive). Since v0.14.0 the weights
+#'   scale the standardised feature dimensions (\code{ws}: planar coordinates,
+#'   \code{wz}: depth, \code{wt}: chronology-derived features, \code{wc}:
+#'   class block) and therefore enter the mixture likelihood, in addition to
+#'   weighting the SEI components. \code{\link{optimize_weights}} can select
+#'   them by cross-validation.
 #' @param seed Random seed for reproducibility.
 #' @param em_iter Maximum number of EM iterations (default: 100).
 #' @param em_tol Convergence tolerance on the log-likelihood.
 #' @param n_init Number of random initialisations. The run with the
-#'   highest log-likelihood is retained (default: 1).
+#'   highest EM objective is retained (default: 5). The EM objective is
+#'   multimodal, so a single initialisation risks a poor local optimum.
 #' @param chrono_precision Logical. If TRUE, add 1/tspan as a feature
 #'   giving higher weight to precisely dated finds (default: FALSE).
 #' @param taf_as_feature Logical. If TRUE and \code{tafonomy} is provided,
@@ -29,6 +36,14 @@
 #'   single numeric feature (default: FALSE).
 #' @param subclass Optional column name for sub-class labels. If provided,
 #'   used instead of \code{class} for one-hot encoding in the feature matrix.
+#' @param var_structure Either \code{"diagonal"} (default) for free
+#'   per-dimension component variances, or \code{"spherical"} for one shared
+#'   variance per component in the weighted feature space. Free diagonal
+#'   variances absorb any rescaling of the feature columns, so the domain
+#'   \code{weights} influence a diagonal fit only through the
+#'   initialisation; under \code{"spherical"} the weights define the
+#'   relative precision of the dimensions, are identifiable, and can be
+#'   selected by \code{\link{optimize_weights}}.
 #' @return An S3 object of class \code{sef_fit}.
 #' @seealso \code{\link{archaeo_sim}}, \code{\link{compare_k}},
 #'   \code{\link{pdi}}, \code{\link{detect_intrusions}}
@@ -56,12 +71,14 @@ fit_sef <- function(data,
                     seed = 1,
                     em_iter = 100,
                     em_tol = 1e-5,
-                    n_init = 1,
+                    n_init = 5,
                     chrono_precision = FALSE,
                     taf_as_feature = FALSE,
                     residuality = FALSE,
                     class_scale = FALSE,
-                    subclass = NULL) {
+                    subclass = NULL,
+                    var_structure = c("diagonal", "spherical")) {
+  var_structure <- match.arg(var_structure)
   check_required_columns(data, c(coords, chrono, class))
   if (!is.null(tafonomy)) check_required_columns(data, tafonomy)
   if (!is.null(context)) check_required_columns(data, context)
@@ -69,13 +86,15 @@ fit_sef <- function(data,
   if (k < 1) stop("k must be >= 1", call. = FALSE)
   if (em_iter < 1) stop("em_iter must be >= 1", call. = FALSE)
   if (n_init < 1) stop("n_init must be >= 1", call. = FALSE)
+  weights <- validate_weights(weights)
 
   feat <- feature_matrix(data, coords = coords, chrono = chrono, class_col = class,
                          add_chrono_precision = chrono_precision,
                          add_taf = taf_as_feature, taf_col = tafonomy,
                          context_col = if (residuality && !is.null(context)) context else NULL,
                          class_scale = class_scale,
-                         subclass_col = subclass)
+                         subclass_col = subclass,
+                         weights = weights)
   penalty <- build_context_penalty(data, context_col = context, harris = harris)
   taf <- if (!is.null(tafonomy)) pmin(pmax(data[[tafonomy]], 0), 1) else rep(0, nrow(data))
 
@@ -85,7 +104,7 @@ fit_sef <- function(data,
 
   for (init in seq_len(n_init)) {
     set.seed(seed + init - 1)
-    km <- stats::kmeans(feat, centers = k, nstart = 1)
+    km <- stats::kmeans(feat, centers = k, nstart = 5)
     centers0 <- km$centers
     scale0 <- mean(stats::dist(centers0))
     if (!is.finite(scale0) || scale0 <= 0) scale0 <- 1
@@ -100,6 +119,8 @@ fit_sef <- function(data,
       })
     }
 
+    # Taphonomic down-weighting is applied exactly once, here: finds with
+    # high disturbance scores contribute less to the parameter estimates.
     em <- em_diag_gmm(
       features = feat,
       prob_init = prob0,
@@ -107,7 +128,7 @@ fit_sef <- function(data,
       tol = em_tol,
       weights_obs = 1 - 0.5 * taf,
       strat_penalty = strat_pen,
-      taf = taf
+      var_structure = var_structure
     )
 
     final_ll <- tail(em$loglik, 1)
@@ -135,8 +156,16 @@ fit_sef <- function(data,
   xy_dist <- as.matrix(stats::dist(as.matrix(data[, coords[1:2], drop = FALSE])))
   neigh <- stats::quantile(xy_dist[upper.tri(xy_dist)], 0.25, na.rm = TRUE)
   energy <- ese(data, coords = coords, chrono = chrono, class_col = class, neighbourhood = neigh)
-  loglik <- tail(em$loglik, 1)
-  npar <- k * (2 * ncol(feat) + 1) - 1
+  # BIC/ICL are built from the true (unpenalized) mixture likelihood; with a
+  # stratigraphic penalty the EM objective is a penalized criterion, not a
+  # log-likelihood, and would bias comparisons across K or across settings.
+  loglik <- em$loglik_unpen
+  loglik_penalized <- tail(em$loglik, 1)
+  npar <- if (var_structure == "spherical") {
+    k * (ncol(feat) + 2) - 1
+  } else {
+    k * (2 * ncol(feat) + 1) - 1
+  }
   bic <- -2 * loglik + log(max(nrow(data), 1)) * npar
 
   out <- list(
@@ -148,6 +177,8 @@ fit_sef <- function(data,
     context = context,
     harris = validate_harris(harris, nrow(data)),
     k = k,
+    weights = weights,
+    var_structure = var_structure,
     phase = phase,
     phase_prob = prob,
     entropy = ent,
@@ -175,6 +206,7 @@ fit_sef <- function(data,
       pdi = 1 - mean(ent, na.rm = TRUE) / ifelse(k > 1, log(k), 1),
       tot_withinss = km$tot.withinss,
       loglik = loglik,
+      loglik_penalized = loglik_penalized,
       bic = bic,
       icl = bic - 2 * sum(ent),
       pseudo_bic = nrow(data) * log(km$tot.withinss / max(nrow(data), 1)) + log(max(nrow(data), 1)) * k * ncol(feat)
@@ -333,6 +365,12 @@ predict_phase <- function(object) {
 #' intrusion probability score.
 #'
 #' @param object A \code{sef_fit} object.
+#' @param envelope Numeric vector of two probabilities giving the quantiles
+#'   of the other finds' dating bounds used as the leave-one-out unit
+#'   envelope for the directional classification. The default
+#'   \code{c(0.05, 0.95)} is robust to a single chronological outlier within
+#'   the context; use \code{c(0, 1)} for the strict min/max envelope used
+#'   prior to v0.14.0.
 #' @return A data.frame with columns \code{id}, \code{intrusion_prob},
 #'   \code{direction} (factor with levels \code{older_than_context},
 #'   \code{in_context}, \code{younger_than_context}), and \code{chrono_gap}
@@ -346,7 +384,7 @@ predict_phase <- function(object) {
 #' di <- detect_intrusions(fit)
 #' head(di[order(di$intrusion_prob, decreasing = TRUE), ])
 #' @export
-detect_intrusions <- function(object) {
+detect_intrusions <- function(object, envelope = c(0.05, 0.95)) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
   z_entropy <- rescale01(object$entropy)
   z_energy  <- rescale01(object$energy)
@@ -358,7 +396,8 @@ detect_intrusions <- function(object) {
   dir_df <- .compute_direction(object$data,
                                context_col   = object$context,
                                date_min_col  = date_min_col,
-                               date_max_col  = date_max_col)
+                               date_max_col  = date_max_col,
+                               envelope      = envelope)
 
   data.frame(
     id             = if ("id" %in% names(object$data)) object$data$id else seq_len(nrow(object$data)),

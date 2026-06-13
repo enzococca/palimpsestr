@@ -1,7 +1,7 @@
 Package: palimpsestr
 Type: Package
 Title: Probabilistic Decomposition of Archaeological Palimpsests
-Version: 0.13.0
+Version: 0.14.0
 Authors@R: 
     c(person(given = "Enzo",
              family = "Cocca",
@@ -26,7 +26,6 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Depends: R (>= 4.1.0)
 Imports: stats, utils, graphics, grDevices
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, sf, ggplot2, viridis,
@@ -35,3 +34,4 @@ Suggests: testthat (>= 3.0.0), knitr, rmarkdown, sf, ggplot2, viridis,
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 NeedsCompilation: no
+Config/roxygen2/version: 8.0.0

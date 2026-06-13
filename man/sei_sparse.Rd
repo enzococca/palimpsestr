@@ -28,9 +28,13 @@ sei_sparse(
 \code{wt}, \code{wc}.  Each component is normalised to \eqn{[0, 1]} before
 weighting, so the weights represent relative importance.}
 
-\item{eps}{Small value to avoid division by zero in spatial distance.}
+\item{eps}{Deprecated and ignored (kept for backward compatibility).
+Since v0.14.0 the spatial component uses a bounded exponential kernel
+with a data-driven bandwidth, so no epsilon guard is needed.}
 
-\item{z_floor}{Minimum vertical denominator.}
+\item{z_floor}{Deprecated and ignored (kept for backward compatibility).
+Since v0.14.0 the vertical component uses a bounded exponential kernel
+with a data-driven bandwidth, so no floor is needed.}
 
 \item{n_threshold}{Datasets larger than this trigger sparse mode (default: 1000).}
 }
@@ -49,8 +53,8 @@ S <- sei_sparse(x)
 \seealso{
 \code{\link{sei_matrix}}
 
-Other SEI: 
-\code{\link{local_sei}()},
-\code{\link{sei_matrix}()}
+Other SEI:
+\code{\link[=local_sei]{local_sei()}},
+\code{\link[=sei_matrix]{sei_matrix()}}
 }
 \concept{SEI}

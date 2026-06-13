@@ -44,7 +44,7 @@ to the format expected by \code{\link{fit_sef}}.
 \seealso{
 \code{\link{fit_sef}}, \code{\link{load_geometries}}
 
-Other data-import: 
-\code{\link{load_geometries}()}
+Other data-import:
+\code{\link[=load_geometries]{load_geometries()}}
 }
 \concept{data-import}
