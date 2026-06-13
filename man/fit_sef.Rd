@@ -25,7 +25,10 @@ fit_sef(
   subclass = NULL,
   var_structure = c("diagonal", "spherical"),
   class_model = c("multinomial", "gaussian"),
-  class_smoothing = 1
+  class_smoothing = 1,
+  chrono_uncertainty = FALSE,
+  strat_dynamic = FALSE,
+  strat_beta = 1
 )
 }
 \arguments{
@@ -106,6 +109,31 @@ categorical class probabilities under \code{class_model = "multinomial"}
 frequencies, keeping every per-phase class probability strictly positive;
 larger values pull the phase class profiles towards the overall
 distribution, \code{0} removes the shrinkage entirely.}
+
+\item{chrono_uncertainty}{Logical (default \code{FALSE}). If \code{TRUE},
+the dating interval width of each find is propagated into the likelihood:
+the mid-date is treated as observed with a measurement variance
+\code{(date_max - date_min)^2 / 12} (a uniform prior over the interval),
+added to the temporal dimension's component variance in the E-step and
+removed from the component variance estimate by moment deconvolution in
+the M-step. Finds with wide dating ranges then pull the temporal
+centroids less and carry their chronological uncertainty into the phase
+probabilities. Unlike \code{chrono_precision} (which adds \code{1/tspan}
+as an extra feature), this is a model-based treatment of the dating
+uncertainty.}
+
+\item{strat_dynamic}{Logical (default \code{FALSE}). If \code{TRUE} and
+\code{context} is provided, the stratigraphic constraint is applied as a
+Neighborhood-EM / hidden-Markov-random-field term recomputed from the
+current phase posteriors at every E-step, instead of the static penalty
+frozen from the initial clustering. Each find is rewarded for sharing the
+phase of its stratigraphic-unit neighbours, encouraging units to stay
+coherent as the fit evolves (Ambroise & Govaert, 1997). Any \code{harris}
+penalty continues to be applied statically.}
+
+\item{strat_beta}{Non-negative strength of the dynamic stratigraphic field
+(default 1); only used when \code{strat_dynamic = TRUE}. \code{0} disables
+the field.}
 }
 \value{
 An S3 object of class \code{sef_fit}.
