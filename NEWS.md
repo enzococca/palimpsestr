@@ -1,3 +1,19 @@
+# palimpsestr 0.20.0
+
+## pyArchInit database bridge
+
+- New `read_pyarchinit()`: reads the `inventario_materiali_table` (finds) and
+  `us_table` (stratigraphic units) of a pyArchInit database (SQLite/Spatialite
+  or PostgreSQL/PostGIS) and assembles a `fit_sef()`-ready data.frame. Each
+  find inherits its stratigraphic unit's coordinates (centroid of the US
+  polygon supplied via `us_geometry`, e.g. the `pyunitastratigrafiche` layer),
+  elevation, chronology, and context. Free-text period strings (e.g. "II sec.
+  a.C.", "I/II sec. d.C.", "età romana") are resolved to numeric `date_min`/
+  `date_max` by a built-in archaeological-date parser (extendable via
+  `date_labels`); units without a digitised polygon fall back to synthetic
+  per-unit coordinates so the analysis can still run at unit resolution.
+  Validated against real pyArchInit Spatialite databases.
+
 # palimpsestr 0.19.0
 
 ## New features

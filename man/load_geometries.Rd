@@ -34,6 +34,7 @@ GeoJSON, or a PostGIS database for use with \code{\link{gg_map}}.
 \code{\link{gg_map}}, \code{\link{read_db}}
 
 Other data-import:
-\code{\link[=read_db]{read_db()}}
+\code{\link[=read_db]{read_db()}},
+\code{\link[=read_pyarchinit]{read_pyarchinit()}}
 }
 \concept{data-import}
