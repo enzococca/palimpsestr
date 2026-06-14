@@ -131,3 +131,133 @@ test_that("read_pyarchinit returns an empty frame when there are no finds", {
   expect_s3_class(out, "data.frame")
   expect_equal(nrow(out), 0)
 })
+
+# ---- Cycle 4: correct quota sourcing + pottery + selectable source ----------
+
+.make_pyarchinit_fixture_full <- function() {
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path)
+  us <- data.frame(
+    sito = "S", area = "A", us = c("1", "2"),
+    datazione = c("II sec. a.C.", "I sec. d.C."),
+    quota_abs = c(99, 99),                      # deprecated field: must be IGNORED
+    stringsAsFactors = FALSE)
+  finds <- data.frame(
+    id_invmat = 1:3, sito = "S", area = "A",
+    us = c("1", "1", "2"),
+    tipo_reperto = c("A", "B", "C"),
+    quota_usm = c(15, NA, NA),                  # find 1 own quota; 2,3 inherit US z
+    datazione_reperto = NA_character_, stringsAsFactors = FALSE)
+  quote <- data.frame(
+    sito_q = "S", area_q = "A", us_q = c("1", "1", "2"),
+    quota_q = c(10, 11, 20),                    # US1 mean = 10.5 ; US2 = 20
+    stringsAsFactors = FALSE)
+  pottery <- data.frame(
+    id_rep = 1:2, sito = "S", area = "A", us = c("1", "2"),
+    ware = c("ARSW", "ITS"), material = c("ceramica", "ceramica"),
+    form = c("bowl", "cup"), datazione = c("II sec. a.C.", "I sec. d.C."),
+    stringsAsFactors = FALSE)
+  DBI::dbWriteTable(con, "us_table", us)
+  DBI::dbWriteTable(con, "inventario_materiali_table", finds)
+  DBI::dbWriteTable(con, "pyarchinit_quote", quote)
+  DBI::dbWriteTable(con, "pottery_table", pottery)
+  con
+}
+
+.make_us_geometry_full <- function() {
+  sq <- function(cx) sf::st_polygon(list(rbind(
+    c(cx - 1, -1), c(cx + 1, -1), c(cx + 1, 1), c(cx - 1, 1), c(cx - 1, -1))))
+  sf::st_sf(us_s = c("1", "2"), geometry = sf::st_sfc(sq(0), sq(10)))
+}
+
+test_that("read_pyarchinit takes US elevation from pyarchinit_quote, not quota_abs", {
+  skip_if_not_installed("sf")
+  con <- .make_pyarchinit_fixture_full(); on.exit(DBI::dbDisconnect(con))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "materials"))
+  expect_equal(out$z[out$id == "1"], 15)        # keeps its own quota_usm
+  expect_equal(out$z[out$id == "2"], 10.5)      # inherits US1 mean quota_q (not 99)
+  expect_equal(out$z[out$id == "3"], 20)        # inherits US2 quota_q
+})
+
+test_that("read_pyarchinit reads pottery and pottery inherits its US elevation", {
+  skip_if_not_installed("sf")
+  con <- .make_pyarchinit_fixture_full(); on.exit(DBI::dbDisconnect(con))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "pottery"))
+  expect_equal(nrow(out), 2)
+  expect_equal(sort(out$z), c(10.5, 20))        # US1 -> 10.5, US2 -> 20
+  expect_setequal(unique(out$class), c("ARSW", "ITS"))   # class = ware
+})
+
+test_that("read_pyarchinit source = 'both' combines materials and pottery", {
+  skip_if_not_installed("sf")
+  con <- .make_pyarchinit_fixture_full(); on.exit(DBI::dbDisconnect(con))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "both"))
+  expect_equal(nrow(out), 5)                    # 3 materials + 2 pottery
+  expect_true("find_source" %in% names(out))
+  expect_setequal(unique(out$find_source), c("materiali", "ceramica"))
+  expect_equal(sum(out$find_source == "ceramica"), 2)
+})
+
+test_that("read_pyarchinit quote join falls back to (sito, us) when area mismatches", {
+  skip_if_not_installed("sf")
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path); on.exit(DBI::dbDisconnect(con))
+  DBI::dbWriteTable(con, "us_table", data.frame(
+    sito = "S", area = "1", us = "1", datazione = "180", stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "inventario_materiali_table", data.frame(
+    id_invmat = 1, sito = "S", area = "1", us = "1", tipo_reperto = "A",
+    quota_usm = NA_real_, datazione_reperto = NA_character_, stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "pyarchinit_quote", data.frame(           # area differs
+    sito_q = "S", area_q = "Sett. B", us_q = "1", quota_q = 42, stringsAsFactors = FALSE))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "materials"))
+  expect_equal(out$z[out$id == "1"], 42)
+})
+
+test_that("read_pyarchinit handles integer us_q in pyarchinit_quote", {
+  skip_if_not_installed("sf")
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path); on.exit(DBI::dbDisconnect(con))
+  DBI::dbWriteTable(con, "us_table", data.frame(
+    sito = "S", area = "A", us = "1", datazione = "180", stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "inventario_materiali_table", data.frame(
+    id_invmat = 1, sito = "S", area = "A", us = "1", tipo_reperto = "A",
+    quota_usm = NA_real_, datazione_reperto = NA_character_, stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "pyarchinit_quote", data.frame(           # integer us_q
+    sito_q = "S", area_q = "A", us_q = 1L, quota_q = 42, stringsAsFactors = FALSE))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "materials"))
+  expect_equal(out$z[out$id == "1"], 42)
+})
+
+test_that("read_pyarchinit works when quota_usm column is absent (old schema)", {
+  skip_if_not_installed("sf")
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path); on.exit(DBI::dbDisconnect(con))
+  DBI::dbWriteTable(con, "us_table", data.frame(
+    sito = "S", area = "A", us = "1", datazione = "180", stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "inventario_materiali_table", data.frame(  # no quota_usm col
+    id_invmat = 1, sito = "S", area = "A", us = "1", tipo_reperto = "A",
+    datazione_reperto = NA_character_, stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "pyarchinit_quote", data.frame(
+    sito_q = "S", area_q = "A", us_q = "1", quota_q = 42, stringsAsFactors = FALSE))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "materials"))
+  expect_equal(out$z[out$id == "1"], 42)
+})
+
+test_that("read_pyarchinit returns empty frame when all selected sources are empty", {
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path); on.exit(DBI::dbDisconnect(con))
+  DBI::dbWriteTable(con, "us_table", data.frame(
+    sito = "S", area = "A", us = "1", datazione = "180", stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "inventario_materiali_table", data.frame(
+    id_invmat = integer(), sito = character(), area = character(), us = character(),
+    tipo_reperto = character(), quota_usm = numeric(), datazione_reperto = character()))
+  out <- suppressMessages(read_pyarchinit(con, source = "both"))
+  expect_s3_class(out, "data.frame")
+  expect_equal(nrow(out), 0)
+})
