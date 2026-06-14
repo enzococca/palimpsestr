@@ -25,8 +25,8 @@ the **palimpsestr** group:
 
 | Algorithm id | Purpose |
 |---|---|
-| `r:fit_sef_from_pyarchinit_db` | Fit the SEF model; outputs a phase point layer, a high-SEI link layer, and a diagnostics table |
-| `r:detect_intrusions_from_pyarchinit_db` | Model-based intrusion detection; outputs the finds with `intrusion_prob`, `direction`, `intrusion_type` |
+| `r:palimpsestrfit` | Fit the SEF model; outputs a phase point layer, a high-SEI link layer, and a diagnostics table |
+| `r:palimpsestrintrusions` | Model-based intrusion detection; outputs the finds with `intrusion_prob`, `direction`, `intrusion_type` |
 
 ## Inputs
 
@@ -48,7 +48,7 @@ resolution).
 
 ```python
 import processing
-res = processing.runAndLoadResults('r:fit_sef_from_pyarchinit_db', {
+res = processing.runAndLoadResults('r:palimpsestrfit', {
     'Database_file': '/path/to/pyarchinit.sqlite',
     'Site': '',                 # or a specific site
     'K': 4,

@@ -1,5 +1,5 @@
 ##palimpsestr=group
-##Detect intrusions from pyArchInit DB=name
+##Palimpsestr Intrusions=name
 ##Database_file=file
 ##PostgreSQL_host=string
 ##PostgreSQL_dbname=string

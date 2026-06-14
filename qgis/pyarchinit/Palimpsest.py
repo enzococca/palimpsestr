@@ -28,14 +28,14 @@ import processing
 PHASE_COLOURS = ["#E69F00", "#56B4E9", "#009E73", "#CC79A7",
                  "#D55E00", "#0072B2", "#F0E442", "#999999"]
 
-FIT_ALG = "r:fit_sef_from_pyarchinit_db"
-INTRUSIONS_ALG = "r:detect_intrusions_from_pyarchinit_db"
+FIT_ALG = "r:palimpsestrfit"
+INTRUSIONS_ALG = "r:palimpsestrintrusions"
 
 # The Processing R scripts shipped with palimpsestr (qgis/processing/*.rsx),
 # embedded so the tab can install/update them itself.
 RSX_SCRIPTS = {
     "palimpsestr_fit_db.rsx": r"""##palimpsestr=group
-##Fit SEF from pyArchInit DB=name
+##Palimpsestr Fit=name
 ##Database_file=file
 ##PostgreSQL_host=string
 ##PostgreSQL_dbname=string
@@ -89,7 +89,7 @@ Links       <- as_sf_links(fit, crs = crs_val)
 Diagnostics <- as_phase_table(fit)
 """,
     "palimpsestr_intrusions_db.rsx": r"""##palimpsestr=group
-##Detect intrusions from pyArchInit DB=name
+##Palimpsestr Intrusions=name
 ##Database_file=file
 ##PostgreSQL_host=string
 ##PostgreSQL_dbname=string

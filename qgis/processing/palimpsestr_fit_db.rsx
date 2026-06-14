@@ -1,5 +1,5 @@
 ##palimpsestr=group
-##Fit SEF from pyArchInit DB=name
+##Palimpsestr Fit=name
 ##Database_file=file
 ##PostgreSQL_host=string
 ##PostgreSQL_dbname=string
