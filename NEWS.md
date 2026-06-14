@@ -1,3 +1,23 @@
+# palimpsestr 0.22.0
+
+## Per-US absolute chronology (OxCal)
+
+- `read_pyarchinit()` gains `chronology_table` (default `"palimpsest_chronology"`):
+  an optional per-US table of absolute dating with columns `sito`, `area`, `us`,
+  `start`, `end` (calendar years, BCE negative) — e.g. OxCal-calibrated ranges
+  from `chronology_from_oxcal()`. When present it overrides the free-text
+  `datazione` for the matching units (envelope of multiple dates per US), joined
+  on `(sito, area, us)` with a `(sito, us)` fallback.
+
+## PostgreSQL / PostGIS in the QGIS algorithms
+
+- The three Processing R scripts (`r:palimpsestrfit`, `r:palimpsestrintrusions`,
+  `r:palimpsestrreport`) accept an optional `PG_connection` parameter (a libpq
+  DSN) and read from PostgreSQL/PostGIS when it is set, falling back to the
+  SQLite/Spatialite `Database_file` otherwise. `read_pyarchinit()` itself was
+  already database-agnostic (plain DBI). The pyArchInit tab passes its active
+  connection string, so PostgreSQL pyArchInit projects are supported.
+
 # palimpsestr 0.21.0
 
 ## Narrated report export

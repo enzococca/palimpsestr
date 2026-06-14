@@ -14,6 +14,7 @@ read_pyarchinit(
   us_geom_field = NULL,
   synthetic_coords = TRUE,
   quote_table = "pyarchinit_quote",
+  chronology_table = "palimpsest_chronology",
   pottery_class = c("ware", "material", "form")
 )
 }
@@ -46,6 +47,14 @@ resolution; set \code{FALSE} to drop such finds instead.}
 
 \item{quote_table}{Name of the US-elevation point table
 (default \code{"pyarchinit_quote"}); set \code{NULL} to skip it.}
+
+\item{chronology_table}{Name of an optional per-US absolute-chronology table
+(default \code{"palimpsest_chronology"}) with columns \code{sito},
+\code{area}, \code{us}, \code{start}, \code{end} (calendar years, BCE
+negative) - e.g. OxCal-calibrated ranges from
+\code{\link{chronology_from_oxcal}}. When present it overrides the free-text
+\code{datazione} dating for the matching units (envelope of multiple dates
+per US); set \code{NULL} to skip it.}
 
 \item{pottery_class}{Character vector of \code{pottery_table} columns; the
 find's \code{class} is the first non-empty of these per row

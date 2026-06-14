@@ -39,6 +39,16 @@ The report algorithm needs **pandoc** for PDF/DOCX and a **LaTeX** engine for
 PDF (e.g. `tinytex::install_tinytex()` in R). When neither is available it still
 writes a markdown narrative plus PNG figures next to the chosen output.
 
+**PostgreSQL/PostGIS** — all three algorithms take an optional `PG_connection`
+(a libpq DSN, e.g. `host=… port=5432 dbname=pyarchinit user=… password=…`);
+when set they read PostgreSQL instead of `Database_file`. The pyArchInit tab can
+pass its active connection automatically (needs `RPostgres` in the QGIS R).
+
+**Absolute chronology** — if a `palimpsest_chronology` table exists
+(`sito, area, us, start, end` calendar years, BCE negative — e.g. OxCal ranges
+from `chronology_from_oxcal()`), `read_pyarchinit()` uses it in place of the
+free-text `datazione` for the matching units.
+
 ## Inputs
 
 - **Database_file** — path to a SQLite/Spatialite pyArchInit database, **or**

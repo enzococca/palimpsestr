@@ -16,6 +16,12 @@ algorithms. Their **ids and parameters are fixed**:
 | `r:palimpsestrintrusions` | `Database_file`, `Site`, `K`, `Threshold` (number), `Source` | `Intrusions` (vector) |
 | `r:palimpsestrreport` | `Database_file`, `Site`, `K`, `Class_model`, `Noise`, `Source`, `Language` (enum `it;en`), `Format` (enum `both;pdf;docx`) | `Report` (output **file**) |
 
+All three also accept (palimpsestr **0.22.0**) an **optional** `PG_connection`
+string (a libpq DSN) and an **optional** `Database_file`: when `PG_connection` is
+set they read PostgreSQL/PostGIS, otherwise the SQLite `Database_file`. The
+canonical `.rsx` are in the palimpsestr repo at `qgis/processing/*.rsx` — embed
+them **byte-identically** (the report one is reproduced below).
+
 `r:palimpsestrreport` renders a narrated PDF/DOCX (interpretive text + all `gg_*`
 plots + diagnostic tables). It **always also writes a sidecar `<base>.md`** next
 to the chosen output (and `<base>.docx`/`.pdf` siblings). The QGIS results panel
@@ -46,7 +52,8 @@ Add this entry to the `RSX_SCRIPTS` dict (byte-identical to palimpsestr's
 ```python
     "palimpsestr_report_db.rsx": r"""##palimpsestr=group
 ##Palimpsestr Report=name
-##Database_file=file
+##Database_file=optional file
+##PG_connection=optional string
 ##Site=string all
 ##K=number 4
 ##Class_model=enum literal multinomial;gaussian
@@ -64,9 +71,16 @@ library(palimpsestr)
 library(sf)
 library(DBI)
 
-con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
-geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
-                 error = function(e) NULL)
+use_pg <- exists("PG_connection") && is.character(PG_connection) && nzchar(PG_connection)
+if (use_pg) {
+  con  <- DBI::dbConnect(RPostgres::Postgres(), dbname = PG_connection)
+  geom <- tryCatch(sf::st_read(con, query = "SELECT us_s, the_geom FROM pyunitastratigrafiche", quiet = TRUE),
+                   error = function(e) NULL)
+} else {
+  con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
+  geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
+                   error = function(e) NULL)
+}
 
 site        <- if (exists("Site") && nchar(Site) > 0 && Site != "all") Site else NULL
 class_model <- if (is.numeric(Class_model)) c("multinomial", "gaussian")[Class_model + 1] else as.character(Class_model)
@@ -183,6 +197,77 @@ Wire `btn_open_pdf`/`btn_open_docx`/`btn_open_dir` to
 Add `'Source': self.combo_source.currentIndex()` to both existing `params`
 dicts, so the fit/intrusions layers honour the same finds selection.
 
+## PostgreSQL / PostGIS (tab wiring)
+
+The `.rsx` are already PG-capable: they read PostGIS when `PG_connection` (a
+**libpq DSN**) is passed, else the SQLite `Database_file`. The tab must convert
+pyArchInit's active SQLAlchemy URL into a libpq DSN and pass it instead of the
+file. In `run_fit`/`run_intrusions`/`run_report`:
+
+```python
+def _pg_dsn(self):
+    """libpq DSN from the active SQLAlchemy URL, or None if not PostgreSQL."""
+    cs = self._active_conn_str()            # e.g. postgresql://user:pwd@host:5432/db
+    if not cs or not cs.startswith('postgres'):
+        return None
+    u = urlparse(cs)
+    parts = []
+    if u.hostname: parts.append("host=%s" % u.hostname)
+    if u.port:     parts.append("port=%s" % u.port)
+    if u.path and u.path != '/': parts.append("dbname=%s" % u.path.lstrip('/'))
+    if u.username: parts.append("user=%s" % u.username)
+    if u.password: parts.append("password=%s" % u.password)
+    return " ".join(parts)
+```
+
+Then build params for either backend (drop the "connect to SQLite" warning when
+a PG connection is active):
+
+```python
+dsn = self._pg_dsn()
+if dsn:
+    params['PG_connection'] = dsn
+else:
+    path = self._require_sqlite()
+    if not path:
+        return
+    params['Database_file'] = path
+```
+
+The R the provider uses must have `RPostgres` installed (it is a palimpsestr
+Suggests). `read_pyarchinit()` itself is backend-agnostic; only the geometry read
+differs (handled inside the `.rsx`).
+
+## OxCal absolute chronology table (`palimpsest_chronology`)
+
+`read_pyarchinit()` auto-detects an optional per-US chronology table
+**`palimpsest_chronology`** and, where present, uses it **instead of** the
+free-text `datazione` (envelope of multiple dates per US). Schema:
+
+| column | meaning |
+|---|---|
+| `sito`, `area`, `us` | unit key (joined on `(sito,area,us)`, `(sito,us)` fallback) |
+| `start`, `end` | calibrated calendar years, **BCE negative** |
+| `lab_code`, `source` | optional provenance (e.g. `OxA-1234`, `oxcal`) |
+
+pyArchInit side (this session), if you want OxCal support end-to-end:
+
+1. Create the table (DDL, idempotent):
+   ```sql
+   CREATE TABLE IF NOT EXISTS palimpsest_chronology (
+     id INTEGER PRIMARY KEY, sito TEXT, area TEXT, us INTEGER,
+     start INTEGER, end INTEGER, lab_code TEXT, source TEXT);
+   ```
+   (PostgreSQL: `SERIAL`/`INTEGER` PK; same columns.)
+2. Populate it from OxCal — in R, `chronology_from_oxcal()` already turns an
+   `oxcAAR::oxcalCalibrate()` result (or a start/end data.frame) into
+   `date_min`/`date_max`; write those as `start`/`end` per US. A small pyArchInit
+   form/importer (sample → US → calibrated range) is the natural home.
+
+No `.rsx` change is needed: the algorithms call `read_pyarchinit()` with the
+default `chronology_table`, so the table is picked up automatically once it
+exists and is populated.
+
 ## Notes & gotchas
 
 - `install_scripts()` already loops `RSX_SCRIPTS`; once the report `.rsx` is in
@@ -207,9 +292,14 @@ Add an entry, e.g.:
   (palimpsestr r:palimpsestrreport) with Source/Language/Format controls and an
   inline results panel; open buttons for the generated PDF/DOCX.
 - Source (materials/pottery/both) selector on the Fit and Intrusions actions.
+- Palimpsest algorithms run against the active PostgreSQL/PostGIS connection
+  (not only SQLite), via the bundled .rsx PG_connection parameter.
+- Optional palimpsest_chronology table support: per-US OxCal/absolute dating
+  (start/end) consumed by palimpsestr in place of free-text datazione.
 ### Changed
-- Bundled palimpsestr Processing R scripts updated for palimpsestr 0.21.0
-  (corrected quota sourcing from pyarchinit_quote / quota_usm; pottery_table).
+- Bundled palimpsestr Processing R scripts updated for palimpsestr 0.22.0
+  (corrected quota sourcing from pyarchinit_quote / quota_usm; pottery_table;
+  optional PostgreSQL; per-US chronology table).
 ```
 
 When done: push the pyArchInit branch and open its PR as usual. No AI-attribution

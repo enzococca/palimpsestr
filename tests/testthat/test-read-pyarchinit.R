@@ -261,3 +261,57 @@ test_that("read_pyarchinit returns empty frame when all selected sources are emp
   expect_s3_class(out, "data.frame")
   expect_equal(nrow(out), 0)
 })
+
+# ---- Cycle 5: per-US OxCal/absolute chronology table -----------------------
+
+.make_chrono_fixture <- function(chrono) {
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path)
+  DBI::dbWriteTable(con, "us_table", data.frame(
+    sito = "S", area = "A", us = c("1", "2"),
+    datazione = c("II sec. a.C.", "I sec. d.C."), stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "inventario_materiali_table", data.frame(
+    id_invmat = 1:2, sito = "S", area = "A", us = c("1", "2"), tipo_reperto = "A",
+    quota_usm = NA_real_, datazione_reperto = NA_character_, stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "palimpsest_chronology", chrono)
+  con
+}
+
+test_that("read_pyarchinit sources dating from palimpsest_chronology when present", {
+  skip_if_not_installed("sf")
+  con <- .make_chrono_fixture(data.frame(
+    sito = "S", area = "A", us = "1", start = -450, end = -420,
+    lab_code = "OxA-1", source = "oxcal", stringsAsFactors = FALSE))
+  on.exit(DBI::dbDisconnect(con))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "materials"))
+  us1 <- out[out$context == "1", ][1, ]
+  us2 <- out[out$context == "2", ][1, ]
+  expect_equal(c(us1$date_min, us1$date_max), c(-450, -420))   # from chronology table
+  expect_equal(c(us2$date_min, us2$date_max), c(1, 100))       # falls back to datazione
+})
+
+test_that("read_pyarchinit chronology uses the envelope of multiple dates per US", {
+  skip_if_not_installed("sf")
+  con <- .make_chrono_fixture(data.frame(
+    sito = "S", area = "A", us = c("1", "1"),
+    start = c(-450, -500), end = c(-420, -460),
+    lab_code = c("OxA-1", "OxA-2"), source = "oxcal", stringsAsFactors = FALSE))
+  on.exit(DBI::dbDisconnect(con))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "materials"))
+  us1 <- out[out$context == "1", ][1, ]
+  expect_equal(c(us1$date_min, us1$date_max), c(-500, -420))   # min start, max end
+})
+
+test_that("read_pyarchinit chronology join falls back to (sito, us) on area mismatch", {
+  skip_if_not_installed("sf")
+  con <- .make_chrono_fixture(data.frame(
+    sito = "S", area = "Sett. B", us = "1", start = -300, end = -250,
+    lab_code = NA, source = "oxcal", stringsAsFactors = FALSE))   # area differs
+  on.exit(DBI::dbDisconnect(con))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "materials"))
+  us1 <- out[out$context == "1", ][1, ]
+  expect_equal(c(us1$date_min, us1$date_max), c(-300, -250))
+})

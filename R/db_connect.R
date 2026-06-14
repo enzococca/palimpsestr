@@ -191,6 +191,38 @@ load_geometries <- function(source, layer = NULL, query = NULL,
   apply(mat, 1L, function(r) { nn <- r[!is.na(r)]; if (length(nn)) nn[1] else NA_character_ })
 }
 
+# Per-US absolute chronology (e.g. OxCal-calibrated start/end) from a dedicated
+# chronology table, joined to (sito, area, us) with a (sito, us) fallback. For
+# several dates per US the envelope (min start, max end) is returned. Returns an
+# n x 2 matrix of c(date_min, date_max), NA where unavailable.
+.us_chronology <- function(ch, sito, area, us) {
+  out <- matrix(NA_real_, length(us), 2L)
+  if (is.null(ch) || nrow(ch) == 0) return(out)
+  cc <- data.frame(
+    sito  = .norm(.getcol(ch, "sito")),
+    area  = .norm(.getcol(ch, "area")),
+    us    = .norm(.getcol(ch, "us")),
+    start = suppressWarnings(as.numeric(.getcol(ch, "start"))),
+    end   = suppressWarnings(as.numeric(.getcol(ch, "end"))),
+    stringsAsFactors = FALSE)
+  cc <- cc[is.finite(cc$start) & is.finite(cc$end), , drop = FALSE]
+  if (nrow(cc) == 0) return(out)
+  s_a <- stats::aggregate(start ~ sito + area + us, data = cc, FUN = min)
+  e_a <- stats::aggregate(end   ~ sito + area + us, data = cc, FUN = max)
+  s_u <- stats::aggregate(start ~ sito + us, data = cc, FUN = min)
+  e_u <- stats::aggregate(end   ~ sito + us, data = cc, FUN = max)
+  ka  <- paste(.norm(sito), .norm(area), .norm(us), sep = "\r")
+  ia  <- match(ka, paste(s_a$sito, s_a$area, s_a$us, sep = "\r"))
+  out[, 1] <- s_a$start[ia]; out[, 2] <- e_a$end[ia]
+  miss <- !is.finite(out[, 1])
+  if (any(miss)) {
+    ku <- paste(.norm(sito), .norm(us), sep = "\r")
+    iu <- match(ku[miss], paste(s_u$sito, s_u$us, sep = "\r"))
+    out[miss, 1] <- s_u$start[iu]; out[miss, 2] <- e_u$end[iu]
+  }
+  out
+}
+
 # Mean US elevation (quota) from a pyarchinit_quote frame, joined to (sito, area,
 # us) keys with an (sito, us) fallback for area-naming mismatches.
 .us_quote_elevation <- function(q, sito, area, us) {
@@ -260,6 +292,13 @@ load_geometries <- function(source, layer = NULL, query = NULL,
 #'   resolution; set \code{FALSE} to drop such finds instead.
 #' @param quote_table Name of the US-elevation point table
 #'   (default \code{"pyarchinit_quote"}); set \code{NULL} to skip it.
+#' @param chronology_table Name of an optional per-US absolute-chronology table
+#'   (default \code{"palimpsest_chronology"}) with columns \code{sito},
+#'   \code{area}, \code{us}, \code{start}, \code{end} (calendar years, BCE
+#'   negative) - e.g. OxCal-calibrated ranges from
+#'   \code{\link{chronology_from_oxcal}}. When present it overrides the free-text
+#'   \code{datazione} dating for the matching units (envelope of multiple dates
+#'   per US); set \code{NULL} to skip it.
 #' @param pottery_class Character vector of \code{pottery_table} columns; the
 #'   find's \code{class} is the first non-empty of these per row
 #'   (default \code{c("ware", "material", "form")}).
@@ -275,6 +314,7 @@ read_pyarchinit <- function(con, us_geometry = NULL, sito = NULL,
                             date_labels = NULL, taf = NULL,
                             us_geom_field = NULL, synthetic_coords = TRUE,
                             quote_table = "pyarchinit_quote",
+                            chronology_table = "palimpsest_chronology",
                             pottery_class = c("ware", "material", "form")) {
   if (!requireNamespace("DBI", quietly = TRUE)) stop("Package 'DBI' required.", call. = FALSE)
   source <- match.arg(source)
@@ -344,6 +384,12 @@ read_pyarchinit <- function(con, us_geometry = NULL, sito = NULL,
   need <- is.na(d[, 1])
   if (any(need)) d[need, ] <- t(vapply(m$daterep[need], parse_one, numeric(2)))
   m$date_min <- d[, 1]; m$date_max <- d[, 2]
+
+  # per-US absolute chronology (e.g. OxCal) overrides the free-text dating
+  ch <- if (has_table(chronology_table)) DBI::dbReadTable(con, chronology_table) else NULL
+  chrono <- .us_chronology(ch, m$sito, m$area, m$us)
+  ovr <- is.finite(chrono[, 1]) & is.finite(chrono[, 2])
+  if (any(ovr)) { m$date_min[ovr] <- chrono[ovr, 1]; m$date_max[ovr] <- chrono[ovr, 2] }
 
   # --- plan coordinates from US geometry (+ synthetic fallback) ------------
   m$x <- rep(NA_real_, nrow(m)); m$y <- rep(NA_real_, nrow(m))

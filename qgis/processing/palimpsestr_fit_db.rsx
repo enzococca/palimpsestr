@@ -1,6 +1,7 @@
 ##palimpsestr=group
 ##Palimpsestr Fit=name
-##Database_file=file
+##Database_file=optional file
+##PG_connection=optional string
 ##Site=string all
 ##K=number 4
 ##Class_model=enum literal multinomial;gaussian
@@ -19,9 +20,19 @@ library(palimpsestr)
 library(sf)
 library(DBI)
 
-con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
-geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
-                 error = function(e) NULL)
+# Connection: PostgreSQL/PostGIS when PG_connection (a libpq DSN, e.g.
+# "host=... port=5432 dbname=pyarchinit user=... password=...") is given,
+# otherwise the SQLite/Spatialite Database_file.
+use_pg <- exists("PG_connection") && is.character(PG_connection) && nzchar(PG_connection)
+if (use_pg) {
+  con  <- DBI::dbConnect(RPostgres::Postgres(), dbname = PG_connection)
+  geom <- tryCatch(sf::st_read(con, query = "SELECT us_s, the_geom FROM pyunitastratigrafiche", quiet = TRUE),
+                   error = function(e) NULL)
+} else {
+  con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
+  geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
+                   error = function(e) NULL)
+}
 
 site       <- if (exists("Site") && nchar(Site) > 0 && Site != "all") Site else NULL
 source_sel <- if (is.numeric(Source)) c("both", "materials", "pottery")[Source + 1] else as.character(Source)
