@@ -3,9 +3,9 @@
 Palimpsest Analysis Dialog for pyArchInit.
 
 Runs the palimpsestr Stratigraphic Entanglement Field (SEF) analysis directly
-on the currently connected pyArchInit database, via the QGIS Processing R
-Provider algorithms shipped in the palimpsestr `qgis/processing` folder
-(`r:fit_sef_from_pyarchinit_db`, `r:detect_intrusions_from_pyarchinit_db`).
+on the currently connected pyArchInit SQLite/Spatialite database, via the QGIS
+Processing R Provider algorithms (r:palimpsestrfit, r:palimpsestrintrusions),
+which the dialog installs/updates into the Processing R scripts folder itself.
 
 Modelled on tabs/Movecost.py. Drop this file into the pyArchInit `tabs/` folder
 and wire it from pyarchinitPlugin.py (see the snippet at the bottom of this
@@ -20,28 +20,23 @@ from qgis.PyQt.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QHBoxLayout, QLabel, QSpinBox,
     QDoubleSpinBox, QComboBox, QCheckBox, QLineEdit, QPushButton, QMessageBox)
 from qgis.core import (QgsApplication, QgsCategorizedSymbolRenderer,
-                       QgsRendererCategory, QgsSymbol)
+                       QgsRendererCategory, QgsSymbol, QgsProject)
 from qgis.PyQt.QtGui import QColor
 import processing
 
-# Okabe-Ito colour-blind-safe palette, matching palimpsestr's .phase_colours().
 PHASE_COLOURS = ["#E69F00", "#56B4E9", "#009E73", "#CC79A7",
                  "#D55E00", "#0072B2", "#F0E442", "#999999"]
 
 FIT_ALG = "r:palimpsestrfit"
 INTRUSIONS_ALG = "r:palimpsestrintrusions"
 
-# The Processing R scripts shipped with palimpsestr (qgis/processing/*.rsx),
-# embedded so the tab can install/update them itself.
+# Processing R scripts shipped with palimpsestr, embedded so the dialog can
+# install/update them itself.
 RSX_SCRIPTS = {
     "palimpsestr_fit_db.rsx": r"""##palimpsestr=group
 ##Palimpsestr Fit=name
 ##Database_file=file
-##PostgreSQL_host=string
-##PostgreSQL_dbname=string
-##PostgreSQL_user=string
-##PostgreSQL_password=string
-##Site=string
+##Site=string all
 ##K=number 4
 ##Class_model=enum literal multinomial;gaussian
 ##Noise=boolean True
@@ -49,28 +44,20 @@ RSX_SCRIPTS = {
 ##Links=output vector
 ##Diagnostics=output table
 
-# Probabilistic palimpsest decomposition straight from a pyArchInit database.
-# Reads inventario_materiali + us (+ US polygon geometry) via read_pyarchinit(),
-# fits the Stratigraphic Entanglement Field model, and returns a phase-
-# assignment point layer, a high-SEI link layer, and a diagnostics table.
+# Probabilistic palimpsest decomposition straight from a pyArchInit SQLite/
+# Spatialite database. Reads inventario_materiali + us (+ US polygon geometry)
+# via read_pyarchinit(), fits the Stratigraphic Entanglement Field model, and
+# returns a phase-assignment point layer, a high-SEI link layer, and a
+# diagnostics table.
 library(palimpsestr)
 library(sf)
 library(DBI)
 
-use_pg <- exists("PostgreSQL_host") && nchar(PostgreSQL_host) > 0
-if (use_pg) {
-  con  <- DBI::dbConnect(RPostgres::Postgres(), host = PostgreSQL_host,
-                         dbname = PostgreSQL_dbname, user = PostgreSQL_user,
-                         password = PostgreSQL_password)
-  geom <- tryCatch(sf::st_read(con, query = "SELECT * FROM pyarchinit_us_view", quiet = TRUE),
-                   error = function(e) NULL)
-} else {
-  con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
-  geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
-                   error = function(e) NULL)
-}
+con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
+geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
+                 error = function(e) NULL)
 
-site <- if (exists("Site") && nchar(Site) > 0) Site else NULL
+site <- if (exists("Site") && nchar(Site) > 0 && Site != "all") Site else NULL
 d <- read_pyarchinit(con, us_geometry = geom, sito = site)
 DBI::dbDisconnect(con)
 
@@ -91,37 +78,24 @@ Diagnostics <- as_phase_table(fit)
     "palimpsestr_intrusions_db.rsx": r"""##palimpsestr=group
 ##Palimpsestr Intrusions=name
 ##Database_file=file
-##PostgreSQL_host=string
-##PostgreSQL_dbname=string
-##PostgreSQL_user=string
-##PostgreSQL_password=string
-##Site=string
+##Site=string all
 ##K=number 4
 ##Threshold=number 0.5
 ##Intrusions=output vector
 
-# Model-based intrusion detection straight from a pyArchInit database. Fits the
-# SEF model with a noise component and returns the finds as a point layer
-# carrying the outlier posterior (intrusion_prob), the chronological direction,
-# and the intrusion_type classification (residual / latent_feature / ...).
+# Model-based intrusion detection straight from a pyArchInit SQLite/Spatialite
+# database. Fits the SEF model with a noise component and returns the finds as
+# a point layer carrying the outlier posterior (intrusion_prob), the
+# chronological direction, and the intrusion_type classification.
 library(palimpsestr)
 library(sf)
 library(DBI)
 
-use_pg <- exists("PostgreSQL_host") && nchar(PostgreSQL_host) > 0
-if (use_pg) {
-  con  <- DBI::dbConnect(RPostgres::Postgres(), host = PostgreSQL_host,
-                         dbname = PostgreSQL_dbname, user = PostgreSQL_user,
-                         password = PostgreSQL_password)
-  geom <- tryCatch(sf::st_read(con, query = "SELECT * FROM pyarchinit_us_view", quiet = TRUE),
-                   error = function(e) NULL)
-} else {
-  con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
-  geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
-                   error = function(e) NULL)
-}
+con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
+geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
+                 error = function(e) NULL)
 
-site <- if (exists("Site") && nchar(Site) > 0) Site else NULL
+site <- if (exists("Site") && nchar(Site) > 0 && Site != "all") Site else NULL
 d <- read_pyarchinit(con, us_geometry = geom, sito = site)
 DBI::dbDisconnect(con)
 
@@ -148,7 +122,7 @@ class pyarchinit_Palimpsest(QDialog):
     def __init__(self, iface):
         super().__init__()
         self.iface = iface
-        self.setWindowTitle("palimpsestr — Palimpsest analysis")
+        self.setWindowTitle("palimpsestr \u2014 Palimpsest analysis")
         self._build_ui()
         self.install_scripts(silent=True)
 
@@ -185,15 +159,13 @@ class pyarchinit_Palimpsest(QDialog):
         buttons = QHBoxLayout()
         self.btn_fit = QPushButton("Fit SEF model"); self.btn_fit.clicked.connect(self.run_fit)
         self.btn_intr = QPushButton("Detect intrusions"); self.btn_intr.clicked.connect(self.run_intrusions)
-        buttons.addWidget(self.btn_fit); buttons.addWidget(self.btn_intr)
         self.btn_install = QPushButton("Install/update R scripts")
         self.btn_install.clicked.connect(lambda: self.install_scripts(silent=False))
-        buttons.addWidget(self.btn_install)
+        buttons.addWidget(self.btn_fit); buttons.addWidget(self.btn_intr); buttons.addWidget(self.btn_install)
         layout.addLayout(buttons)
 
-    # ----------------------------------------------------- active DB params ---
+    # ----------------------------------------------------- active DB info ---
     def _active_conn_str(self):
-        """Return the SQLAlchemy connection string of the active pyArchInit DB."""
         try:
             from ..modules.db.pyarchinit_conn_strings import Connection
         except Exception:
@@ -206,33 +178,99 @@ class pyarchinit_Palimpsest(QDialog):
         except Exception:
             return None
 
-    def _db_params(self):
-        """Build the connection parameters expected by the .rsx algorithms."""
-        params = {'Database_file': '', 'PostgreSQL_host': '', 'PostgreSQL_dbname': '',
-                  'PostgreSQL_user': '', 'PostgreSQL_password': ''}
+    def _sqlite_path(self):
+        """Return the SQLite/Spatialite DB path, or None if not a SQLite DB."""
         cs = self._active_conn_str()
-        if not cs:
-            return params
-        if cs.startswith('sqlite'):
-            params['Database_file'] = cs.split('sqlite:///', 1)[-1]
-        else:
-            u = urlparse(cs)
-            params['PostgreSQL_host'] = u.hostname or ''
-            params['PostgreSQL_dbname'] = (u.path or '').lstrip('/')
-            params['PostgreSQL_user'] = u.username or ''
-            params['PostgreSQL_password'] = u.password or ''
-        return params
+        if cs and cs.startswith('sqlite'):
+            return cs.split('sqlite:///', 1)[-1]
+        return None
+
+    def _is_postgres(self):
+        cs = self._active_conn_str()
+        return bool(cs) and cs.startswith('postgres')
 
     def _describe_db(self):
-        p = self._db_params()
-        if p['Database_file']:
-            return "Active database (SQLite/Spatialite): %s" % p['Database_file']
-        if p['PostgreSQL_host']:
-            return "Active database (PostgreSQL): %s@%s/%s" % (
-                p['PostgreSQL_user'], p['PostgreSQL_host'], p['PostgreSQL_dbname'])
+        p = self._sqlite_path()
+        if p:
+            return "Active database (SQLite/Spatialite): %s" % p
+        if self._is_postgres():
+            return ("Active database is PostgreSQL. These algorithms currently "
+                    "read SQLite/Spatialite databases; connect to a SQLite "
+                    "pyArchInit database, or run read_pyarchinit() in R.")
         return "No active pyArchInit database connection detected."
 
     # ----------------------------------------------------------- run algos ---
+    def _check_provider(self):
+        if QgsApplication.processingRegistry().algorithmById(FIT_ALG) is None:
+            QMessageBox.warning(
+                self, "palimpsestr",
+                "The palimpsestr Processing R scripts are not registered.\n\n"
+                "Enable the 'Processing R Provider' plugin and restart QGIS. "
+                "The scripts are installed automatically into the Processing R "
+                "scripts folder when this dialog opens.")
+            return False
+        return True
+
+    def _require_sqlite(self):
+        path = self._sqlite_path()
+        if not path:
+            QMessageBox.warning(
+                self, "palimpsestr",
+                "No active SQLite/Spatialite pyArchInit connection.\n\n"
+                "Connect to a SQLite pyArchInit database first.")
+            return None
+        if not os.path.exists(path):
+            QMessageBox.warning(self, "palimpsestr",
+                                "Database file not found:\n%s" % path)
+            return None
+        return path
+
+    def _site(self):
+        return self.edit_site.text().strip() or "all"
+
+    def run_fit(self):
+        if not self._check_provider():
+            return
+        path = self._require_sqlite()
+        if not path:
+            return
+        params = {
+            'Database_file': path,
+            'Site': self._site(),
+            'K': self.spin_k.value(),
+            'Class_model': self.combo_model.currentIndex(),
+            'Noise': self.check_noise.isChecked(),
+            'Phases': 'TEMPORARY_OUTPUT',
+            'Links': 'TEMPORARY_OUTPUT',
+            'Diagnostics': 'TEMPORARY_OUTPUT'}
+        try:
+            res = processing.runAndLoadResults(FIT_ALG, params)
+        except Exception as e:
+            QMessageBox.critical(self, "palimpsestr", "Analysis failed:\n%s" % e)
+            return
+        self._style_phases(res.get('Phases'))
+        QMessageBox.information(self, "palimpsestr", "SEF analysis complete. Layers loaded.")
+
+    def run_intrusions(self):
+        if not self._check_provider():
+            return
+        path = self._require_sqlite()
+        if not path:
+            return
+        params = {
+            'Database_file': path,
+            'Site': self._site(),
+            'K': self.spin_k.value(),
+            'Threshold': self.spin_thr.value(),
+            'Intrusions': 'TEMPORARY_OUTPUT'}
+        try:
+            processing.runAndLoadResults(INTRUSIONS_ALG, params)
+        except Exception as e:
+            QMessageBox.critical(self, "palimpsestr", "Analysis failed:\n%s" % e)
+            return
+        QMessageBox.information(self, "palimpsestr", "Intrusion detection complete. Layer loaded.")
+
+    # --------------------------------------------------- install R scripts ---
     def _scripts_folder(self):
         try:
             from processing.tools.system import userFolder
@@ -263,63 +301,11 @@ class pyarchinit_Palimpsest(QDialog):
                 "Installed/updated %d R scripts in:\n%s" % (len(RSX_SCRIPTS), folder))
         return True
 
-    def _check_provider(self):
-        if QgsApplication.processingRegistry().algorithmById(FIT_ALG) is None:
-            QMessageBox.warning(
-                self, "palimpsestr",
-                "The palimpsestr Processing R scripts are not registered.\n\n"
-                "Install the 'Processing R Provider' plugin and copy the "
-                "palimpsestr qgis/processing/*.rsx files into the Processing R "
-                "scripts folder, then restart QGIS.")
-            return False
-        return True
-
-    def _site(self):
-        return self.edit_site.text().strip()
-
-    def run_fit(self):
-        if not self._check_provider():
-            return
-        params = self._db_params()
-        params.update({
-            'Site': self._site(),
-            'K': self.spin_k.value(),
-            'Class_model': self.combo_model.currentIndex(),   # 0 multinomial, 1 gaussian
-            'Noise': self.check_noise.isChecked(),
-            'Phases': 'TEMPORARY_OUTPUT',
-            'Links': 'TEMPORARY_OUTPUT',
-            'Diagnostics': 'TEMPORARY_OUTPUT'})
-        try:
-            res = processing.runAndLoadResults(FIT_ALG, params)
-        except Exception as e:
-            QMessageBox.critical(self, "palimpsestr", "Analysis failed:\n%s" % e)
-            return
-        self._style_phases(res.get('Phases'))
-        QMessageBox.information(self, "palimpsestr", "SEF analysis complete. Layers loaded.")
-
-    def run_intrusions(self):
-        if not self._check_provider():
-            return
-        params = self._db_params()
-        params.update({
-            'Site': self._site(),
-            'K': self.spin_k.value(),
-            'Threshold': self.spin_thr.value(),
-            'Intrusions': 'TEMPORARY_OUTPUT'})
-        try:
-            processing.runAndLoadResults(INTRUSIONS_ALG, params)
-        except Exception as e:
-            QMessageBox.critical(self, "palimpsestr", "Analysis failed:\n%s" % e)
-            return
-        QMessageBox.information(self, "palimpsestr", "Intrusion detection complete. Layer loaded.")
-
     # ----------------------------------------------------------- styling ----
     def _style_phases(self, layer_id):
-        from qgis.core import QgsProject
         layer = None
         if layer_id:
-            found = QgsProject.instance().mapLayer(layer_id) if isinstance(layer_id, str) else layer_id
-            layer = found
+            layer = QgsProject.instance().mapLayer(layer_id) if isinstance(layer_id, str) else layer_id
         if layer is None:
             return
         try:
@@ -339,14 +325,14 @@ class pyarchinit_Palimpsest(QDialog):
 # ---------------------------------------------------------------------------
 # Wiring in pyarchinitPlugin.py (mirroring actionMovecost), e.g. in initGui():
 #
-#   from .tabs.Palimpsest import pyarchinit_Palimpsest
-#   icon = QIcon(':/plugins/pyarchinit/resources/...')   # any icon
-#   self.actionPalimpsest = QAction(icon, "palimpsestr - Analisi palinsesti",
+#   self.actionPalimpsest = QAction("palimpsestr - Analisi palinsesti",
 #                                    self.iface.mainWindow())
 #   self.actionPalimpsest.triggered.connect(self.runPalimpsest)
 #   self.analysisToolButton.addActions([self.actionPalimpsest])
 #
 #   def runPalimpsest(self):
+#       from .tabs.Palimpsest import pyarchinit_Palimpsest
 #       dlg = pyarchinit_Palimpsest(self.iface)
-#       dlg.exec_()
+#       dlg.show()
+#       self.pluginGui = dlg
 # ---------------------------------------------------------------------------

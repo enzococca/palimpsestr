@@ -1,37 +1,24 @@
 ##palimpsestr=group
 ##Palimpsestr Intrusions=name
 ##Database_file=file
-##PostgreSQL_host=string
-##PostgreSQL_dbname=string
-##PostgreSQL_user=string
-##PostgreSQL_password=string
-##Site=string
+##Site=string all
 ##K=number 4
 ##Threshold=number 0.5
 ##Intrusions=output vector
 
-# Model-based intrusion detection straight from a pyArchInit database. Fits the
-# SEF model with a noise component and returns the finds as a point layer
-# carrying the outlier posterior (intrusion_prob), the chronological direction,
-# and the intrusion_type classification (residual / latent_feature / ...).
+# Model-based intrusion detection straight from a pyArchInit SQLite/Spatialite
+# database. Fits the SEF model with a noise component and returns the finds as
+# a point layer carrying the outlier posterior (intrusion_prob), the
+# chronological direction, and the intrusion_type classification.
 library(palimpsestr)
 library(sf)
 library(DBI)
 
-use_pg <- exists("PostgreSQL_host") && nchar(PostgreSQL_host) > 0
-if (use_pg) {
-  con  <- DBI::dbConnect(RPostgres::Postgres(), host = PostgreSQL_host,
-                         dbname = PostgreSQL_dbname, user = PostgreSQL_user,
-                         password = PostgreSQL_password)
-  geom <- tryCatch(sf::st_read(con, query = "SELECT * FROM pyarchinit_us_view", quiet = TRUE),
-                   error = function(e) NULL)
-} else {
-  con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
-  geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
-                   error = function(e) NULL)
-}
+con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
+geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
+                 error = function(e) NULL)
 
-site <- if (exists("Site") && nchar(Site) > 0) Site else NULL
+site <- if (exists("Site") && nchar(Site) > 0 && Site != "all") Site else NULL
 d <- read_pyarchinit(con, us_geometry = geom, sito = site)
 DBI::dbDisconnect(con)
 

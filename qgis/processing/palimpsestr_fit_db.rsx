@@ -1,11 +1,7 @@
 ##palimpsestr=group
 ##Palimpsestr Fit=name
 ##Database_file=file
-##PostgreSQL_host=string
-##PostgreSQL_dbname=string
-##PostgreSQL_user=string
-##PostgreSQL_password=string
-##Site=string
+##Site=string all
 ##K=number 4
 ##Class_model=enum literal multinomial;gaussian
 ##Noise=boolean True
@@ -13,28 +9,20 @@
 ##Links=output vector
 ##Diagnostics=output table
 
-# Probabilistic palimpsest decomposition straight from a pyArchInit database.
-# Reads inventario_materiali + us (+ US polygon geometry) via read_pyarchinit(),
-# fits the Stratigraphic Entanglement Field model, and returns a phase-
-# assignment point layer, a high-SEI link layer, and a diagnostics table.
+# Probabilistic palimpsest decomposition straight from a pyArchInit SQLite/
+# Spatialite database. Reads inventario_materiali + us (+ US polygon geometry)
+# via read_pyarchinit(), fits the Stratigraphic Entanglement Field model, and
+# returns a phase-assignment point layer, a high-SEI link layer, and a
+# diagnostics table.
 library(palimpsestr)
 library(sf)
 library(DBI)
 
-use_pg <- exists("PostgreSQL_host") && nchar(PostgreSQL_host) > 0
-if (use_pg) {
-  con  <- DBI::dbConnect(RPostgres::Postgres(), host = PostgreSQL_host,
-                         dbname = PostgreSQL_dbname, user = PostgreSQL_user,
-                         password = PostgreSQL_password)
-  geom <- tryCatch(sf::st_read(con, query = "SELECT * FROM pyarchinit_us_view", quiet = TRUE),
-                   error = function(e) NULL)
-} else {
-  con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
-  geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
-                   error = function(e) NULL)
-}
+con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
+geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
+                 error = function(e) NULL)
 
-site <- if (exists("Site") && nchar(Site) > 0) Site else NULL
+site <- if (exists("Site") && nchar(Site) > 0 && Site != "all") Site else NULL
 d <- read_pyarchinit(con, us_geometry = geom, sito = site)
 DBI::dbDisconnect(con)
 
