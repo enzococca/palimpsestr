@@ -89,3 +89,18 @@ toolbar-init branches the menu adds `actionPalimpsest`
 re-apply by adding `self.actionPalimpsest` to each
 `self.analysisToolButton.addActions([...])` list and copying the `runPalimpsest`
 method (see the snippet at the bottom of `Palimpsest.py`).
+
+### Example database (villa_romana)
+
+`qgis/make_villa_romana_db.R` builds a complete pyArchInit-schema SQLite/
+Spatialite database from the bundled `villa_romana` dataset (615 finds, 54
+stratigraphic units with real EPSG:3004 polygon geometry, 17 material classes,
+dated US). Run it to get a ready-to-test database:
+
+```bash
+Rscript qgis/make_villa_romana_db.R
+# -> ~/pyarchinit/pyarchinit_DB_folder/villa_romana_pyarchinit.sqlite
+```
+
+Connect pyArchInit to that database and run the palimpsestr tab to see the full
+pipeline (real coordinates, real dating) end to end.

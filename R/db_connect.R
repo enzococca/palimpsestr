@@ -158,6 +158,14 @@ load_geometries <- function(source, layer = NULL, query = NULL,
     return(c(min(bounds), max(bounds)))
   }
 
+  # numeric year range, e.g. "425/450", "-650/-350", "-200/50", or a single year
+  if (grepl("[0-9]", x)) {
+    nums <- suppressWarnings(as.numeric(regmatches(x, gregexpr("-?[0-9]+", x))[[1]]))
+    nums <- nums[is.finite(nums)]
+    if (length(nums) >= 2) return(c(min(nums[1:2]), max(nums[1:2])))
+    if (length(nums) == 1) return(c(nums, nums))
+  }
+
   for (lab in names(labels)) {
     if (grepl(lab, x, fixed = TRUE)) return(labels[[lab]])
   }
@@ -218,6 +226,16 @@ read_pyarchinit <- function(con, us_geometry = NULL, sito = NULL,
     stringsAsFactors = FALSE)
   if (!is.null(sito)) f <- f[f$sito %in% as.character(sito), , drop = FALSE]
 
+  empty_out <- data.frame(
+    id = character(), x = numeric(), y = numeric(), z = numeric(),
+    date_min = numeric(), date_max = numeric(), class = character(),
+    context = character(), taf_score = numeric(), stringsAsFactors = FALSE)
+  if (nrow(f) == 0) {
+    message("read_pyarchinit: no finds in inventario_materiali_table",
+            if (!is.null(sito)) sprintf(" for site '%s'", sito) else "")
+    return(empty_out)
+  }
+
   quota_u <- if ("quota_abs" %in% names(us)) {
     suppressWarnings(as.numeric(us$quota_abs))
   } else if (all(c("quota_min_abs", "quota_max_abs") %in% names(us))) {
@@ -237,7 +255,7 @@ read_pyarchinit <- function(con, us_geometry = NULL, sito = NULL,
   if (any(need)) d[need, ] <- t(vapply(m$daterep[need], parse_one, numeric(2)))
   m$date_min <- d[, 1]; m$date_max <- d[, 2]
 
-  m$x <- NA_real_; m$y <- NA_real_
+  m$x <- rep(NA_real_, nrow(m)); m$y <- rep(NA_real_, nrow(m))
   if (!is.null(us_geometry)) {
     if (!requireNamespace("sf", quietly = TRUE)) stop("Package 'sf' required for us_geometry.", call. = FALSE)
     gf <- us_geom_field

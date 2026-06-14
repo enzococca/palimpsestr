@@ -234,22 +234,32 @@ class pyarchinit_Palimpsest(QDialog):
         path = self._require_sqlite()
         if not path:
             return
+        import tempfile
+        out = tempfile.mkdtemp(prefix="palimpsestr_")
+        ph = os.path.join(out, "sef_phases.gpkg")
+        lk = os.path.join(out, "sef_links.gpkg")
+        dg = os.path.join(out, "sef_diagnostics.csv")
         params = {
             'Database_file': path,
             'Site': self._site(),
             'K': self.spin_k.value(),
             'Class_model': self.combo_model.currentIndex(),
             'Noise': self.check_noise.isChecked(),
-            'Phases': 'TEMPORARY_OUTPUT',
-            'Links': 'TEMPORARY_OUTPUT',
-            'Diagnostics': 'TEMPORARY_OUTPUT'}
+            'Phases': ph, 'Links': lk, 'Diagnostics': dg}
         try:
-            res = processing.runAndLoadResults(FIT_ALG, params)
+            res = processing.run(FIT_ALG, params)
         except Exception as e:
             QMessageBox.critical(self, "palimpsestr", "Analysis failed:\n%s" % e)
             return
-        self._style_phases(res.get('Phases'))
-        QMessageBox.information(self, "palimpsestr", "SEF analysis complete. Layers loaded.")
+        n = self._load_outputs([(res.get('Phases', ph), "SEF phases", True),
+                                (res.get('Links', lk), "SEF links", False)])
+        if n == 0:
+            QMessageBox.warning(self, "palimpsestr",
+                "The analysis ran but produced no loadable layers (no finds with "
+                "coordinates/dating?). Check the database content.")
+        else:
+            QMessageBox.information(self, "palimpsestr",
+                "SEF analysis complete. Loaded %d layer(s)." % n)
 
     def run_intrusions(self):
         if not self._check_provider():
@@ -257,18 +267,53 @@ class pyarchinit_Palimpsest(QDialog):
         path = self._require_sqlite()
         if not path:
             return
+        import tempfile
+        out = tempfile.mkdtemp(prefix="palimpsestr_")
+        ip = os.path.join(out, "sef_intrusions.gpkg")
         params = {
             'Database_file': path,
             'Site': self._site(),
             'K': self.spin_k.value(),
             'Threshold': self.spin_thr.value(),
-            'Intrusions': 'TEMPORARY_OUTPUT'}
+            'Intrusions': ip}
         try:
-            processing.runAndLoadResults(INTRUSIONS_ALG, params)
+            res = processing.run(INTRUSIONS_ALG, params)
         except Exception as e:
             QMessageBox.critical(self, "palimpsestr", "Analysis failed:\n%s" % e)
             return
-        QMessageBox.information(self, "palimpsestr", "Intrusion detection complete. Layer loaded.")
+        n = self._load_outputs([(res.get('Intrusions', ip), "SEF intrusions", False)])
+        if n == 0:
+            QMessageBox.warning(self, "palimpsestr",
+                "The analysis ran but produced no loadable layer.")
+        else:
+            QMessageBox.information(self, "palimpsestr",
+                "Intrusion detection complete. Loaded %d layer(s)." % n)
+
+    def _load_outputs(self, items):
+        """Load (path, name, is_phase) outputs into the project; return count."""
+        from qgis.core import QgsVectorLayer
+        loaded = 0
+        first = None
+        for spec in items:
+            pth, name, is_phase = spec
+            if not pth or not os.path.exists(pth):
+                continue
+            lyr = QgsVectorLayer(pth, name, "ogr")
+            if not lyr.isValid() or lyr.featureCount() == 0:
+                continue
+            QgsProject.instance().addMapLayer(lyr)
+            loaded += 1
+            if first is None:
+                first = lyr
+            if is_phase:
+                self._style_phases(lyr)
+        if first is not None:
+            try:
+                self.iface.setActiveLayer(first)
+                self.iface.zoomToActiveLayer()
+            except Exception:
+                pass
+        return loaded
 
     # --------------------------------------------------- install R scripts ---
     def _scripts_folder(self):

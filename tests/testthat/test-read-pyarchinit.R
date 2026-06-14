@@ -107,3 +107,27 @@ test_that("read_pyarchinit falls back to synthetic per-US coordinates", {
   # one distinct coordinate per US
   expect_equal(length(unique(paste(out$x, out$y))), length(unique(out$context)))
 })
+
+# ---- Cycle 3: numeric date strings + 0-row robustness ----------------------
+
+test_that(".parse_archaeo_date parses numeric year ranges", {
+  expect_equal(palimpsestr:::.parse_archaeo_date("425/450"), c(425, 450))
+  expect_equal(palimpsestr:::.parse_archaeo_date("-650/-350"), c(-650, -350))
+  expect_equal(palimpsestr:::.parse_archaeo_date("-200/50"), c(-200, 50))
+  expect_equal(palimpsestr:::.parse_archaeo_date("180"), c(180, 180))
+})
+
+test_that("read_pyarchinit returns an empty frame when there are no finds", {
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path); on.exit(DBI::dbDisconnect(con))
+  DBI::dbWriteTable(con, "us_table",
+    data.frame(sito = "S", area = "A", us = "1", datazione = "425/450",
+               quota_abs = 10, stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "inventario_materiali_table",
+    data.frame(id_invmat = integer(), sito = character(), area = character(),
+               us = character(), tipo_reperto = character(),
+               quota_usm = numeric(), datazione_reperto = character()))
+  out <- suppressMessages(read_pyarchinit(con))
+  expect_s3_class(out, "data.frame")
+  expect_equal(nrow(out), 0)
+})
