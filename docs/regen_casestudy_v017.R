@@ -82,5 +82,16 @@ for (tipo in c("phase", "entropy", "energy", "intrusion")) {
   ggsave(file.path(outdir, paste0("map_", tipo, ".png")), p, width = 10, height = 8, dpi = 150)
 }
 
+## v0.18.0 model-output plots
+# Per-phase class composition (multinomial cat_prob), heatmap
+ggsave(file.path(outdir, "phase_composition.png"),
+       gg_phase_composition(fit), width = 9, height = 4.5, dpi = 150)
+# Within-unit coherence: multinomial vs legacy one-hot Gaussian (the 27 -> 0 figure)
+ggsave(file.path(outdir, "unit_coherence.png"),
+       gg_unit_coherence(fit, compare = fit_g), width = 7, height = 5, dpi = 150)
+# Intrusion ranking from the noise-component posterior
+ggsave(file.path(outdir, "outliers.png"),
+       gg_outliers(fit, top_n = 15), width = 8, height = 6, dpi = 150)
+
 saveRDS(fit, file.path(outdir, "k4_fit_v017.rds"))
 cat("\n=== figures written to", outdir, "===\n")
