@@ -4,7 +4,7 @@
 \alias{detect_intrusions}
 \title{Detect potentially intrusive observations}
 \usage{
-detect_intrusions(object, envelope = c(0.05, 0.95))
+detect_intrusions(object, envelope = c(0.05, 0.95), intrusion_threshold = 0.5)
 }
 \arguments{
 \item{object}{A \code{sef_fit} object.}
@@ -15,12 +15,15 @@ envelope for the directional classification. The default
 \code{c(0.05, 0.95)} is robust to a single chronological outlier within
 the context; use \code{c(0, 1)} for the strict min/max envelope used
 prior to v0.14.0.}
+
+\item{intrusion_threshold}{Probability above which a find counts as flagged for the \code{intrusion_type} classification (default: 0.5).}
 }
 \value{
 A data.frame with columns \code{id}, \code{intrusion_prob},
 \code{direction} (factor with levels \code{older_than_context},
 \code{in_context}, \code{younger_than_context}), and \code{chrono_gap}
 (numeric, signed offset in years).
+The data.frame also carries an \code{intrusion_type} factor combining the intrusion magnitude with the direction: \code{not_flagged}, \code{residual} (flagged and older-than-context), \code{latent_feature} (flagged and younger-than-context), or \code{outlier_in_context}.
 }
 \description{
 Returns a per-find intrusion probability. When the model was fitted with

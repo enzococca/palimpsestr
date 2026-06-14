@@ -1,3 +1,21 @@
+# palimpsestr 0.19.0
+
+## New features
+
+- `chronology_from_oxcal()`: OxCal counterpart of `chronology_from_rcarbon()`.
+  Accepts either an `oxcAAR::oxcalCalibrate()` result
+  (`oxcAARCalibratedDatesList`, reduced by HPD / median+IQR / weighted mean) or
+  a generic data.frame of `start`/`end` calibrated ranges, and returns the
+  `date_min`/`date_max`/`date_mid` columns expected by `fit_sef()`. `oxcAAR`
+  is in Suggests.
+- `detect_intrusions()` gains an `intrusion_threshold` argument and an
+  `intrusion_type` factor column that couples the intrusion magnitude (the
+  noise-component posterior) with the chronological direction: `not_flagged`,
+  `residual` (flagged and older-than-context), `latent_feature` (flagged and
+  younger-than-context), or `outlier_in_context`. Existing columns are
+  unchanged.
+- `gg_outliers()` now colours each find by `intrusion_type`.
+
 # palimpsestr 0.18.0
 
 ## New diagnostic plots
