@@ -42,3 +42,19 @@ test_that("gg_direction handles the all-in-context case gracefully", {
   fit <- fit_sef(x, k = 2, seed = 1)
   expect_s3_class(gg_direction(fit), "ggplot")
 })
+
+test_that("gg_outliers uses the noise posterior when available", {
+  skip_if_not_installed("ggplot2")
+  x <- archaeo_sim(n = 70, k = 2, seed = 5)
+  fit <- fit_sef(x, k = 2, seed = 1, noise = TRUE)
+  p <- gg_outliers(fit)
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("gg_outliers falls back to the composite score without noise", {
+  skip_if_not_installed("ggplot2")
+  x <- archaeo_sim(n = 60, k = 2, seed = 6)
+  fit <- fit_sef(x, k = 2, seed = 1)
+  p <- gg_outliers(fit, threshold = 0.4, top_n = 10)
+  expect_s3_class(p, "ggplot")
+})
