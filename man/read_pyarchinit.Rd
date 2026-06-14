@@ -33,6 +33,11 @@ a vector named by find \code{id}. Defaults to 0.5 (neutral).}
 
 \item{us_geom_field}{Name of the US-identifier column in \code{us_geometry}
 (auto-detected among \code{us_s}/\code{us} when \code{NULL}).}
+
+\item{synthetic_coords}{Logical (default \code{TRUE}). When a stratigraphic
+unit has no polygon in \code{us_geometry}, assign it deterministic
+per-unit grid coordinates so the analysis can still run at unit
+resolution; set \code{FALSE} to drop such finds instead.}
 }
 \value{
 A data.frame with \code{id}, \code{x}, \code{y}, \code{z},
@@ -45,7 +50,7 @@ Reads the \code{inventario_materiali_table} (finds) and \code{us_table}
 ready for \code{\link{fit_sef}}: each find inherits its stratigraphic unit's
 coordinates (centroid of the US polygon), elevation, chronology, and context.
 Dating is resolved from the free-text period strings of the US (or of the
-find) via \code{\link{.parse_archaeo_date}}.
+find) by an internal archaeological-date parser.
 }
 \seealso{
 \code{\link{read_db}}, \code{\link{fit_sef}}

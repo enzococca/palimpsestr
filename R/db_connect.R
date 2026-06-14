@@ -145,8 +145,8 @@ load_geometries <- function(source, layer = NULL, query = NULL,
   if (length(s) != 1 || is.na(s)) return(na)
   x <- tolower(trimws(s))
   if (nchar(x) == 0) return(na)
-  # normalise accents and separators
-  x <- chartr("àèéìòù", "aeeiou", x)
+  # normalise accents and separators (\u escapes keep the source ASCII-only)
+  x <- chartr("\u00e0\u00e8\u00e9\u00ec\u00f2\u00f9", "aeeiou", x)
 
   if (grepl("sec", x)) {
     bce <- grepl("a\\.?\\s*c", x)                         # a.C. / aC / ac
@@ -171,7 +171,7 @@ load_geometries <- function(source, layer = NULL, query = NULL,
 #' ready for \code{\link{fit_sef}}: each find inherits its stratigraphic unit's
 #' coordinates (centroid of the US polygon), elevation, chronology, and context.
 #' Dating is resolved from the free-text period strings of the US (or of the
-#' find) via \code{\link{.parse_archaeo_date}}.
+#' find) by an internal archaeological-date parser.
 #'
 #' @param con A \code{DBIConnection} to a pyArchInit database (SQLite/Spatialite
 #'   or PostgreSQL/PostGIS).
@@ -186,6 +186,10 @@ load_geometries <- function(source, layer = NULL, query = NULL,
 #'   a vector named by find \code{id}. Defaults to 0.5 (neutral).
 #' @param us_geom_field Name of the US-identifier column in \code{us_geometry}
 #'   (auto-detected among \code{us_s}/\code{us} when \code{NULL}).
+#' @param synthetic_coords Logical (default \code{TRUE}). When a stratigraphic
+#'   unit has no polygon in \code{us_geometry}, assign it deterministic
+#'   per-unit grid coordinates so the analysis can still run at unit
+#'   resolution; set \code{FALSE} to drop such finds instead.
 #' @return A data.frame with \code{id}, \code{x}, \code{y}, \code{z},
 #'   \code{date_min}, \code{date_max}, \code{class}, \code{context},
 #'   \code{taf_score}, ready for \code{\link{fit_sef}}.
