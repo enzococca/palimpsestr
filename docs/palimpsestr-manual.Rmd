@@ -1,6 +1,6 @@
 ---
 title: "palimpsestr: User Manual"
-subtitle: "Complete Reference Guide v0.10.0"
+subtitle: "Complete Reference Guide v0.18.0"
 author: "Enzo Cocca"
 date: "`r Sys.Date()`"
 output:
@@ -29,7 +29,7 @@ library(palimpsestr)
 devtools::install_github("enzococca/palimpsestr")
 
 # From local source
-install.packages("palimpsestr_0.10.0.tar.gz", repos = NULL, type = "source")
+install.packages("palimpsestr_0.18.0.tar.gz", repos = NULL, type = "source")
 ```
 
 ## Required and optional packages
@@ -138,13 +138,35 @@ print(fit)
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `k` | 3 | Number of depositional phases to estimate |
-| `weights` | `c(ws=1, wz=1, wt=1, wc=1)` | Relative weights for spatial (`ws`), vertical (`wz`), temporal (`wt`), and cultural (`wc`) evidence |
+| `weights` | `c(ws=1, wz=1, wt=1, wc=1)` | Weights for spatial (`ws`), vertical (`wz`), temporal (`wt`), and cultural (`wc`) evidence. Since v0.14 they scale the feature dimensions and enter the likelihood, so they can be cross-validated with `optimize_weights()` |
 | `em_iter` | 100 | Maximum EM iterations |
 | `em_tol` | 1e-5 | Convergence tolerance (log-likelihood change) |
-| `n_init` | 1 | Number of random initialisations (higher = more robust, slower) |
+| `n_init` | 5 | Number of random initialisations (higher = more robust, slower) |
 | `tafonomy` | NULL | Column name for taphonomic disturbance (0--1) |
 | `context` | NULL | Column name for stratigraphic unit labels |
 | `harris` | NULL | $n \times n$ penalty matrix (from `harris_from_contexts()` or `read_harris()`) |
+
+### Statistical-model options
+
+These options (all optional, sensible defaults) control the statistical core:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `class_model` | `"multinomial"` | How the material class is modelled. `"multinomial"` (recommended) treats it as a per-phase categorical distribution, so typology does not fragment stratigraphic units; `"gaussian"` is the legacy one-hot behaviour |
+| `class_smoothing` | 1 | Dirichlet pseudo-count for the per-phase class probabilities (shrunk towards the global class frequencies) |
+| `var_structure` | `"diagonal"` | `"diagonal"` (free per-dimension variances) or `"spherical"` (one shared variance per phase; the structure under which `weights` are identifiable) |
+| `chrono_uncertainty` | FALSE | If TRUE, propagate each find's dating-interval width $(t_{max}-t_{min})^2/12$ into the temporal likelihood, so coarsely dated finds rely less on chronology |
+| `strat_dynamic` | FALSE | If TRUE (with `context`), apply the stratigraphic constraint as a Neighborhood-EM field recomputed each E-step instead of a static penalty frozen at initialisation |
+| `strat_beta` | 1 | Strength of the dynamic stratigraphic field |
+| `noise` | FALSE | If TRUE, add a uniform background component (Fraley and Raftery, 1998); `$noise_prob` becomes a genuine outlier probability and extreme finds are kept out of the phase estimates |
+| `noise_prior` | 0.05 | Initial mixing weight of the noise component |
+| `chrono_precision` | FALSE | Add $1/t_{span}$ as a feature (precise dates weighted higher) |
+| `taf_as_feature` | FALSE | Add `taf_score` as an explicit feature dimension |
+| `residuality` | FALSE | Add a per-find date-vs-context-mean mismatch feature (needs `context`) |
+| `class_scale` | FALSE | Scale one-hot class columns by $1/\sqrt{n_{classes}}$ (only relevant with `class_model = "gaussian"`) |
+| `subclass` | NULL | Optional sub-class column used instead of `class` for the categorical/one-hot block |
+
+`recommend_setup(data, context = "context", tafonomy = "taf_score")` inspects a dataset and suggests which of these to enable, flagging caveats such as unit-level coordinates or unit-tied chronology.
 
 ### Output: the `sef_fit` object
 
@@ -153,14 +175,23 @@ The returned object contains:
 | Field | Type | Description |
 |-------|------|-------------|
 | `$phase` | integer vector | Dominant phase assignment per find |
-| `$phase_prob` | matrix | $n \times k$ matrix of phase membership probabilities |
+| `$phase_prob` | matrix | $n \times k$ matrix of phase membership probabilities (conditional on not being noise when `noise = TRUE`) |
+| `$cat_prob` | matrix | $k \times L$ per-phase class profile (multinomial model); see `phase_composition()` |
+| `$noise_prob` | numeric vector | Per-find outlier posterior (when `noise = TRUE`) |
 | `$entropy` | numeric vector | Shannon entropy per find |
 | `$energy` | numeric vector | ESE per find |
 | `$local_sei` | numeric vector | Local SEI per find |
 | `$converged` | logical | Whether EM converged |
 | `$n_init` | integer | Number of initialisations used |
 | `$em_loglik` | numeric vector | Log-likelihood trace across iterations |
-| `$model_stats` | list | Summary statistics (PDI, BIC, loglik, etc.) |
+| `$model_stats` | list | Summary statistics (PDI, BIC, ICL, loglik, etc.) |
+
+The per-phase class composition can be read directly:
+
+```{r}
+# Per-phase typological profile (multinomial model)
+phase_composition(fit)
+```
 
 ## Phase count selection: `compare_k()`
 
@@ -192,12 +223,25 @@ head(phase_diagnostic_table(fit))
 
 # Intrusion Detection
 
+`detect_intrusions()` returns, per find, an `intrusion_prob`, a `direction`
+factor (`older_than_context` / `in_context` / `younger_than_context`), and a
+signed `chrono_gap` (years). When the model was fitted with `noise = TRUE`,
+`intrusion_prob` is the noise-component posterior — a genuine probability of
+being an outlier; otherwise it is a heuristic composite of entropy, energy, and
+inverse local SEI.
+
 ```{r}
-di <- detect_intrusions(fit)
+fit_n <- fit_sef(moderate, k = 3, tafonomy = "taf_score",
+                 context = "context", noise = TRUE, seed = 42)
+di <- detect_intrusions(fit_n)
 suspects <- di[di$intrusion_prob > 0.5, ]
 cat("Suspected intrusions:", nrow(suspects), "\n")
 head(suspects[order(suspects$intrusion_prob, decreasing = TRUE), ])
 ```
+
+The `direction` distinguishes residual material (`older_than_context`) from
+possible latent features (`younger_than_context`); it is informative only when
+finds within a unit carry distinct chronologies (not under unit-tied dating).
 
 # Model Validation
 
@@ -322,6 +366,36 @@ gg_phase_profile(fit)
 ```{r fig.height=5}
 # Confusion matrix heatmap
 gg_confusion(fit, moderate$true_phase)
+```
+
+### Model-output diagnostic plots (v0.18)
+
+Four plots visualise the outputs of the refined statistical model:
+
+```{r fig.height=4}
+# Per-phase class composition (multinomial cat_prob), heatmap by default
+gg_phase_composition(fit)
+```
+
+```{r eval=FALSE}
+# Within-unit phase coherence; pass compare = a gaussian-class fit to contrast
+gg_unit_coherence(fit)
+
+# Non-spatial ranking of the intrusion probability (noise posterior if noise=TRUE)
+gg_outliers(fit_n)
+
+# Directional intrusions: residual vs latent (needs per-find dating)
+gg_direction(fit_n)
+```
+
+### Type longevity
+
+`type_longevity()` aggregates the posterior to estimate the temporal envelope
+of each material class; `gg_longevity()` draws it as a Gantt-style chart:
+
+```{r eval=FALSE}
+tl <- type_longevity(fit)
+gg_longevity(tl)
 ```
 
 ## Interactive plots (plotly)
@@ -505,7 +579,7 @@ sf::st_write(sf_pts, "results.gpkg", layer = "phases")
 
 # Real-Data Example: Villa Romana
 
-The `villa_romana` dataset models a multi-period Roman villa excavation with 300 finds across 4 occupation phases (Republican, Early Imperial, Late Imperial, Late Antique) and 18 stratigraphic units. It includes realistic post-depositional disturbance (bioturbation, construction cuts, residual pottery) and taphonomic scoring.
+The `villa_romana` dataset is derived from the multi-period Roman villa of Poggio Gramignano (Lugnano in Teverina, Italy): 615 inventoried finds across 54 stratigraphic units and 17 material classes, spanning the Pre-Roman to Late Antique periods, with excavator-assigned taphonomic scores. Note that coordinates and dating are recorded at stratigraphic-unit level (see `recommend_setup()`), so the model resolves phases at the unit and macro-event level.
 
 ## Load and inspect
 
