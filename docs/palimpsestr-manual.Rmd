@@ -1,6 +1,6 @@
 ---
 title: "palimpsestr: User Manual"
-subtitle: "Complete Reference Guide v0.18.0"
+subtitle: "Complete Reference Guide v0.19.0"
 author: "Enzo Cocca"
 date: "`r Sys.Date()`"
 output:
@@ -29,7 +29,7 @@ library(palimpsestr)
 devtools::install_github("enzococca/palimpsestr")
 
 # From local source
-install.packages("palimpsestr_0.18.0.tar.gz", repos = NULL, type = "source")
+install.packages("palimpsestr_0.19.0.tar.gz", repos = NULL, type = "source")
 ```
 
 ## Required and optional packages
