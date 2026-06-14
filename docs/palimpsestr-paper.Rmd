@@ -417,7 +417,7 @@ The Poggio Gramignano case study illustrates both the framework's strengths and 
 
 # Data and code availability
 
-The \texttt{palimpsestr} package (version 0.19.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures in this paper were regenerated under version 0.19.0; the reproducibility script is available in the repository (\texttt{docs/regen\_casestudy\_v017.R}).
+The \texttt{palimpsestr} package (version 0.21.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures were produced with the reproducibility script available in the repository (\texttt{docs/regen\_casestudy\_v017.R}); the SEF model is unchanged since version 0.17.1, so they reproduce identically under 0.21.0. From version 0.20.0, \texttt{read\_pyarchinit()} ingests pyArchInit databases directly, and a set of QGIS Processing algorithms with a self-installing pyArchInit tab runs the full pipeline --- fitting, intrusion detection, and a narrated PDF/DOCX report (\texttt{export\_sef\_report()}) --- from within QGIS (\texttt{qgis/} folder).
 
 # Author contributions
 
@@ -443,7 +443,7 @@ Bailey, G. (2007). Time perspectives, palimpsests and the archaeology of time. *
 Bronk Ramsey, C. (2009). Bayesian analysis of radiocarbon dates. *Radiocarbon*, 51(1), 337--360. \url{https://doi.org/10.1017/S0033822200033865}
 
 \noindent
-Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.19.0. Zenodo. \url{https://doi.org/10.5281/zenodo.19881542}
+Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.21.0. Zenodo. \url{https://doi.org/10.5281/zenodo.19881542}
 
 \noindent
 Conolly, J., & Lake, M. (2006). *Geographical Information Systems in Archaeology*. Cambridge Manuals in Archaeology. Cambridge: Cambridge University Press. ISBN 978-0-521-79744-3. \url{https://doi.org/10.1017/CBO9780511807459}

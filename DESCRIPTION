@@ -29,7 +29,7 @@ Roxygen: list(markdown = TRUE)
 Depends: R (>= 4.1.0)
 Imports: stats, utils, graphics, grDevices
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, tinytex, sf, ggplot2,
-        viridis, ggrepel, plotly, DBI, RSQLite, RPostgres, shiny,
+        viridis, ggrepel, plotly, rlang, DBI, RSQLite, RPostgres, shiny,
         shinydashboard, DT, rcarbon (>= 1.5.0), oxcAAR
 Config/testthat/edition: 3
 VignetteBuilder: knitr

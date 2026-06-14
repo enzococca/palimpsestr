@@ -1,6 +1,6 @@
 ---
 title: "palimpsestr: User Manual"
-subtitle: "Complete Reference Guide v0.19.0"
+subtitle: "Complete Reference Guide v0.21.0"
 author: "Enzo Cocca"
 date: "`r Sys.Date()`"
 output:
@@ -29,7 +29,7 @@ library(palimpsestr)
 devtools::install_github("enzococca/palimpsestr")
 
 # From local source
-install.packages("palimpsestr_0.19.0.tar.gz", repos = NULL, type = "source")
+install.packages("palimpsestr_0.21.0.tar.gz", repos = NULL, type = "source")
 ```
 
 ## Required and optional packages
@@ -471,7 +471,7 @@ report_sef(fit, lang = "it")
 
 # Database Import
 
-Import data from SQLite or PostgreSQL:
+Import data from SQLite or PostgreSQL with the generic `read_db()`:
 
 ```{r eval=FALSE}
 # SQLite
@@ -486,6 +486,58 @@ data <- read_db(
   table = "finds_table"
 )
 ```
+
+# pyArchInit & QGIS Integration
+
+`read_pyarchinit()` reads a pyArchInit database directly, assembling a
+`fit_sef()`-ready data.frame from the finds tables and the stratigraphic-unit
+geometry. Finds come from `inventario_materiali_table` (materials) and/or
+`pottery_table` (pottery), selected with `source`. Each find inherits its US
+plan coordinates (centroid of the `pyunitastratigrafiche` polygon) and
+chronology (parsed from the free-text `datazione` of `us_table`, e.g.
+"II sec. a.C.", "I/II sec. d.C.", "425/450", "età romana").
+
+Elevation follows archaeological practice: a material's own `quota_usm`, else the
+mean US elevation from `pyarchinit_quote` (`quota_q`); pottery, which has no
+elevation column, always inherits its US elevation. The deprecated
+`us_table.quota_abs` form field is **not** used.
+
+```{r eval=FALSE}
+con  <- DBI::dbConnect(RSQLite::SQLite(), "villa_romana_pyarchinit.sqlite")
+geom <- sf::st_read("villa_romana_pyarchinit.sqlite", layer = "pyunitastratigrafiche")
+
+d   <- read_pyarchinit(con, us_geometry = geom, source = "both")  # materials + pottery
+fit <- reorder_phases(fit_sef(d, k = 4, context = "context",
+                              tafonomy = "taf_score", class_model = "multinomial",
+                              noise = TRUE))
+```
+
+## Narrated report export
+
+`export_sef_report()` turns a fit into a complete, narrated report — the
+`report_sef()` interpretive text, all applicable `gg_*` plots, and diagnostic
+tables (US summary, phase-transition matrix, per-US assignments, model
+statistics) — rendered to PDF and/or DOCX, in Italian or English:
+
+```{r eval=FALSE}
+export_sef_report(fit, "villa_romana_report",
+                  format = c("pdf", "docx"), lang = "it",
+                  site = "Villa Romana di Poggio Gramignano")
+```
+
+PDF rendering needs a LaTeX engine (`tinytex::install_tinytex()`) and DOCX needs
+pandoc; when neither is available the function still writes a markdown narrative
+plus PNG figures.
+
+## QGIS Processing plugin
+
+The `qgis/` folder ships three Processing R algorithms that run the whole
+pipeline from inside QGIS against the connected pyArchInit database:
+`r:palimpsestrfit` (phase + link layers and diagnostics), `r:palimpsestrintrusions`
+(intrusion posterior, direction and type per find), and `r:palimpsestrreport`
+(the narrated PDF/DOCX report). A self-installing **Palimpsest** tab integrates
+them into the pyArchInit plugin. See `qgis/README.md` for installation and the
+`qgis/make_villa_romana_db.R` builder for a ready-to-test example database.
 
 # Phase Reordering
 
