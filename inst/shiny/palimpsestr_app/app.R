@@ -45,6 +45,7 @@ ui <- dashboardPage(
       menuItem("Data", tabName = "data", icon = icon("upload")),
       menuItem("Analysis", tabName = "analysis", icon = icon("cogs")),
       menuItem("Plots", tabName = "results", icon = icon("chart-bar")),
+      menuItem("Model profile", tabName = "modelprofile", icon = icon("layer-group")),
       menuItem("Tables", tabName = "tables", icon = icon("table")),
       menuItem("Type longevity", tabName = "longevity", icon = icon("clock")),
       menuItem("Maps", tabName = "maps", icon = icon("map")),
@@ -203,6 +204,18 @@ ui <- dashboardPage(
                    sef_plot_ui("plot_intrusions", "550px")),
           tabPanel("Vertical Profile", sef_plot_ui("plot_phase_profile", "550px")),
           tabPanel("EM Convergence", sef_plot_ui("plot_convergence", "550px"))
+        )
+      ),
+
+      ## --- Tab: Model profile ---
+      tabItem(tabName = "modelprofile",
+        fluidRow(
+          box(title = "Per-phase class composition", width = 6, sef_plot_ui("mp_composition")),
+          box(title = "Within-unit coherence",       width = 6, sef_plot_ui("mp_coherence"))
+        ),
+        fluidRow(
+          box(title = "Intrusion ranking",        width = 6, sef_plot_ui("mp_outliers")),
+          box(title = "Directional intrusions",   width = 6, sef_plot_ui("mp_direction"))
         )
       ),
 
@@ -619,6 +632,21 @@ server <- function(input, output, session) {
   })
   sef_plot_render(input, output, session, "plot_convergence", function() {
     req(rv$fit); gg_convergence(rv$fit)
+  })
+
+  ## --- Model profile plots ---
+
+  sef_plot_render(input, output, session, "mp_composition", function() {
+    req(rv$fit); if (is.null(rv$fit$cat_prob)) return(NULL); gg_phase_composition(rv$fit)
+  })
+  sef_plot_render(input, output, session, "mp_coherence", function() {
+    req(rv$fit); if (is.null(rv$fit$context)) return(NULL); gg_unit_coherence(rv$fit)
+  })
+  sef_plot_render(input, output, session, "mp_outliers", function() {
+    req(rv$fit); gg_outliers(rv$fit)
+  })
+  sef_plot_render(input, output, session, "mp_direction", function() {
+    req(rv$fit); gg_direction(rv$fit)
   })
 
   ## --- Tables ---

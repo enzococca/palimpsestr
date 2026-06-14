@@ -1,3 +1,20 @@
+# palimpsestr 0.18.0
+
+## New diagnostic plots
+
+- `gg_phase_composition()`: per-phase class profile from the multinomial model
+  (`cat_prob`), as a heatmap (default) or stacked bars.
+- `gg_direction()`: diverging lollipop of the directional intrusion diagnostic
+  (residual / older-than-context vs latent-feature / younger-than-context),
+  with a graceful placeholder when every find is in context.
+- `gg_outliers()`: non-spatial ranking of the intrusion probability, using the
+  noise-component posterior when available, otherwise the heuristic composite.
+- `gg_unit_coherence()`: within-stratigraphic-unit phase coherence, with an
+  optional comparison fit (e.g. the legacy Gaussian-class model).
+
+All four are exposed in a new "Model profile" tab of the Shiny app and are
+compatible with `as_plotly()`.
+
 # palimpsestr 0.17.1
 
 Bug fixes for noise-component model selection (addresses code review on the

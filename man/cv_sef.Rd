@@ -19,7 +19,11 @@ cv_sef(data, k_values = 2:6, n_folds = 5, seed = 1, ...)
 }
 \value{
 A data.frame with columns \code{k}, \code{fold},
-\code{train_loglik}, \code{test_loglik}, \code{train_pdi}.
+\code{train_loglik}, \code{test_loglik}, \code{train_pdi}. The
+\code{test_loglik} carries the same Jacobian correction as
+\code{\link{optimize_weights}}, so it is comparable across weight
+configurations (not only across \code{k}); with default weights the
+correction is zero.
 }
 \description{
 Splits the data into folds, fits on training folds, and evaluates
