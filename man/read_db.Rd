@@ -45,6 +45,7 @@ to the format expected by \code{\link{fit_sef}}.
 \code{\link{fit_sef}}, \code{\link{load_geometries}}
 
 Other data-import:
-\code{\link[=load_geometries]{load_geometries()}}
+\code{\link[=load_geometries]{load_geometries()}},
+\code{\link[=read_pyarchinit]{read_pyarchinit()}}
 }
 \concept{data-import}
