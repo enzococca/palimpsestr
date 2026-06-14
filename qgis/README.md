@@ -27,6 +27,17 @@ the **palimpsestr** group:
 |---|---|
 | `r:palimpsestrfit` | Fit the SEF model; outputs a phase point layer, a high-SEI link layer, and a diagnostics table |
 | `r:palimpsestrintrusions` | Model-based intrusion detection; outputs the finds with `intrusion_prob`, `direction`, `intrusion_type` |
+| `r:palimpsestrreport` | Database → fit → narrated **PDF/DOCX report** (interpretive text + all `gg_*` plots + diagnostic tables); parameters `Source`, `Language` (it/en), `Format` (pdf/docx/both) |
+
+All three read finds via `read_pyarchinit()` and share a `Source` parameter
+(`both` / `materials` / `pottery`): materials come from
+`inventario_materiali_table` (elevation `quota_usm`), pottery from
+`pottery_table` (inheriting its US elevation from `pyarchinit_quote`). The
+deprecated `us_table.quota_abs` field is not used.
+
+The report algorithm needs **pandoc** for PDF/DOCX and a **LaTeX** engine for
+PDF (e.g. `tinytex::install_tinytex()` in R). When neither is available it still
+writes a markdown narrative plus PNG figures next to the chosen output.
 
 ## Inputs
 

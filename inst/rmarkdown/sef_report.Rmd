@@ -1,0 +1,138 @@
+---
+params:
+  data_path: ""
+title: "`r tryCatch(readRDS(params$data_path)$payload$title, error = function(e) 'SEF report')`"
+date: "`r format(Sys.Date())`"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+  word_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                      fig.width = 7, fig.height = 5, dpi = 150)
+d    <- readRDS(params$data_path)$payload
+lang <- d$lang
+tr   <- function(it, en) if (identical(lang, "it")) it else en
+fig  <- function(p, note = tr("(grafico non applicabile a questo modello)",
+                              "(plot not applicable to this model)")) {
+  if (!is.null(p)) print(p) else cat(note)
+}
+tbl  <- function(x, cap = NULL, n = 80) {
+  if (is.null(x)) { cat(tr("(non disponibile)", "(not available)")); return(invisible()) }
+  if (is.data.frame(x) && nrow(x) > n) x <- utils::head(x, n)
+  print(knitr::kable(x, caption = cap))
+}
+```
+
+`r if (!is.null(d$site)) paste0("**", tr("Sito","Site"), ":** ", d$site, "  ")`
+`r paste0("**", tr("Reperti","Finds"), ":** ", d$n, " | **US:** ", length(unique(if (!is.null(d$phase_table)) d$phase_table[[1]] else NA)), " | **K:** ", d$k)`
+
+# `r tr("Sintesi interpretativa", "Interpretive summary")`
+
+```{r narrative, results='asis'}
+cat(d$narrative, sep = "\n")
+```
+
+# `r tr("Campo di fase", "Phase field")`
+
+```{r phasefield}
+fig(d$plots$phasefield)
+```
+
+# `r tr("Entropia (incertezza di assegnazione)", "Entropy (assignment uncertainty)")`
+
+```{r entropy}
+fig(d$plots$entropy)
+```
+
+# `r tr("Energia stratigrafica (ESE)", "Stratigraphic energy (ESE)")`
+
+```{r energy}
+fig(d$plots$energy)
+```
+
+# `r tr("Intrusioni", "Intrusions")`
+
+```{r intrusions}
+fig(d$plots$intrusions)
+```
+
+```{r intrusions-table, results='asis'}
+di <- d$intrusions
+if (!is.null(di)) {
+  flagged <- di[order(-di$intrusion_prob), , drop = FALSE]
+  keep <- intersect(c("id", "context", "intrusion_prob", "direction", "intrusion_type"),
+                    names(flagged))
+  flagged <- flagged[flagged$intrusion_prob > 0, keep, drop = FALSE]
+  if (nrow(flagged)) tbl(utils::head(flagged, 30),
+                         cap = tr("Reperti segnalati come intrusivi",
+                                  "Finds flagged as intrusive"))
+}
+```
+
+# `r tr("Composizione delle fasi", "Phase composition")`
+
+```{r phase-composition}
+fig(d$plots$phase_composition)
+```
+
+# `r tr("Direzione cronologica", "Chronological direction")`
+
+```{r direction}
+fig(d$plots$direction)
+```
+
+# `r tr("Outlier", "Outliers")`
+
+```{r outliers}
+fig(d$plots$outliers)
+```
+
+# `r tr("Coerenza delle US", "Unit coherence")`
+
+```{r unit-coherence}
+fig(d$plots$unit_coherence)
+```
+
+```{r compare-k, eval=!is.null(d$compare_k_plot)}
+fig(d$compare_k_plot)
+```
+
+# `r tr("Diagnostica del modello", "Model diagnostics")`
+
+```{r diagnostics, results='asis'}
+ms <- d$model_stats
+diag <- data.frame(
+  check.names = FALSE,
+  Metric = c("PDI", "BIC", "ICL", "logLik",
+             tr("Entropia media", "Mean entropy"),
+             tr("Energia media (ESE)", "Mean ESE"),
+             tr("SEI locale medio", "Mean local SEI")),
+  Value = round(c(ms$pdi, ms$bic, ms$icl, ms$loglik,
+                  ms$mean_entropy, ms$mean_energy, ms$mean_local_sei), 4))
+tbl(diag, cap = tr("Statistiche del modello", "Model statistics"))
+```
+
+```{r us-summary, results='asis'}
+tbl(d$us_summary, cap = tr("Riassunto per US", "Per-US summary"))
+```
+
+```{r ptm, results='asis'}
+tbl(d$ptm, cap = tr("Matrice di transizione tra fasi", "Phase-transition matrix"))
+```
+
+# `r tr("Appendice: assegnazione per US", "Appendix: per-US assignment")`
+
+```{r phase-table, results='asis'}
+tbl(d$phase_table, cap = tr("Probabilita di fase per US", "Per-US phase probabilities"))
+```
+
+# `r tr("Note metodologiche", "Methodological notes")`
+
+`r tr(
+"Il modello Stratigraphic Entanglement Field (SEF) stima fasi deposizionali latenti tramite una mistura gaussiana diagonale combinata con una verosimiglianza multinomiale per la classe, con penalita stratigrafiche e un peso tafonomico (taf) fornito dall'analista. Le quote provengono da pyarchinit_quote (US) e da quota_usm (reperti); il campo quota_abs della scheda US e in disuso.",
+"The Stratigraphic Entanglement Field (SEF) model estimates latent depositional phases via a diagonal Gaussian mixture combined with a per-class multinomial likelihood, with stratigraphic penalties and an analyst-supplied taphonomic weight (taf). Elevations come from pyarchinit_quote (US) and quota_usm (finds); the US-form quota_abs field is deprecated.")`

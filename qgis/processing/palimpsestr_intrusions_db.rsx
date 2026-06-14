@@ -4,6 +4,7 @@
 ##Site=string all
 ##K=number 4
 ##Threshold=number 0.5
+##Source=enum literal both;materials;pottery
 ##Intrusions=output vector
 
 # Model-based intrusion detection straight from a pyArchInit SQLite/Spatialite
@@ -18,8 +19,9 @@ con  <- DBI::dbConnect(RSQLite::SQLite(), Database_file)
 geom <- tryCatch(sf::st_read(Database_file, layer = "pyunitastratigrafiche", quiet = TRUE),
                  error = function(e) NULL)
 
-site <- if (exists("Site") && nchar(Site) > 0 && Site != "all") Site else NULL
-d <- read_pyarchinit(con, us_geometry = geom, sito = site)
+site       <- if (exists("Site") && nchar(Site) > 0 && Site != "all") Site else NULL
+source_sel <- if (is.numeric(Source)) c("both", "materials", "pottery")[Source + 1] else as.character(Source)
+d <- read_pyarchinit(con, us_geometry = geom, sito = site, source = source_sel)
 DBI::dbDisconnect(con)
 
 fit <- fit_sef(d, k = as.integer(K), context = "context",

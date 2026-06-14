@@ -1,3 +1,36 @@
+# palimpsestr 0.21.0
+
+## Narrated report export
+
+- New `export_sef_report()`: assembles a complete, narrated report from a
+  `sef_fit` — the `report_sef()` interpretive text, all applicable `gg_*`
+  diagnostic plots, and diagnostic tables (US summary, phase-transition matrix,
+  per-US phase assignments, model statistics) — rendered to PDF and/or DOCX from
+  a shipped RMarkdown template (`inst/rmarkdown/sef_report.Rmd`), in Italian or
+  English. A markdown narrative sidecar (`<file>.md`) is always written; when
+  pandoc/LaTeX are unavailable the function degrades gracefully to that
+  markdown plus PNG figures. `tinytex` added to Suggests.
+
+## Corrected pyArchInit data sourcing
+
+- `read_pyarchinit()` now sources elevation per archaeological practice: US
+  elevation from `pyarchinit_quote` (mean `quota_q` per unit, with a
+  `(sito, us)` join fallback), material elevation from `quota_usm`, and pottery
+  inheriting its US elevation. The deprecated `us_table.quota_abs` form field is
+  no longer used.
+- New `source = "both"|"materials"|"pottery"` argument: reads
+  `inventario_materiali_table` and/or `pottery_table` (pottery `class` taken
+  from the first non-empty of `ware`/`material`/`form`); a `find_source` column
+  is added when `source = "both"`.
+
+## QGIS Processing
+
+- New `r:palimpsestrreport` algorithm (`palimpsestr_report_db.rsx`): database →
+  fit → narrated PDF/DOCX report, with Source / Language / Format parameters.
+- `r:palimpsestrfit` and `r:palimpsestrintrusions` gain a `Source` parameter.
+- The `villa_romana` example database builder now populates `quota_usm`,
+  `pottery_table`, and `pyarchinit_quote` to exercise the corrected sourcing.
+
 # palimpsestr 0.20.0
 
 ## pyArchInit database bridge

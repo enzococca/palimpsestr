@@ -8,10 +8,13 @@ read_pyarchinit(
   con,
   us_geometry = NULL,
   sito = NULL,
+  source = c("both", "materials", "pottery"),
   date_labels = NULL,
   taf = NULL,
   us_geom_field = NULL,
-  synthetic_coords = TRUE
+  synthetic_coords = TRUE,
+  quote_table = "pyarchinit_quote",
+  pottery_class = c("ware", "material", "form")
 )
 }
 \arguments{
@@ -20,10 +23,12 @@ or PostgreSQL/PostGIS).}
 
 \item{us_geometry}{Optional \code{sf} object of US polygons (e.g. read from
 the \code{pyunitastratigrafiche} layer); its centroids give each find's
-\code{x}/\code{y}. Without it, coordinates are unavailable and finds are
-dropped.}
+\code{x}/\code{y}.}
 
 \item{sito}{Optional site filter (matched against the \code{sito} column).}
+
+\item{source}{One of \code{"both"} (default), \code{"materials"}, or
+\code{"pottery"} - which finds tables to read.}
 
 \item{date_labels}{Optional named list of period label -> \code{c(min, max)}
 year bounds, extending or overriding the built-in dictionary.}
@@ -38,19 +43,40 @@ a vector named by find \code{id}. Defaults to 0.5 (neutral).}
 unit has no polygon in \code{us_geometry}, assign it deterministic
 per-unit grid coordinates so the analysis can still run at unit
 resolution; set \code{FALSE} to drop such finds instead.}
+
+\item{quote_table}{Name of the US-elevation point table
+(default \code{"pyarchinit_quote"}); set \code{NULL} to skip it.}
+
+\item{pottery_class}{Character vector of \code{pottery_table} columns; the
+find's \code{class} is the first non-empty of these per row
+(default \code{c("ware", "material", "form")}).}
 }
 \value{
 A data.frame with \code{id}, \code{x}, \code{y}, \code{z},
 \code{date_min}, \code{date_max}, \code{class}, \code{context},
-\code{taf_score}, ready for \code{\link{fit_sef}}.
+\code{taf_score} (plus \code{find_source} when \code{source = "both"}),
+ready for \code{\link{fit_sef}}.
 }
 \description{
-Reads the \code{inventario_materiali_table} (finds) and \code{us_table}
-(stratigraphic units) of a pyArchInit database and assembles a data.frame
-ready for \code{\link{fit_sef}}: each find inherits its stratigraphic unit's
-coordinates (centroid of the US polygon), elevation, chronology, and context.
-Dating is resolved from the free-text period strings of the US (or of the
-find) by an internal archaeological-date parser.
+Reads finds from a pyArchInit database and assembles a data.frame ready for
+\code{\link{fit_sef}}. Finds come from \code{inventario_materiali_table}
+(materials) and/or \code{pottery_table} (pottery), selectable via
+\code{source}. Each find inherits its stratigraphic unit's plan coordinates
+(centroid of the US polygon) and chronology (from \code{us_table}), while
+elevation follows archaeological practice (see \emph{Details}).
+}
+\details{
+Elevation (\code{z}) is sourced, in order of precedence:
+\enumerate{
+\item the find's own \code{quota_usm} (materials only);
+\item the mean US elevation from \code{pyarchinit_quote} (\code{quota_q}),
+joined on \code{(sito, area, us)} with an \code{(sito, us)} fallback;
+\item \code{0} when neither is available.
+}
+The deprecated \code{us_table.quota_abs} form field is \strong{not} used.
+Pottery has no elevation column, so it always inherits its US elevation.
+Dating is resolved from \code{us_table.datazione} (falling back to the find's
+own dating) by an internal archaeological-date parser.
 }
 \seealso{
 \code{\link{read_db}}, \code{\link{fit_sef}}
