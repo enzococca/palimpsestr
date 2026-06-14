@@ -397,15 +397,15 @@ Field testing motivated a sequence of methodological refinements, all of which a
 4. **Genuine likelihood-based model selection**: BIC and ICL are computed from the unpenalised mixture density and account for the categorical and noise parameters.
 5. **Per-find chronological uncertainty** (\texttt{chrono\_uncertainty}) and **dynamic Neighborhood-EM stratigraphic field** (\texttt{strat\_dynamic}), which propagate dating-interval widths and recompute the stratigraphic constraint from the current posteriors, respectively.
 6. **Noise / outlier component** (\texttt{noise}): a uniform background component yielding a genuine posterior probability of intrusion and robust phase estimation.
-7. **Directional intrusion diagnostics** and a **setup adviser** (\texttt{recommend\_setup()}) that reports data-resolution caveats; **type-longevity** estimation (\texttt{type\_longevity()}, \texttt{gg\_longevity()}); and an **rcarbon adapter** (\texttt{chronology\_from\_rcarbon()}) for calibrated $^{14}$C dates.
+7. **Directional intrusion diagnostics** and a **setup adviser** (\texttt{recommend\_setup()}) that reports data-resolution caveats; **type-longevity** estimation (\texttt{type\_longevity()}, \texttt{gg\_longevity()}); and an **rcarbon adapter** (\texttt{chronology\_from\_rcarbon()}) for calibrated $^{14}$C dates. An **OxCal adapter** (\texttt{chronology\_from\_oxcal()}) provides the same service for OxCal-modelled dates, and the intrusion diagnostic couples the noise-component magnitude with the chronological direction in an \texttt{intrusion\_type} classification.
 
 ## Future development
 
 Several further developments are planned in response to user feedback (notably from M. Cattani, see Acknowledgements) and to the limitations discussed above:
 
 - **Validation on find-resolution, dendrochronologically dated sites**: the Poggio Gramignano case study uses unit-level recording with periodisation-based dating. To exercise the find-level machinery (within-unit entropy, directional intrusions, chronological-uncertainty propagation) a future case study is planned on the Lago Lucone pile-dwelling site (Gavardo, BS, Italy), where piece-plotted finds and dendrochronological dating provide yearly-resolved, find-level anchors for the Bronze Age occupation. Such a dataset would allow direct evaluation of how recording resolution translates into phase-recovery accuracy.
-- **Within-class structure and OxCal integration**: automated detection of sub-typological structure within homogeneous classes, and direct ingestion of OxCal phase models alongside the existing \texttt{rcarbon} pathway.
-- **Methodological extensions**: full-covariance and fully Bayesian variants of the mixture model; spatial-autocorrelation-aware likelihoods; and tighter coupling between the noise component and the directional intrusion diagnostics.
+- **Within-class structure**: automated detection of sub-typological structure within homogeneous classes.
+- **Methodological extensions**: full-covariance and fully Bayesian variants of the mixture model; and spatial-autocorrelation-aware likelihoods.
 
 The package will continue to be developed in response to user feedback through the GitHub issue tracker.
 
@@ -417,7 +417,7 @@ The Poggio Gramignano case study illustrates both the framework's strengths and 
 
 # Data and code availability
 
-The \texttt{palimpsestr} package (version 0.18.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures in this paper were regenerated under version 0.18.0; the reproducibility script is available in the repository (\texttt{docs/regen\_casestudy\_v017.R}).
+The \texttt{palimpsestr} package (version 0.19.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures in this paper were regenerated under version 0.19.0; the reproducibility script is available in the repository (\texttt{docs/regen\_casestudy\_v017.R}).
 
 # Author contributions
 
@@ -443,7 +443,7 @@ Bailey, G. (2007). Time perspectives, palimpsests and the archaeology of time. *
 Bronk Ramsey, C. (2009). Bayesian analysis of radiocarbon dates. *Radiocarbon*, 51(1), 337--360. \url{https://doi.org/10.1017/S0033822200033865}
 
 \noindent
-Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.18.0. Zenodo. \url{https://doi.org/10.5281/zenodo.19881542}
+Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.19.0. Zenodo. \url{https://doi.org/10.5281/zenodo.19881542}
 
 \noindent
 Conolly, J., & Lake, M. (2006). *Geographical Information Systems in Archaeology*. Cambridge Manuals in Archaeology. Cambridge: Cambridge University Press. ISBN 978-0-521-79744-3. \url{https://doi.org/10.1017/CBO9780511807459}
