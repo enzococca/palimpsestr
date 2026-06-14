@@ -75,3 +75,14 @@ test_that("gg_unit_coherence accepts a comparison fit", {
   fg <- fit_sef(x, k = 3, context = "context", seed = 1, class_model = "gaussian")
   expect_s3_class(gg_unit_coherence(fm, compare = fg), "ggplot")
 })
+
+test_that("gg_outliers colours by intrusion_type", {
+  skip_if_not_installed("ggplot2")
+  x <- archaeo_sim(n = 70, k = 2, seed = 11)
+  fit <- fit_sef(x, k = 2, context = "context", seed = 1, noise = TRUE)
+  p <- gg_outliers(fit)
+  expect_s3_class(p, "ggplot")
+  # ggplot2 >= 4.0 resolves .data$type to the symbol "type" in as_label
+  lbl <- rlang::as_label(p$mapping$colour)
+  expect_true(lbl %in% c(".data$type", "type"))
+})

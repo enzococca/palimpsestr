@@ -49,5 +49,8 @@ if (requireNamespace("rcarbon", quietly = TRUE)) {
 }
 \seealso{
 \code{\link{fit_sef}}
+
+Other chronology:
+\code{\link[=chronology_from_oxcal]{chronology_from_oxcal()}}
 }
 \concept{chronology}

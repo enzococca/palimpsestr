@@ -142,21 +142,25 @@ gg_direction <- function(object, top_n = 20) {
 gg_outliers <- function(object, threshold = 0.5, top_n = 20) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
   .check_ggplot()
-  di <- detect_intrusions(object)
+  di <- detect_intrusions(object, intrusion_threshold = threshold)
   has_noise <- !is.null(object$noise_prob)
   sub <- if (has_noise) "Noise-component posterior (model-based outlier probability)"
          else "Heuristic composite score (fit without noise = TRUE)"
-  df <- data.frame(id = as.character(di$id), prob = di$intrusion_prob, stringsAsFactors = FALSE)
+  df <- data.frame(id = as.character(di$id), prob = di$intrusion_prob,
+                   type = as.character(di$intrusion_type), stringsAsFactors = FALSE)
   df <- df[order(-df$prob), ]
   if (nrow(df) > top_n) df <- df[seq_len(top_n), ]
   df$id <- factor(df$id, levels = rev(df$id))
-  df$flag <- ifelse(df$prob >= threshold, "above", "below")
+  df$type <- factor(df$type,
+    levels = c("not_flagged", "residual", "latent_feature", "outlier_in_context"))
 
-  ggplot2::ggplot(df, ggplot2::aes(x = .data$prob, y = .data$id, colour = .data$flag)) +
+  ggplot2::ggplot(df, ggplot2::aes(x = .data$prob, y = .data$id, colour = .data$type)) +
     ggplot2::geom_segment(ggplot2::aes(x = 0, xend = .data$prob, yend = .data$id), linewidth = 0.7) +
     ggplot2::geom_point(size = 2.6) +
     ggplot2::geom_vline(xintercept = threshold, linetype = "dashed", colour = "grey50") +
-    ggplot2::scale_colour_manual(values = c(above = "#D55E00", below = "#56B4E9"), guide = "none") +
+    ggplot2::scale_colour_manual(name = "Type", drop = FALSE,
+      values = c(not_flagged = "grey70", residual = "#0072B2",
+                 latent_feature = "#D55E00", outlier_in_context = "#E69F00")) +
     ggplot2::xlim(0, 1) +
     ggplot2::labs(title = "Intrusion ranking", subtitle = sub,
                   x = "Intrusion probability", y = "Find", caption = .sef_caption()) +

@@ -114,3 +114,95 @@ chronology_from_rcarbon <- function(cal_dates,
   if (method == "hpd") attr(out$date_min, "disjoint_hpd") <- disjoint
   out
 }
+
+#' Convert OxCal-calibrated dates to date_min/date_max columns
+#'
+#' Adapter that takes either an \code{oxcAAR}-calibrated dates object or a
+#' generic data.frame of calibrated ranges and returns a data.frame compatible
+#' with the chronology columns expected by \code{\link{fit_sef}}. It is the
+#' OxCal counterpart of \code{\link{chronology_from_rcarbon}}.
+#'
+#' @param x Either an object of class \code{oxcAARCalibratedDatesList}
+#'   (from \code{oxcAAR::oxcalCalibrate()}) or a \code{data.frame} with numeric
+#'   \code{start} and \code{end} columns (calendar years, BC negative) and an
+#'   optional \code{id} column.
+#' @param method For the oxcAAR object input, one of \code{"hpd"} (default),
+#'   \code{"median_iqr"}, or \code{"weighted_mean"}. Ignored (with a message)
+#'   for data.frame input, which already supplies an interval.
+#' @param hpd Probability covered by the HPD region when \code{method = "hpd"}
+#'   (default 0.95).
+#' @param ids Optional character identifiers; default \code{cal_1 ... cal_n}.
+#' @param bce_negative Logical. If TRUE (default), dates are returned in the
+#'   BCE/CE convention with BCE negative; if FALSE, raw calBP
+#'   (\code{1950 - year}).
+#' @return A data.frame with columns \code{id}, \code{date_min},
+#'   \code{date_max}, \code{date_mid}.
+#' @seealso \code{\link{chronology_from_rcarbon}}, \code{\link{fit_sef}}
+#' @family chronology
+#' @examples
+#' d <- data.frame(id = c("a", "b"), start = c(-700, -50), end = c(-600, 100))
+#' chronology_from_oxcal(d)
+#' @export
+chronology_from_oxcal <- function(x,
+                                  method = c("hpd", "median_iqr", "weighted_mean"),
+                                  hpd = 0.95, ids = NULL, bce_negative = TRUE) {
+  method <- match.arg(method)
+  conv <- function(yr) if (bce_negative) yr else 1950 - yr
+
+  if (is.data.frame(x)) {
+    if (!all(c("start", "end") %in% names(x))) {
+      stop("data.frame input must have numeric 'start' and 'end' columns ",
+           "(calendar years, BC negative).", call. = FALSE)
+    }
+    n <- nrow(x)
+    if (is.null(ids)) {
+      ids <- if ("id" %in% names(x)) as.character(x$id) else paste0("cal_", seq_len(n))
+    }
+    if (method != "hpd") {
+      message("method is ignored for data.frame input (an interval is already provided).")
+    }
+    s <- conv(as.numeric(x$start)); e <- conv(as.numeric(x$end))
+    return(data.frame(id = ids, date_min = pmin(s, e), date_max = pmax(s, e),
+                      date_mid = (s + e) / 2, stringsAsFactors = FALSE))
+  }
+
+  if (inherits(x, "oxcAARCalibratedDatesList")) {
+    if (!requireNamespace("oxcAAR", quietly = TRUE)) {
+      stop("Package 'oxcAAR' is required to reduce an oxcAARCalibratedDatesList. ",
+           "Install with: install.packages('oxcAAR')", call. = FALSE)
+    }
+    n <- length(x)
+    if (is.null(ids)) ids <- if (!is.null(names(x))) names(x) else paste0("cal_", seq_len(n))
+    out_min <- numeric(n); out_max <- numeric(n); out_mid <- numeric(n)
+    for (i in seq_len(n)) {
+      g <- x[[i]]$raw_probabilities
+      yr <- as.numeric(g$dates); pr <- as.numeric(g$probabilities)
+      keep <- is.finite(yr) & is.finite(pr) & pr > 0
+      yr <- yr[keep]; pr <- pr[keep] / sum(pr[keep])
+      if (method == "hpd") {
+        ord <- order(pr, decreasing = TRUE)
+        inc <- ord[cumsum(pr[ord]) <= hpd]
+        if (length(inc) == 0) inc <- ord[1]
+        lo <- conv(min(yr[inc])); hi <- conv(max(yr[inc]))
+        out_min[i] <- min(lo, hi); out_max[i] <- max(lo, hi)
+        out_mid[i] <- (out_min[i] + out_max[i]) / 2
+      } else if (method == "median_iqr") {
+        o <- order(yr); cum <- cumsum(pr[o])
+        q <- function(p) yr[o][which.min(abs(cum - p))]
+        lo <- conv(q(0.25)); hi <- conv(q(0.75))
+        out_min[i] <- min(lo, hi); out_max[i] <- max(lo, hi)
+        out_mid[i] <- conv(q(0.5))
+      } else {
+        mu <- sum(yr * pr); sdv <- sqrt(sum(pr * (yr - mu)^2))
+        lo <- conv(mu - 2 * sdv); hi <- conv(mu + 2 * sdv)
+        out_min[i] <- min(lo, hi); out_max[i] <- max(lo, hi)
+        out_mid[i] <- conv(mu)
+      }
+    }
+    return(data.frame(id = ids, date_min = out_min, date_max = out_max,
+                      date_mid = out_mid, stringsAsFactors = FALSE))
+  }
+
+  stop("x must be an 'oxcAARCalibratedDatesList' or a data.frame with start/end columns.",
+       call. = FALSE)
+}
