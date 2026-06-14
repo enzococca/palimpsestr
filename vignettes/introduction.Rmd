@@ -209,6 +209,16 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 
 The vertical profile confirms the expected stratigraphic ordering: earlier phases occupy deeper strata, later phases are shallower.
 
+## Model-output diagnostic plots
+
+```{r model-plots, eval=FALSE}
+fit <- fit_sef(demo_moderate, k = 3, context = "context", noise = TRUE)
+gg_phase_composition(fit)        # per-phase class profile (heatmap)
+gg_unit_coherence(fit)           # within-unit coherence
+gg_outliers(fit)                 # intrusion ranking (noise posterior)
+gg_direction(fit)                # residual vs latent finds
+```
+
 ## Intrusion Analysis
 
 The `detect_intrusions()` function computes a composite intrusion probability for each find, combining entropy, ESE, and SEI connectivity into a single score.
