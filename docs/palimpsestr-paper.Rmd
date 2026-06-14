@@ -286,7 +286,15 @@ Phase & Macro-event & N & \% & Dominant material classes (share) \\
 \end{tabular}
 \end{table}
 
-The model achieved $PDI = 0.999$ with mean entropy $0.002$, and the noise component identified 10 finds (1.6\%) as probable out-of-context items. Crucially, all 54 stratigraphic units remained internally coherent (every unit assigned to a single phase). This contrasts with the legacy one-hot Gaussian class model, which split 27 of the 54 units across multiple phases --- a fragmentation driven by material class rather than stratigraphy, and a direct illustration of the methodological correction introduced by the categorical class model.
+The model achieved $PDI = 0.999$ with mean entropy $0.002$, and the noise component identified 10 finds (1.6\%) as probable out-of-context items. The per-phase class profiles are shown as a heatmap in Figure \ref{fig:composition}. Crucially, all 54 stratigraphic units remained internally coherent (every unit assigned to a single phase). This contrasts with the legacy one-hot Gaussian class model, which split 27 of the 54 units across multiple phases (Figure \ref{fig:coherence}) --- a fragmentation driven by material class rather than stratigraphy, and a direct illustration of the methodological correction introduced by the categorical class model.
+
+```{r composition, fig.cap="\\label{fig:composition}VRPG: per-phase class composition from gg\\_phase\\_composition(). Each tile is the estimated probability that a find assigned to a phase (rows) belongs to a material class (columns); rows sum to 1. All macro-events are ceramic-dominated, with the secondary classes distinguishing them."}
+knitr::include_graphics("figs-v017/phase_composition.png")
+```
+
+```{r coherence, fig.cap="\\label{fig:coherence}VRPG: within-unit phase coherence from gg\\_unit\\_coherence(), comparing the per-phase categorical class model (this fit) with the legacy one-hot Gaussian model. The categorical model keeps all 54 stratigraphic units coherent; the one-hot model splits 27 of them across phases by typology."}
+knitr::include_graphics("figs-v017/unit_coherence.png")
+```
 
 ## EM convergence
 
@@ -316,10 +324,14 @@ knitr::include_graphics("figs-v017/energy.png")
 
 ## Intrusion detection
 
-The intrusion-probability map (Figure \ref{fig:intrusions}) flags 10 finds whose noise-component posterior exceeds 0.5. Because this is the posterior of a uniform background component rather than a rescaled composite, the score is a genuine probability of being out of context and identifies items that fit none of the four macro-events well --- predominantly atypical material in otherwise homogeneous contexts. The directional classification reports all dated finds as \emph{in-context}, the expected outcome when the chronology is unit-tied: with a single date interval per unit, no find can be older or younger than its own unit's envelope, and \texttt{recommend\_setup()} anticipates this. Directional residual/intrusion diagnostics become informative only with per-find typological dating.
+The intrusion-probability map (Figure \ref{fig:intrusions}) flags 10 finds whose noise-component posterior exceeds 0.5, and the same posterior is shown as a non-spatial ranking in Figure \ref{fig:outliers}. Because this is the posterior of a uniform background component rather than a rescaled composite, the score is a genuine probability of being out of context and identifies items that fit none of the four macro-events well --- predominantly atypical material in otherwise homogeneous contexts. The directional classification reports all dated finds as \emph{in-context}, the expected outcome when the chronology is unit-tied: with a single date interval per unit, no find can be older or younger than its own unit's envelope, and \texttt{recommend\_setup()} anticipates this. Directional residual/intrusion diagnostics (\texttt{gg\_direction()}) become informative only with per-find typological dating.
 
-```{r intrusions, fig.cap="\\label{fig:intrusions}VRPG: intrusion detection from gg\\_intrusions(top\\_n = 10). Circled finds with labels are the highest-scoring suspects, computed from a composite of high entropy, high ESE, and low SEI connectivity."}
+```{r intrusions, fig.cap="\\label{fig:intrusions}VRPG: intrusion detection from gg\\_intrusions(top\\_n = 10). Circled, labelled finds are the highest-scoring suspects; under the noise component the score is the posterior probability of the uniform background component."}
 knitr::include_graphics("figs-v017/intrusions.png")
+```
+
+```{r outliers, fig.cap="\\label{fig:outliers}VRPG: intrusion ranking from gg\\_outliers(top\\_n = 15). Per-find noise-component posterior, sorted; the dashed line marks the 0.5 threshold. Unlike a rescaled composite, the posterior is an absolute probability and is not forced to span the full [0, 1] range."}
+knitr::include_graphics("figs-v017/outliers.png")
 ```
 
 ## Vertical phase profile
@@ -405,7 +417,7 @@ The Poggio Gramignano case study illustrates both the framework's strengths and 
 
 # Data and code availability
 
-The \texttt{palimpsestr} package (version 0.17.1 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures in this paper were regenerated under version 0.17.1; the reproducibility script is available in the repository (\texttt{docs/regen\_casestudy\_v017.R}).
+The \texttt{palimpsestr} package (version 0.18.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures in this paper were regenerated under version 0.18.0; the reproducibility script is available in the repository (\texttt{docs/regen\_casestudy\_v017.R}).
 
 # Author contributions
 
@@ -431,7 +443,7 @@ Bailey, G. (2007). Time perspectives, palimpsests and the archaeology of time. *
 Bronk Ramsey, C. (2009). Bayesian analysis of radiocarbon dates. *Radiocarbon*, 51(1), 337--360. \url{https://doi.org/10.1017/S0033822200033865}
 
 \noindent
-Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.17.1. Zenodo. \url{https://doi.org/10.5281/zenodo.19881542}
+Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.18.0. Zenodo. \url{https://doi.org/10.5281/zenodo.19881542}
 
 \noindent
 Conolly, J., & Lake, M. (2006). *Geographical Information Systems in Archaeology*. Cambridge Manuals in Archaeology. Cambridge: Cambridge University Press. ISBN 978-0-521-79744-3. \url{https://doi.org/10.1017/CBO9780511807459}
