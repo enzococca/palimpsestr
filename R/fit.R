@@ -557,10 +557,12 @@ predict_phase <- function(object) {
 #'   \code{c(0.05, 0.95)} is robust to a single chronological outlier within
 #'   the context; use \code{c(0, 1)} for the strict min/max envelope used
 #'   prior to v0.14.0.
+#' @param intrusion_threshold Probability above which a find counts as flagged for the \code{intrusion_type} classification (default: 0.5).
 #' @return A data.frame with columns \code{id}, \code{intrusion_prob},
 #'   \code{direction} (factor with levels \code{older_than_context},
 #'   \code{in_context}, \code{younger_than_context}), and \code{chrono_gap}
 #'   (numeric, signed offset in years).
+#'   The data.frame also carries an \code{intrusion_type} factor combining the intrusion magnitude with the direction: \code{not_flagged}, \code{residual} (flagged and older-than-context), \code{latent_feature} (flagged and younger-than-context), or \code{outlier_in_context}.
 #' @seealso \code{\link{gg_intrusions}}, \code{\link{fit_sef}},
 #'   \code{\link{type_longevity}}
 #' @family diagnostics
@@ -570,7 +572,8 @@ predict_phase <- function(object) {
 #' di <- detect_intrusions(fit)
 #' head(di[order(di$intrusion_prob, decreasing = TRUE), ])
 #' @export
-detect_intrusions <- function(object, envelope = c(0.05, 0.95)) {
+detect_intrusions <- function(object, envelope = c(0.05, 0.95),
+                              intrusion_threshold = 0.5) {
   if (!inherits(object, "sef_fit")) stop("object must be a sef_fit", call. = FALSE)
   if (!is.null(object$noise_prob)) {
     # Model-based: the posterior probability of the uniform noise component is
@@ -591,11 +594,22 @@ detect_intrusions <- function(object, envelope = c(0.05, 0.95)) {
                                date_max_col  = date_max_col,
                                envelope      = envelope)
 
+  iprob <- pmin(pmax(score, 0), 1)
+  dir_chr <- as.character(dir_df$direction)
+  fl <- iprob >= intrusion_threshold
+  itype <- rep("not_flagged", length(iprob))
+  itype[fl & dir_chr %in% "older_than_context"]   <- "residual"
+  itype[fl & dir_chr %in% "younger_than_context"] <- "latent_feature"
+  itype[fl & (is.na(dir_chr) | dir_chr == "in_context")] <- "outlier_in_context"
+  intrusion_type <- factor(itype,
+    levels = c("not_flagged", "residual", "latent_feature", "outlier_in_context"))
+
   data.frame(
     id             = if ("id" %in% names(object$data)) object$data$id else seq_len(nrow(object$data)),
-    intrusion_prob = pmin(pmax(score, 0), 1),
+    intrusion_prob = iprob,
     direction      = dir_df$direction,
-    chrono_gap     = dir_df$chrono_gap
+    chrono_gap     = dir_df$chrono_gap,
+    intrusion_type = intrusion_type
   )
 }
 
