@@ -58,3 +58,20 @@ test_that("gg_outliers falls back to the composite score without noise", {
   p <- gg_outliers(fit, threshold = 0.4, top_n = 10)
   expect_s3_class(p, "ggplot")
 })
+
+test_that("gg_unit_coherence returns a ggplot and errors without context", {
+  skip_if_not_installed("ggplot2")
+  x <- archaeo_sim(n = 80, k = 3, seed = 7)
+  fit <- fit_sef(x, k = 3, context = "context", seed = 1)
+  expect_s3_class(gg_unit_coherence(fit), "ggplot")
+  fit_noctx <- fit_sef(x, k = 3, seed = 1)
+  expect_error(gg_unit_coherence(fit_noctx), "context")
+})
+
+test_that("gg_unit_coherence accepts a comparison fit", {
+  skip_if_not_installed("ggplot2")
+  x <- archaeo_sim(n = 80, k = 3, seed = 8)
+  fm <- fit_sef(x, k = 3, context = "context", seed = 1)
+  fg <- fit_sef(x, k = 3, context = "context", seed = 1, class_model = "gaussian")
+  expect_s3_class(gg_unit_coherence(fm, compare = fg), "ggplot")
+})
