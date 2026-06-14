@@ -95,7 +95,16 @@ method (see the snippet at the bottom of `Palimpsest.py`).
 `qgis/make_villa_romana_db.R` builds a complete pyArchInit-schema SQLite/
 Spatialite database from the bundled `villa_romana` dataset (615 finds, 54
 stratigraphic units with real EPSG:3004 polygon geometry, 17 material classes,
-dated US). Run it to get a ready-to-test database:
+dated US). It **clones the official pyArchInit empty template**
+(`resources/dbfiles/pyarchinit.sqlite`, found automatically in the installed
+plugin) so the result contains every table pyArchInit queries on connect
+(`site_table`, `periodizzazione_table`, media, thesaurus, …) — building only a
+few tables from scratch makes pyArchInit fail with `no such table: site_table`.
+US polygons are written with `mod_spatialite` (`GeomFromText`) because GDAL/sf on
+macOS is not linked against libspatialite and cannot update SpatiaLite v4 tables.
+
+Run it to get a ready-to-test database (needs `libspatialite`, e.g.
+`brew install libspatialite`):
 
 ```bash
 Rscript qgis/make_villa_romana_db.R
@@ -103,4 +112,4 @@ Rscript qgis/make_villa_romana_db.R
 ```
 
 Connect pyArchInit to that database and run the palimpsestr tab to see the full
-pipeline (real coordinates, real dating) end to end.
+pipeline (real coordinates in EPSG:3004, real dating) end to end.
