@@ -75,6 +75,21 @@ Every dataset must contain:
 data$z <- ave(data$z_us, data$context, FUN = mean)
 ```
 
+## Calibrated dates: rcarbon and OxCal
+
+Calibrated radiocarbon or OxCal-modelled dates can be converted to the
+`date_min`/`date_max`/`date_mid` columns expected by `fit_sef()`:
+
+```{r eval=FALSE}
+# From rcarbon
+cal <- rcarbon::calibrate(x = c(2500, 2400), errors = c(30, 30))
+chronology_from_rcarbon(cal)
+
+# From OxCal (an oxcAAR result, or a data.frame of start/end ranges)
+ranges <- data.frame(id = c("a", "b"), start = c(-700, -50), end = c(-600, 100))
+chronology_from_oxcal(ranges)
+```
+
 ## Simulating test data
 
 ```{r}
@@ -242,6 +257,12 @@ head(suspects[order(suspects$intrusion_prob, decreasing = TRUE), ])
 The `direction` distinguishes residual material (`older_than_context`) from
 possible latent features (`younger_than_context`); it is informative only when
 finds within a unit carry distinct chronologies (not under unit-tied dating).
+
+Since v0.19, `detect_intrusions()` also returns an `intrusion_type` factor that
+couples the intrusion magnitude with the direction: `residual` (flagged and
+older-than-context), `latent_feature` (flagged and younger-than-context),
+`outlier_in_context` (flagged but undirected), or `not_flagged`. `gg_outliers()`
+colours finds by this type.
 
 # Model Validation
 
