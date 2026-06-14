@@ -73,3 +73,19 @@ threshold, runs the algorithms above with `processing.runAndLoadResults`, and
 styles the phase layer by `dominant_phase`. Copy it into the pyArchInit `tabs/`
 folder and add a menu action in `pyarchinitPlugin.py` (snippet at the bottom of
 the file).
+
+### Self-installing R scripts + toolbar wiring
+
+The tab **embeds** the two `.rsx` scripts and writes them to the Processing R
+scripts folder (`<profile>/processing/rscripts`) automatically when it opens,
+overwriting older copies; a **"Install/update R scripts"** button forces a
+refresh. So you only need to deploy `Palimpsest.py` — the `.rsx` follow.
+
+`Palimpsest.py` is wired into `pyarchinitPlugin.py` exactly where MoveCost sits
+(the *analysis* tool button on the pyArchInit toolbar): for each of the four
+toolbar-init branches the menu adds `actionPalimpsest`
+("palimpsestr - Analisi palinsesti") next to `actionMovecost`, plus a
+`runPalimpsest()` method that opens the dialog. After a pyArchInit update,
+re-apply by adding `self.actionPalimpsest` to each
+`self.analysisToolButton.addActions([...])` list and copying the `runPalimpsest`
+method (see the snippet at the bottom of `Palimpsest.py`).
