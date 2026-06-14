@@ -27,3 +27,7 @@ analisi_*_report.pdf
 test_v0_13_0.R
 palimpsestr/
 vignettes/*.html
+
+# Python bytecode
+__pycache__/
+*.pyc
