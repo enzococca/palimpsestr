@@ -63,3 +63,13 @@ res = processing.runAndLoadResults('r:fit_sef_from_pyarchinit_db', {
 The pyArchInit integration tab can fill `Database_file` (or the PostgreSQL
 fields) from the currently active database connection, run the algorithm, and
 style the returned `Phases` layer by `dominant_phase`.
+
+## pyArchInit integration tab
+
+`qgis/pyarchinit/Palimpsest.py` is a ready-to-use pyArchInit dialog (modelled on
+`tabs/Movecost.py`). It pre-fills the **active pyArchInit database connection**
+(via `Connection().conn_str()`), lets the user choose K / class model / noise /
+threshold, runs the algorithms above with `processing.runAndLoadResults`, and
+styles the phase layer by `dominant_phase`. Copy it into the pyArchInit `tabs/`
+folder and add a menu action in `pyarchinitPlugin.py` (snippet at the bottom of
+the file).
