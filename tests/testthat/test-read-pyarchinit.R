@@ -315,3 +315,41 @@ test_that("read_pyarchinit chronology join falls back to (sito, us) on area mism
   us1 <- out[out$context == "1", ][1, ]
   expect_equal(c(us1$date_min, us1$date_max), c(-300, -250))
 })
+
+# ---- Cycle 6: per-US taphonomic score from the chronology table ------------
+
+test_that("read_pyarchinit reads a per-US taf column from the chronology table", {
+  skip_if_not_installed("sf")
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path); on.exit(DBI::dbDisconnect(con))
+  DBI::dbWriteTable(con, "us_table", data.frame(
+    sito = "S", area = "A", us = c("1", "2"),
+    datazione = c("II sec. a.C.", "I sec. d.C."), stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "inventario_materiali_table", data.frame(
+    id_invmat = 1:3, sito = "S", area = "A", us = c("1", "1", "2"), tipo_reperto = "A",
+    quota_usm = NA_real_, datazione_reperto = NA_character_, stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "palimpsest_chronology", data.frame(   # only US 1 has a taf
+    sito = "S", area = "A", us = "1", start = -450, end = -420, taf = 1.0,
+    stringsAsFactors = FALSE))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "materials"))
+  expect_equal(unique(out$taf_score[out$context == "1"]), 1.0)   # from chronology taf
+  expect_equal(unique(out$taf_score[out$context == "2"]), 0.5)   # default (no taf row)
+})
+
+test_that("read_pyarchinit explicit taf argument overrides the chronology taf column", {
+  skip_if_not_installed("sf")
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path); on.exit(DBI::dbDisconnect(con))
+  DBI::dbWriteTable(con, "us_table", data.frame(
+    sito = "S", area = "A", us = "1", datazione = "180", stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "inventario_materiali_table", data.frame(
+    id_invmat = 1, sito = "S", area = "A", us = "1", tipo_reperto = "A",
+    quota_usm = NA_real_, datazione_reperto = NA_character_, stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "palimpsest_chronology", data.frame(
+    sito = "S", area = "A", us = "1", start = -450, end = -420, taf = 1.0,
+    stringsAsFactors = FALSE))
+  out <- suppressMessages(read_pyarchinit(con, us_geometry = .make_us_geometry_full(),
+                                          source = "materials", taf = 0.7))
+  expect_equal(unique(out$taf_score), 0.7)
+})

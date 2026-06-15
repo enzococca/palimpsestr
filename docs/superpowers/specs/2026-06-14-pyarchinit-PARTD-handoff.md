@@ -248,6 +248,7 @@ free-text `datazione` (envelope of multiple dates per US). Schema:
 |---|---|
 | `sito`, `area`, `us` | unit key (joined on `(sito,area,us)`, `(sito,us)` fallback) |
 | `start`, `end` | calibrated calendar years, **BCE negative** |
+| `taf` | optional per-US taphonomic score (0–1); read into `taf_score` when present (since palimpsestr 0.22.1) |
 | `lab_code`, `source` | optional provenance (e.g. `OxA-1234`, `oxcal`) |
 
 pyArchInit side (this session), if you want OxCal support end-to-end:
@@ -256,7 +257,7 @@ pyArchInit side (this session), if you want OxCal support end-to-end:
    ```sql
    CREATE TABLE IF NOT EXISTS palimpsest_chronology (
      id INTEGER PRIMARY KEY, sito TEXT, area TEXT, us INTEGER,
-     start INTEGER, end INTEGER, lab_code TEXT, source TEXT);
+     start INTEGER, end INTEGER, taf REAL, lab_code TEXT, source TEXT);
    ```
    (PostgreSQL: `SERIAL`/`INTEGER` PK; same columns.)
 2. Populate it from OxCal — in R, `chronology_from_oxcal()` already turns an

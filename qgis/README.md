@@ -47,7 +47,8 @@ pass its active connection automatically (needs `RPostgres` in the QGIS R).
 **Absolute chronology** — if a `palimpsest_chronology` table exists
 (`sito, area, us, start, end` calendar years, BCE negative — e.g. OxCal ranges
 from `chronology_from_oxcal()`), `read_pyarchinit()` uses it in place of the
-free-text `datazione` for the matching units.
+free-text `datazione` for the matching units. An optional `taf` column in that
+table supplies the per-US taphonomic score (palimpsestr ≥ 0.22.1).
 
 ## Inputs
 
