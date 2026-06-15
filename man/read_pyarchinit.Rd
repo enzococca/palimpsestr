@@ -35,7 +35,9 @@ the \code{pyunitastratigrafiche} layer); its centroids give each find's
 year bounds, extending or overriding the built-in dictionary.}
 
 \item{taf}{Optional taphonomic score: a single value applied to all finds, or
-a vector named by find \code{id}. Defaults to 0.5 (neutral).}
+a vector named by find \code{id}. When \code{NULL} (default) and the
+\code{chronology_table} carries a per-US \code{taf} column, those per-US
+values are used; units without a value default to 0.5 (neutral).}
 
 \item{us_geom_field}{Name of the US-identifier column in \code{us_geometry}
 (auto-detected among \code{us_s}/\code{us} when \code{NULL}).}
@@ -54,7 +56,9 @@ resolution; set \code{FALSE} to drop such finds instead.}
 negative) - e.g. OxCal-calibrated ranges from
 \code{\link{chronology_from_oxcal}}. When present it overrides the free-text
 \code{datazione} dating for the matching units (envelope of multiple dates
-per US); set \code{NULL} to skip it.}
+per US); set \code{NULL} to skip it. An optional \code{taf} column in this
+table supplies the per-US taphonomic score (used when \code{taf} is
+\code{NULL}).}
 
 \item{pottery_class}{Character vector of \code{pottery_table} columns; the
 find's \code{class} is the first non-empty of these per row

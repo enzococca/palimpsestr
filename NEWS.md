@@ -1,3 +1,14 @@
+# palimpsestr 0.22.1
+
+## Per-US taphonomic score from the chronology table
+
+- `read_pyarchinit()`: when `taf` is `NULL` (the default) and the
+  `chronology_table` (`palimpsest_chronology`) carries a per-US `taf` column,
+  those values now populate `taf_score` (units without a value default to 0.5).
+  This lets the pyArchInit QGIS algorithms (fit / intrusions / report) honour a
+  per-US taphonomic score stored alongside the absolute chronology, without any
+  change to the calling `.rsx`.
+
 # palimpsestr 0.22.0
 
 ## Per-US absolute chronology (OxCal)

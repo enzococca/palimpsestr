@@ -283,7 +283,9 @@ load_geometries <- function(source, layer = NULL, query = NULL,
 #' @param date_labels Optional named list of period label -> \code{c(min, max)}
 #'   year bounds, extending or overriding the built-in dictionary.
 #' @param taf Optional taphonomic score: a single value applied to all finds, or
-#'   a vector named by find \code{id}. Defaults to 0.5 (neutral).
+#'   a vector named by find \code{id}. When \code{NULL} (default) and the
+#'   \code{chronology_table} carries a per-US \code{taf} column, those per-US
+#'   values are used; units without a value default to 0.5 (neutral).
 #' @param us_geom_field Name of the US-identifier column in \code{us_geometry}
 #'   (auto-detected among \code{us_s}/\code{us} when \code{NULL}).
 #' @param synthetic_coords Logical (default \code{TRUE}). When a stratigraphic
@@ -298,7 +300,9 @@ load_geometries <- function(source, layer = NULL, query = NULL,
 #'   negative) - e.g. OxCal-calibrated ranges from
 #'   \code{\link{chronology_from_oxcal}}. When present it overrides the free-text
 #'   \code{datazione} dating for the matching units (envelope of multiple dates
-#'   per US); set \code{NULL} to skip it.
+#'   per US); set \code{NULL} to skip it. An optional \code{taf} column in this
+#'   table supplies the per-US taphonomic score (used when \code{taf} is
+#'   \code{NULL}).
 #' @param pottery_class Character vector of \code{pottery_table} columns; the
 #'   find's \code{class} is the first non-empty of these per row
 #'   (default \code{c("ware", "material", "form")}).
@@ -422,7 +426,24 @@ read_pyarchinit <- function(con, us_geometry = NULL, sito = NULL,
   # --- elevation precedence: find quota -> US quote -> 0 --------------------
   z <- ifelse(is.finite(m$z_find), m$z_find, m$z_us)
   z[!is.finite(z)] <- 0
-  taf_score <- if (is.null(taf)) rep(0.5, nrow(m)) else if (length(taf) == 1) {
+  # Taphonomic score: explicit `taf` argument wins; otherwise, if the
+  # chronology table carries a per-US `taf` column, use it (default 0.5 for
+  # units without a value).
+  taf_score <- if (is.null(taf)) {
+    base <- rep(0.5, nrow(m))
+    if (!is.null(ch) && all(c("us", "taf") %in% names(ch))) {
+      tc <- ch[!is.na(ch$taf), , drop = FALSE]
+      if (nrow(tc)) {
+        has_sito <- "sito" %in% names(ch)
+        key_c <- if (has_sito) paste(tc$sito, .norm(tc$us)) else .norm(tc$us)
+        key_m <- if (has_sito) paste(m$sito, .norm(m$us)) else .norm(m$us)
+        idx <- match(key_m, key_c)
+        ok <- !is.na(idx)
+        if (any(ok)) base[ok] <- as.numeric(tc$taf[idx[ok]])
+      }
+    }
+    base
+  } else if (length(taf) == 1) {
     rep(as.numeric(taf), nrow(m))
   } else as.numeric(taf[m$id])
 
