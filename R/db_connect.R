@@ -250,14 +250,55 @@ load_geometries <- function(source, layer = NULL, query = NULL,
   z
 }
 
+# Per-find point coordinates from the pyArchInit `pyarchinit_reperti` point
+# layer (piece-plotted finds). Returns a data.frame(sito, id_rep, x, y, z) or
+# NULL. `id_rep` matches a material's `numero_inventario` (cf. the
+# `pyarchinit_reperti_view` join: a.siti = b.sito AND a.id_rep = b.numero_inventario).
+# Read via sf (GDAL) so SpatiaLite and PostGIS blobs are parsed correctly:
+# from an explicit sf object if given, else from the connection's file (SQLite)
+# or the connection itself (PostGIS).
+.reperti_points <- function(con, reperti_geometry = NULL,
+                            reperti_table = "pyarchinit_reperti") {
+  if (!requireNamespace("sf", quietly = TRUE)) return(NULL)
+  g <- reperti_geometry
+  if (is.null(g)) {
+    if (is.null(reperti_table) ||
+        !(reperti_table %in% DBI::dbListTables(con))) return(NULL)
+    g <- tryCatch({
+      if (inherits(con, "SQLiteConnection")) {
+        path <- DBI::dbGetInfo(con)$dbname
+        if (is.null(path) || !nzchar(path) || !file.exists(path)) return(NULL)
+        sf::st_read(path, layer = reperti_table, quiet = TRUE)
+      } else {
+        sf::st_read(con, layer = reperti_table, quiet = TRUE)
+      }
+    }, error = function(e) NULL)
+  }
+  if (is.null(g) || nrow(g) == 0) return(NULL)
+  xy <- tryCatch(sf::st_coordinates(sf::st_geometry(g)),
+                 error = function(e) NULL)
+  if (is.null(xy) || nrow(xy) != nrow(g)) return(NULL)
+  id_rep <- .getcol(g, "id_rep")
+  sito   <- .getcol(g, "siti")
+  if (all(is.na(sito))) sito <- .getcol(g, "sito")
+  z <- suppressWarnings(as.numeric(.getcol(g, "quota")))
+  if (all(is.na(z)) && "Z" %in% colnames(xy)) z <- as.numeric(xy[, "Z"])
+  out <- data.frame(sito = as.character(sito), id_rep = as.character(id_rep),
+                    x = as.numeric(xy[, "X"]), y = as.numeric(xy[, "Y"]),
+                    z = z, stringsAsFactors = FALSE)
+  out[is.finite(out$x) & is.finite(out$y) & !is.na(out$id_rep), , drop = FALSE]
+}
+
 #' Read finds from a pyArchInit database for palimpsest analysis
 #'
 #' Reads finds from a pyArchInit database and assembles a data.frame ready for
 #' \code{\link{fit_sef}}. Finds come from \code{inventario_materiali_table}
 #' (materials) and/or \code{pottery_table} (pottery), selectable via
-#' \code{source}. Each find inherits its stratigraphic unit's plan coordinates
-#' (centroid of the US polygon) and chronology (from \code{us_table}), while
-#' elevation follows archaeological practice (see \emph{Details}).
+#' \code{source}. A find uses its own plan coordinates when it is plotted as a
+#' point in \code{pyarchinit_reperti}; otherwise it inherits its stratigraphic
+#' unit's coordinates (centroid of the US polygon). Chronology comes from
+#' \code{us_table}, while elevation follows archaeological practice (see
+#' \emph{Details}).
 #'
 #' @details
 #' Elevation (\code{z}) is sourced, in order of precedence:
@@ -306,6 +347,15 @@ load_geometries <- function(source, layer = NULL, query = NULL,
 #' @param pottery_class Character vector of \code{pottery_table} columns; the
 #'   find's \code{class} is the first non-empty of these per row
 #'   (default \code{c("ware", "material", "form")}).
+#' @param reperti_table Name of the pyArchInit piece-plotted-finds point layer
+#'   (default \code{"pyarchinit_reperti"}); when a material find is plotted there
+#'   (matched by site + \code{numero_inventario} = \code{id_rep}), its own point
+#'   \code{x}, \code{y} (and \code{z}) replace the US-centroid coordinates. Set
+#'   \code{NULL} to skip it. Falls back to the US centroid for finds without a
+#'   point.
+#' @param reperti_geometry Optional pre-read \code{sf} POINT layer of the finds
+#'   (with \code{id_rep}/\code{siti}); when \code{NULL} (default) the layer is
+#'   read from \code{con} (via \code{reperti_table}) if present.
 #' @return A data.frame with \code{id}, \code{x}, \code{y}, \code{z},
 #'   \code{date_min}, \code{date_max}, \code{class}, \code{context},
 #'   \code{taf_score} (plus \code{find_source} when \code{source = "both"}),
@@ -319,7 +369,9 @@ read_pyarchinit <- function(con, us_geometry = NULL, sito = NULL,
                             us_geom_field = NULL, synthetic_coords = TRUE,
                             quote_table = "pyarchinit_quote",
                             chronology_table = "palimpsest_chronology",
-                            pottery_class = c("ware", "material", "form")) {
+                            pottery_class = c("ware", "material", "form"),
+                            reperti_table = "pyarchinit_reperti",
+                            reperti_geometry = NULL) {
   if (!requireNamespace("DBI", quietly = TRUE)) stop("Package 'DBI' required.", call. = FALSE)
   source <- match.arg(source)
   labels <- .archaeo_period_labels
@@ -335,6 +387,7 @@ read_pyarchinit <- function(con, us_geometry = NULL, sito = NULL,
       sito    = as.character(.getcol(fin, "sito")),
       area    = as.character(.getcol(fin, "area")),
       us      = as.character(.getcol(fin, "us")),
+      find_key = as.character(.getcol(fin, "numero_inventario")),
       class   = as.character(.getcol(fin, "tipo_reperto")),
       z_find  = suppressWarnings(as.numeric(.getcol(fin, "quota_usm"))),
       daterep = as.character(.getcol(fin, "datazione_reperto")),
@@ -347,6 +400,7 @@ read_pyarchinit <- function(con, us_geometry = NULL, sito = NULL,
       sito    = as.character(.getcol(pot, "sito")),
       area    = as.character(.getcol(pot, "area")),
       us      = as.character(.getcol(pot, "us")),
+      find_key = NA_character_,   # pyarchinit_reperti links inventario, not pottery
       class   = .pick_pottery_class(pot, pottery_class),
       z_find  = rep(NA_real_, nrow(pot)),
       daterep = as.character(.getcol(pot, "datazione")),
@@ -421,6 +475,26 @@ read_pyarchinit <- function(con, us_geometry = NULL, sito = NULL,
       message(sprintf("read_pyarchinit: assigned synthetic coordinates to %d US without geometry",
                       length(uctx)))
     }
+  }
+
+  # --- piece-plotted find coordinates override the US centroid -------------
+  # When a find is plotted as a point in `pyarchinit_reperti` (matched by
+  # site + numero_inventario), use its own x, y (and z) instead of the US
+  # centroid; finds without a point keep the US-level coordinates.
+  rp <- tryCatch(.reperti_points(con, reperti_geometry, reperti_table),
+                 error = function(e) NULL)
+  if (!is.null(rp) && nrow(rp) > 0 && "find_key" %in% names(m)) {
+    idx <- match(paste(.norm(m$sito), .norm(m$find_key)),
+                 paste(.norm(rp$sito), .norm(rp$id_rep)))
+    px <- rp$x[idx]; py <- rp$y[idx]; pz <- rp$z[idx]
+    use <- is.finite(px) & is.finite(py)
+    if (any(use)) {
+      m$x[use] <- px[use]; m$y[use] <- py[use]
+      message(sprintf("read_pyarchinit: %d find(s) use piece-plotted point coordinates",
+                      sum(use)))
+    }
+    nz <- is.finite(pz) & !is.finite(m$z_find)
+    if (any(nz)) m$z_find[nz] <- pz[nz]
   }
 
   # --- elevation precedence: find quota -> US quote -> 0 --------------------

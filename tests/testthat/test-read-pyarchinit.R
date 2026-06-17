@@ -353,3 +353,58 @@ test_that("read_pyarchinit explicit taf argument overrides the chronology taf co
                                           source = "materials", taf = 0.7))
   expect_equal(unique(out$taf_score), 0.7)
 })
+
+# ---- Cycle 7: piece-plotted find coordinates (pyarchinit_reperti) ----------
+# A find plotted as a point in `pyarchinit_reperti` uses its own plan
+# coordinates; finds without a point inherit the US polygon centroid. The point
+# layer is passed via `reperti_geometry=` (the path the QGIS .rsx use, which
+# read the layer with sf and hand it in), mirroring `us_geometry=`.
+
+.make_reperti_fixture <- function() {
+  path <- tempfile(fileext = ".sqlite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), path)
+  DBI::dbWriteTable(con, "us_table", data.frame(
+    sito = "S", area = "A", us = "1", datazione = "180", stringsAsFactors = FALSE))
+  DBI::dbWriteTable(con, "inventario_materiali_table", data.frame(
+    id_invmat = 1:2, sito = "S", area = "A", us = "1",
+    numero_inventario = c("A", "B"), tipo_reperto = "ceramica",
+    quota_usm = NA_real_, datazione_reperto = NA_character_, stringsAsFactors = FALSE))
+  con
+}
+
+# pyarchinit_reperti point layer: only find "A" is plotted, at (100, 200), z = 5
+.make_reperti_points <- function() {
+  sf::st_sf(id_rep = "A", siti = "S", quota = 5,
+            geometry = sf::st_sfc(sf::st_point(c(100, 200))))
+}
+
+test_that("read_pyarchinit uses piece-plotted point coordinates over the US centroid", {
+  skip_if_not_installed("sf")
+  con <- .make_reperti_fixture(); on.exit(DBI::dbDisconnect(con))
+  out <- suppressMessages(read_pyarchinit(
+    con, us_geometry = .make_us_geometry(), reperti_geometry = .make_reperti_points(),
+    source = "materials"))
+  a <- out[out$id == "1", ]   # plotted find
+  b <- out[out$id == "2", ]   # not plotted -> US centroid (0, 0)
+  expect_equal(c(a$x, a$y, a$z), c(100, 200, 5))
+  expect_equal(c(b$x, b$y), c(0, 0))
+})
+
+test_that("read_pyarchinit point z fills in when the find has no own quota", {
+  skip_if_not_installed("sf")
+  con <- .make_reperti_fixture(); on.exit(DBI::dbDisconnect(con))
+  out <- suppressMessages(read_pyarchinit(
+    con, us_geometry = .make_us_geometry(), reperti_geometry = .make_reperti_points(),
+    source = "materials"))
+  expect_equal(out$z[out$id == "1"], 5)   # from the point's quota
+  expect_equal(out$z[out$id == "2"], 0)   # no point, no US quote -> 0
+})
+
+test_that("read_pyarchinit leaves coordinates on the US centroid without any points", {
+  skip_if_not_installed("sf")
+  con <- .make_reperti_fixture(); on.exit(DBI::dbDisconnect(con))
+  out <- suppressMessages(read_pyarchinit(
+    con, us_geometry = .make_us_geometry(), source = "materials"))
+  expect_equal(unique(round(out$x)), 0)
+  expect_equal(unique(round(out$y)), 0)
+})

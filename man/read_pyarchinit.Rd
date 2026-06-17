@@ -15,7 +15,9 @@ read_pyarchinit(
   synthetic_coords = TRUE,
   quote_table = "pyarchinit_quote",
   chronology_table = "palimpsest_chronology",
-  pottery_class = c("ware", "material", "form")
+  pottery_class = c("ware", "material", "form"),
+  reperti_table = "pyarchinit_reperti",
+  reperti_geometry = NULL
 )
 }
 \arguments{
@@ -63,6 +65,17 @@ table supplies the per-US taphonomic score (used when \code{taf} is
 \item{pottery_class}{Character vector of \code{pottery_table} columns; the
 find's \code{class} is the first non-empty of these per row
 (default \code{c("ware", "material", "form")}).}
+
+\item{reperti_table}{Name of the pyArchInit piece-plotted-finds point layer
+(default \code{"pyarchinit_reperti"}); when a material find is plotted there
+(matched by site + \code{numero_inventario} = \code{id_rep}), its own point
+\code{x}, \code{y} (and \code{z}) replace the US-centroid coordinates. Set
+\code{NULL} to skip it. Falls back to the US centroid for finds without a
+point.}
+
+\item{reperti_geometry}{Optional pre-read \code{sf} POINT layer of the finds
+(with \code{id_rep}/\code{siti}); when \code{NULL} (default) the layer is
+read from \code{con} (via \code{reperti_table}) if present.}
 }
 \value{
 A data.frame with \code{id}, \code{x}, \code{y}, \code{z},
@@ -74,9 +87,11 @@ ready for \code{\link{fit_sef}}.
 Reads finds from a pyArchInit database and assembles a data.frame ready for
 \code{\link{fit_sef}}. Finds come from \code{inventario_materiali_table}
 (materials) and/or \code{pottery_table} (pottery), selectable via
-\code{source}. Each find inherits its stratigraphic unit's plan coordinates
-(centroid of the US polygon) and chronology (from \code{us_table}), while
-elevation follows archaeological practice (see \emph{Details}).
+\code{source}. A find uses its own plan coordinates when it is plotted as a
+point in \code{pyarchinit_reperti}; otherwise it inherits its stratigraphic
+unit's coordinates (centroid of the US polygon). Chronology comes from
+\code{us_table}, while elevation follows archaeological practice (see
+\emph{Details}).
 }
 \details{
 Elevation (\code{z}) is sourced, in order of precedence:

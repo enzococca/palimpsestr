@@ -1,3 +1,16 @@
+# palimpsestr 0.23.0
+
+## Piece-plotted find coordinates (per-find x/y/z)
+
+- `read_pyarchinit()` gains `reperti_table` (default `"pyarchinit_reperti"`) and
+  `reperti_geometry`: when a material find is plotted as a point in
+  `pyarchinit_reperti` (matched by site + `numero_inventario` = `id_rep`, the
+  `pyarchinit_reperti_view` join), its own point `x`, `y` (and `z` from `quota`
+  or the geometry Z) are used instead of the US-polygon centroid. Finds without
+  a point fall back to the US centroid as before. Read via sf/GDAL so SpatiaLite
+  and PostGIS geometries are parsed correctly. This enables find-level spatial
+  resolution where piece-plotting is available.
+
 # palimpsestr 0.22.1
 
 ## Per-US taphonomic score from the chronology table

@@ -1,7 +1,7 @@
 Package: palimpsestr
 Type: Package
 Title: Probabilistic Decomposition of Archaeological Palimpsests
-Version: 0.22.1
+Version: 0.23.0
 Authors@R: 
     c(person(given = "Enzo",
              family = "Cocca",
