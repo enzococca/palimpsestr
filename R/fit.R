@@ -353,7 +353,10 @@ fit_sef <- function(data,
       loglik = loglik,
       loglik_penalized = loglik_penalized,
       bic = bic,
-      icl = bic - 2 * sum(ent),
+      # ICL = BIC + 2 * (classification entropy); the entropy term penalises
+      # overlapping/fuzzy partitions (Biernacki, Celeux & Govaert 2000). With
+      # BIC = -2logL + npar*log(n) (lower is better), the penalty is ADDED.
+      icl = bic + 2 * sum(ent),
       pseudo_bic = nrow(data) * log(km$tot.withinss / max(nrow(data), 1)) + log(max(nrow(data), 1)) * k * ncol(feat)
     )
   )
@@ -615,9 +618,15 @@ detect_intrusions <- function(object, envelope = c(0.05, 0.95),
 
 #' Compute Palimpsest Dissolution Index
 #'
-#' Measures global phase separability as \eqn{1 - \bar{H} / \log(K)}.
-#' Values close to 1 indicate well-separated phases; values near 0 indicate
-#' a compressed palimpsest.
+#' Measures global phase separability as \eqn{1 - \bar{H} / \log(K)}, where
+#' \eqn{\bar{H}} is the mean per-find Shannon entropy of the soft phase
+#' assignments and \eqn{K} the number of phases. Values close to 1 indicate
+#' well-separated phases (low entropy); values near 0 indicate a compressed,
+#' heavily mixed palimpsest. As a rule of thumb, PDI \eqn{> 0.7} indicates
+#' well-resolved phases. The index is an interpretable, dimensionless summary
+#' reported alongside the BIC (see \code{\link{compare_k}}) during model
+#' selection; unlike the BIC it does not penalise model complexity, so it
+#' should not be used on its own to choose \eqn{K}.
 #'
 #' @param object A \code{sef_fit} object.
 #' @return A single numeric value between 0 and 1.

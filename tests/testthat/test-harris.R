@@ -7,6 +7,20 @@ test_that("harris_from_contexts returns n x n matrix", {
   expect_true(isSymmetric(H))
 })
 
+test_that("exclude_contexts exempts contexts from the verticality penalty", {
+  x <- archaeo_sim(n = 60, k = 3, seed = 1)
+  excl <- x$context[1]
+  H0 <- harris_from_contexts(x)
+  H1 <- harris_from_contexts(x, exclude_contexts = excl)
+  exempt <- x$context == excl
+  # Exempt finds get a zero cross-context penalty in both directions.
+  expect_true(all(H1[exempt, ] == 0))
+  expect_true(all(H1[, exempt] == 0))
+  # Default (NULL) is unchanged, and non-exempt entries are untouched.
+  expect_identical(H0, harris_from_contexts(x, exclude_contexts = NULL))
+  expect_equal(H1[!exempt, !exempt], H0[!exempt, !exempt])
+})
+
 test_that("read_harris reads CSV edge list", {
   tmp <- tempfile(fileext = ".csv")
   writeLines(c("from,to,weight", "SU_1,SU_2,1", "SU_2,SU_3,1"), tmp)

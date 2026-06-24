@@ -19,7 +19,9 @@ taphonomically, simulating post-depositional disturbance (0--1).}
 \value{
 A data.frame with columns: \code{id}, \code{x}, \code{y}, \code{z},
 \code{context}, \code{date_min}, \code{date_max}, \code{class},
-\code{taf_score}, \code{true_phase}.
+\code{taf_score}, \code{true_phase}. The date bounds \code{date_min} and
+\code{date_max} are returned as integer-valued years (via \code{floor()}),
+consistent with archaeological dating conventions.
 }
 \description{
 Generates a synthetic excavation dataset with known latent phases,

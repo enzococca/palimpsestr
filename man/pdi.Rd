@@ -13,9 +13,15 @@ pdi(object)
 A single numeric value between 0 and 1.
 }
 \description{
-Measures global phase separability as \eqn{1 - \bar{H} / \log(K)}.
-Values close to 1 indicate well-separated phases; values near 0 indicate
-a compressed palimpsest.
+Measures global phase separability as \eqn{1 - \bar{H} / \log(K)}, where
+\eqn{\bar{H}} is the mean per-find Shannon entropy of the soft phase
+assignments and \eqn{K} the number of phases. Values close to 1 indicate
+well-separated phases (low entropy); values near 0 indicate a compressed,
+heavily mixed palimpsest. As a rule of thumb, PDI \eqn{> 0.7} indicates
+well-resolved phases. The index is an interpretable, dimensionless summary
+reported alongside the BIC (see \code{\link{compare_k}}) during model
+selection; unlike the BIC it does not penalise model complexity, so it
+should not be used on its own to choose \eqn{K}.
 }
 \examples{
 x <- archaeo_sim(n = 60, k = 2, seed = 1)

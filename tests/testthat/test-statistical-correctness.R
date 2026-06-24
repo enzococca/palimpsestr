@@ -85,6 +85,16 @@ test_that("reported loglik is the true unpenalized mixture likelihood", {
                -2 * manual_ll + log(nrow(x)) * npar, tolerance = 1e-8)
 })
 
+test_that("ICL adds the entropy penalty to the BIC (Biernacki et al. 2000)", {
+  x <- archaeo_sim(n = 150, k = 3, mixing = 0.4, seed = 7)
+  fit <- fit_sef(x, k = 3, seed = 1)
+  ms <- fit$model_stats
+  # ICL = BIC + 2 * sum(entropy); the entropy term penalises fuzzy partitions,
+  # so ICL is never below the BIC.
+  expect_equal(ms$icl, ms$bic + 2 * sum(fit$entropy), tolerance = 1e-8)
+  expect_gte(ms$icl, ms$bic)
+})
+
 test_that("SEI spatial component survives duplicate coordinates", {
   d <- data.frame(
     id = paste0("f", 1:5),

@@ -4,6 +4,13 @@ test_that("simulation returns expected columns", {
   expect_equal(nrow(x), 50)
 })
 
+test_that("simulated date bounds are integer-valued years", {
+  x <- archaeo_sim(n = 80, k = 3, seed = 1)
+  expect_equal(x$date_min, floor(x$date_min))
+  expect_equal(x$date_max, floor(x$date_max))
+  expect_true(all(x$date_max >= x$date_min))
+})
+
 test_that("fit_sef returns sef_fit object", {
   x <- archaeo_sim(n = 60, k = 3, seed = 1)
   fit <- fit_sef(x, k = 3, tafonomy = "taf_score", context = "context")

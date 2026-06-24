@@ -10,6 +10,7 @@
 *.zip
 docs/*.log
 docs/*.pdf
+docs/pci-r1/*.pdf
 src/*.o
 src/*.so
 src/*.dll

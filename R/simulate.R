@@ -10,7 +10,9 @@
 #'   taphonomically, simulating post-depositional disturbance (0--1).
 #' @return A data.frame with columns: \code{id}, \code{x}, \code{y}, \code{z},
 #'   \code{context}, \code{date_min}, \code{date_max}, \code{class},
-#'   \code{taf_score}, \code{true_phase}.
+#'   \code{taf_score}, \code{true_phase}. The date bounds \code{date_min} and
+#'   \code{date_max} are returned as integer-valued years (via \code{floor()}),
+#'   consistent with archaeological dating conventions.
 #' @seealso \code{\link{fit_sef}} for fitting the SEF model to the output.
 #' @family simulation
 #' @examples
@@ -55,8 +57,8 @@ archaeo_sim <- function(n = 150, k = 3, seed = NULL, mixing = 0.08) {
       y = y,
       z = z,
       context = paste0("SU_", sample(1:(k * 3), ni, replace = TRUE)),
-      date_min = dmid - span,
-      date_max = dmid + span,
+      date_min = floor(dmid - span),
+      date_max = floor(dmid + span),
       class = class,
       taf_score = taf_score,
       true_phase = i,

@@ -1,3 +1,33 @@
+# palimpsestr 0.24.0
+
+## PCI Archaeo revision (round 1)
+
+### Bug fixes
+
+- **ICL sign correction.** The Integrated Completed Likelihood is now computed
+  as `bic + 2 * sum(entropy)` (was `bic - 2 * sum(entropy)`). With the
+  lower-is-better BIC convention the entropy term must be *added* so that
+  overlapping/fuzzy partitions are penalised (Biernacki, Celeux & Govaert
+  2000); the previous sign rewarded them. `compare_k()` ICL values change
+  accordingly (BIC, PDI and the case study are unaffected; ICL is not used in
+  any manuscript figure).
+
+### Other changes
+
+- `archaeo_sim()`: the simulated date bounds `date_min` and `date_max` are now
+  returned as integer-valued years (via `floor()`), consistent with
+  archaeological dating conventions (reviewer suggestion, PCI Archaeo #1019).
+- `harris_from_contexts()` gains `exclude_contexts`: a character vector of
+  context labels exempt from the verticality (depth-rank) penalty, for the
+  fills of cuts and multi-period contexts where depth does not track
+  chronology. Default `NULL` leaves the behaviour unchanged. The help page now
+  documents the verticality assumption and its failure modes (reviewer
+  suggestion, PCI Archaeo #1019).
+- Documentation: `compare_k()` and `pdi()` help pages now explain the BIC and
+  PDI model-selection metrics and reference Schwarz (1978); the manuscript adds
+  the same definitions and stresses combining statistical criteria with
+  archaeological judgement.
+
 # palimpsestr 0.23.0
 
 ## Piece-plotted find coordinates (per-find x/y/z)

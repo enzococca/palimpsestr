@@ -3,11 +3,36 @@
 #' Fits the SEF model for each value of K and returns a summary table
 #' with BIC, PDI, entropy, energy, and other diagnostics.
 #'
+#' @details
+#' For each candidate \code{K} the table reports several model-selection
+#' quantities. The \strong{Bayesian Information Criterion} (\code{bic},
+#' \eqn{-2\log\hat{L} + d\log n}, where \eqn{\hat{L}} is the fitted mixture
+#' likelihood, \eqn{d} the number of free parameters and \eqn{n} the number of
+#' finds; Schwarz 1978) balances goodness of fit against model complexity and
+#' is the primary selector --- lower is better. The \strong{Palimpsest
+#' Dissolution Index} (\code{pdi}; see \code{\link{pdi}}) is a 0--1 measure of
+#' how cleanly the phases separate, and \code{mean_entropy} is the mean Shannon
+#' entropy of the soft assignments. The \strong{Integrated Completed
+#' Likelihood} (\code{icl}) augments the BIC with the classification entropy
+#' (\eqn{\mathrm{ICL} = \mathrm{BIC} + 2\sum_i H_i}; Biernacki, Celeux &
+#' Govaert 2000), penalising overlapping phases so that it favours partitions
+#' with confident assignments. Statistical criteria should be combined with
+#' archaeological judgement: the BIC minimum is not necessarily the most
+#' interpretable partition.
+#'
 #' @param data Input data.frame.
 #' @param k_values Integer vector of candidate phase counts.
 #' @param ... Additional arguments passed to \code{\link{fit_sef}}.
 #' @return A data.frame with one row per K value.
-#' @seealso \code{\link{fit_sef}}, \code{\link{gg_compare_k}}
+#' @references
+#' Schwarz, G. (1978). Estimating the dimension of a model. *The Annals of
+#' Statistics*, 6(2), 461--464. <https://doi.org/10.1214/aos/1176344136>
+#'
+#' Biernacki, C., Celeux, G., & Govaert, G. (2000). Assessing a mixture model
+#' for clustering with the integrated completed likelihood. *IEEE Transactions
+#' on Pattern Analysis and Machine Intelligence*, 22(7), 719--725.
+#' <https://doi.org/10.1109/34.865189>
+#' @seealso \code{\link{fit_sef}}, \code{\link{gg_compare_k}}, \code{\link{pdi}}
 #' @family fitting
 #' @examples
 #' \donttest{

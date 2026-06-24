@@ -8,7 +8,8 @@ harris_from_contexts(
   data,
   z_col = "z",
   context_col = "context",
-  penalty_scale = 0.5
+  penalty_scale = 0.5,
+  exclude_contexts = NULL
 )
 }
 \arguments{
@@ -19,6 +20,13 @@ harris_from_contexts(
 \item{context_col}{Name of the context column.}
 
 \item{penalty_scale}{Penalty magnitude for cross-context assignments.}
+
+\item{exclude_contexts}{Optional character vector of context labels that are
+exempt from the verticality penalty (e.g. fills of cuts, or multi-period
+contexts where depth does not track chronology). Finds in these contexts
+receive a zero cross-context penalty, so they neither impose nor are
+subject to the depth-rank constraint. Defaults to \code{NULL} (no
+exemptions), preserving the original behaviour.}
 }
 \value{
 An \eqn{n \times n}{n x n} symmetric penalty matrix.
@@ -29,10 +37,29 @@ depth of finds in each context, and builds a penalty matrix that
 discourages finds from different vertical zones being assigned
 to the same phase.
 }
+\section{Verticality assumption}{
+
+This function encodes a \emph{verticality rule}: it assumes that the mean
+depth of a context is a proxy for its relative chronological position
+(deeper = earlier) and penalises same-phase assignment of finds whose
+contexts differ in depth rank. The assumption holds for sub-horizontally
+stratified deposits but is \strong{frequently violated} in real
+excavations --- for inclined deposits and slope collapses, and especially
+for the fills of cuts (pits, ditches, post-holes) and for single contexts
+that contain material from several chronological periods. In such cases the
+depth-rank penalty conflates genuinely problematic configurations with
+perfectly normal archaeological features. Two escape hatches are provided:
+pass the affected contexts to \code{exclude_contexts} to exempt them from
+the penalty, or skip this helper entirely and supply an explicitly recorded
+Harris matrix via \code{\link{read_harris}}.
+}
+
 \examples{
 x <- archaeo_sim(n = 60, k = 2, seed = 1)
 H <- harris_from_contexts(x, z_col = "z", context_col = "context")
 dim(H)
+# Exempt a known multi-period fill from the verticality rule:
+H2 <- harris_from_contexts(x, exclude_contexts = "SU_3")
 }
 \seealso{
 \code{\link{fit_sef}}, \code{\link{read_harris}}
