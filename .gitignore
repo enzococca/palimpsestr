@@ -11,6 +11,8 @@
 docs/*.log
 docs/*.pdf
 docs/pci-r1/*.pdf
+docs/pcj-submission/*.pdf
+docs/pcj-submission/*.tex
 src/*.o
 src/*.so
 src/*.dll
