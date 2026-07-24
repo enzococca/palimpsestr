@@ -26,8 +26,6 @@ header-includes:
   - \captionsetup{font=small}
   - \usepackage{setspace}
   - \usepackage{float}
-  - \usepackage{lineno}
-  - \linenumbers
 ---
 
 ```{r setup, include=FALSE}
@@ -36,6 +34,12 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
                       out.width = "85%", fig.align = "center",
                       fig.pos = "H")
 ```
+
+\IfFileExists{pci-badge.png}{%
+\begin{center}
+\href{https://doi.org/10.24072/pci.archaeo.101019}{\includegraphics[width=0.30\textwidth]{pci-badge.png}}
+\end{center}
+}{}
 
 \noindent
 **Abstract**
@@ -531,7 +535,7 @@ E.C. designed and implemented the \texttt{palimpsestr} package, the Stratigraphi
 
 # Acknowledgements
 
-We thank Professor David Soren (University of Arizona), David Pickel (Stanford University) and the wider Poggio Gramignano excavation team for the long-term archaeological work that produced the dataset analysed here. The development of \texttt{palimpsestr} benefited from the open-source archaeological computing community, particularly the maintainers of \texttt{sf}, \texttt{ggplot2}, \texttt{plotly}, and the PyArchInit project.
+We thank Professor David Soren (University of Arizona), David Pickel (Stanford University) and the wider Poggio Gramignano excavation team for the long-term archaeological work that produced the dataset analysed here. The development of \texttt{palimpsestr} benefited from the open-source archaeological computing community, particularly the maintainers of \texttt{sf}, \texttt{ggplot2}, \texttt{plotly}, and the PyArchInit project. A preprint version of this article has been peer-reviewed and recommended by PCI Archaeo (\url{https://doi.org/10.24072/pci.archaeo.101019}).
 
 # Funding
 
