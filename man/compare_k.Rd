@@ -46,12 +46,12 @@ print(ck)
 }
 \references{
 Schwarz, G. (1978). Estimating the dimension of a model. \emph{The Annals of
-Statistics}, 6(2), 461--464. \url{https://doi.org/10.1214/aos/1176344136}
+Statistics}, 6(2), 461--464. \doi{10.1214/aos/1176344136}
 
 Biernacki, C., Celeux, G., & Govaert, G. (2000). Assessing a mixture model
 for clustering with the integrated completed likelihood. \emph{IEEE Transactions
 on Pattern Analysis and Machine Intelligence}, 22(7), 719--725.
-\url{https://doi.org/10.1109/34.865189}
+\doi{10.1109/34.865189}
 }
 \seealso{
 \code{\link{fit_sef}}, \code{\link{gg_compare_k}}, \code{\link{pdi}}
