@@ -57,10 +57,17 @@ already created. **Do not click Create again.** Go to peercommunityjournal.org �
       `references.bib` and cited in the data-availability section.
 - [ ] Recommendation PDF exported (step 7)
 
+## Production round 1 — reference corrections (27–28 Jul 2026)
+The PCJ production office (Elisa Chailler) requested four reference fixes. All done; see
+`03-reply-to-production.md` for the point-by-point reply and change log. Reply **by email**
+(reply-all to Elisa) attaching `palimpsestr-paper-PCJ.tex`, `references.bib` and
+`palimpsestr-paper-PCJ.pdf`. Proofs follow.
+
 ## Files in this folder
 - `00-submission-guide.md` — this guide
 - `01-cover-letter.md` / `01-cover-letter.pdf`
 - `02-portal-metadata.md`
+- `03-reply-to-production.md` — reply + change log for the production round
 - `palimpsestr-paper-PCJ.pdf` — formatted manuscript to submit
 - `palimpsestr-paper-PCJ.tex` — editable source
 - `references.bib` — BibTeX of the 18 references

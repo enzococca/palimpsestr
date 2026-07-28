@@ -109,7 +109,7 @@ Two corrections enter the E-step (step 3). The **stratigraphic constraint** adds
 
 ### Optional refinements
 
-Several optional refinements extend the basic model. **Taphonomic weighting**: when a per-find taphonomic integrity score (taf\_score, $0$ = fully disturbed to $1$ = pristine in situ) is supplied, it down-weights poorly preserved items in the M-step, reducing their influence on the phase parameters. **Stratigraphic constraint**: the context/Harris structure is incorporated as a soft penalty on the E-step posterior; it may be applied statically or, with \texttt{strat\_dynamic = TRUE}, as a Neighborhood-EM / hidden-Markov-random-field term recomputed from the current posteriors at every iteration (Ambroise and Govaert 1997), which rewards each find for sharing its unit's phase. **Chronological uncertainty**: with \texttt{chrono\_uncertainty = TRUE} the dating-interval width of each find is propagated into the temporal likelihood as a measurement variance $(t_{\max}-t_{\min})^2/12$, so coarsely dated finds rely less on chronology. **Noise component**: with \texttt{noise = TRUE} a uniform background component (Fraley and Raftery 1998) is added; finds that fit no phase accumulate posterior on it, yielding a genuine outlier probability (Section "Diagnostic statistics") and keeping extreme finds out of the phase estimates.
+Several optional refinements extend the basic model. **Taphonomic weighting**: when a per-find taphonomic integrity score (taf\_score, $0$ = fully disturbed to $1$ = pristine in situ) is supplied, it down-weights poorly preserved items in the M-step, reducing their influence on the phase parameters. **Stratigraphic constraint**: the context/Harris structure is incorporated as a soft penalty on the E-step posterior; it may be applied statically or, with \texttt{strat\_dynamic = TRUE}, as a Neighborhood-EM / hidden-Markov-random-field term recomputed from the current posteriors at every iteration (Ambroise and Govaert 1996), which rewards each find for sharing its unit's phase. **Chronological uncertainty**: with \texttt{chrono\_uncertainty = TRUE} the dating-interval width of each find is propagated into the temporal likelihood as a measurement variance $(t_{\max}-t_{\min})^2/12$, so coarsely dated finds rely less on chronology. **Noise component**: with \texttt{noise = TRUE} a uniform background component (Fraley and Raftery 1998) is added; finds that fit no phase accumulate posterior on it, yielding a genuine outlier probability (Section "Diagnostic statistics") and keeping extreme finds out of the phase estimates.
 
 ### Why a diagonal covariance?
 
@@ -502,7 +502,7 @@ knitr::include_graphics("figs-v017/map_intrusion.png")
 
 # Data, script, code, and supplementary information availability
 
-The \texttt{palimpsestr} package (version 0.24.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542}. The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures were produced with the reproducibility script available in the repository (\texttt{docs/regen\_casestudy\_v017.R}); the SEF model is unchanged since version 0.17.1, so they reproduce identically under 0.24.0. From version 0.20.0, \texttt{read\_pyarchinit()} ingests pyArchInit databases directly, and a set of QGIS Processing algorithms with a self-installing pyArchInit tab runs the full pipeline --- fitting, intrusion detection, and a narrated PDF/DOCX report (\texttt{export\_sef\_report()}) --- from within QGIS (\texttt{qgis/} folder).
+The \texttt{palimpsestr} package (version 0.24.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542} (Cocca 2026). The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures were produced with the reproducibility script available in the repository (\texttt{docs/regen\_casestudy\_v017.R}); the SEF model is unchanged since version 0.17.1, so they reproduce identically under 0.24.0. From version 0.20.0, \texttt{read\_pyarchinit()} ingests pyArchInit databases directly, and a set of QGIS Processing algorithms with a self-installing pyArchInit tab runs the full pipeline --- fitting, intrusion detection, and a narrated PDF/DOCX report (\texttt{export\_sef\_report()}) --- from within QGIS (\texttt{qgis/} folder).
 
 # Author contributions
 
@@ -523,7 +523,7 @@ The authors declare no conflict of interest relating to the content of this arti
 # References
 
 \noindent
-Ambroise, C., & Govaert, G. (1997). Constrained clustering and Kohonen self-organizing maps. *Journal of Classification*, 14(2), 215--237. \url{https://doi.org/10.1007/s003579900012}
+Ambroise, C., & Govaert, G. (1996). Constrained clustering and Kohonen Self-Organizing Maps. *Journal of Classification*, 13(2), 299--313. \url{https://doi.org/10.1007/BF01246104}
 
 \noindent
 Bailey, G. (2007). Time perspectives, palimpsests and the archaeology of time. *Journal of Anthropological Archaeology*, 26(2), 198--223. \url{https://doi.org/10.1016/j.jaa.2006.08.002}
@@ -547,7 +547,7 @@ Crema, E. R. (2024). A Bayesian alternative for aoristic analyses in archaeology
 Crema, E. R., & Bevan, A. (2021). Inference from large sets of radiocarbon dates: software and methods. *Radiocarbon*, 63(1), 23--39. \url{https://doi.org/10.1017/RDC.2020.95}
 
 \noindent
-Crema, E. R., & Kobayashi, K. (2020). A multi-proxy inference of J\=omon population dynamics using Bayesian phase models, residential data, and summed probability distribution of $^{14}$C dates. *Journal of Archaeological Science*, 117, 105136. \url{https://doi.org/10.1016/j.jas.2020.105136}
+Crema, E. R., & Kobayashi, K. (2020). A multi-proxy inference of Jōmon population dynamics using Bayesian phase models, residential data, and summed probability distribution of $^{14}$C dates. *Journal of Archaeological Science*, 117, 105136. \url{https://doi.org/10.1016/j.jas.2020.105136}
 
 \noindent
 Dempster, A. P., Laird, N. M., & Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *Journal of the Royal Statistical Society: Series B (Methodological)*, 39(1), 1--22. \url{https://doi.org/10.1111/j.2517-6161.1977.tb01600.x}
@@ -568,7 +568,7 @@ Lucas, G. (2012). *Understanding the Archaeological Record*. Cambridge: Cambridg
 Plutniak, S. (2023). \texttt{archeoViz}: an R package for the Visualisation, Exploration, and Web Communication of Archaeological Spatial Data. *Journal of Open Source Software*, 8(92), 5811. \url{https://doi.org/10.21105/joss.05811}
 
 \noindent
-Royer, A., Discamps, E., Plutniak, S., & Thomas, M. (2023). SEAHORS: Spatial Exploration of ArcHaeological Objects in R Shiny. Zenodo, peer-reviewed and recommended by Peer Community in Archaeology. \url{https://doi.org/10.5281/zenodo.7957154}
+Royer, A., Discamps, E., Plutniak, S., & Thomas, M. (2023). SEAHORS: Spatial Exploration of ArcHaeological Objects in R Shiny. *Peer Community Journal*, 3, e55. \url{https://doi.org/10.24072/pcjournal.289}
 
 \noindent
 Schwarz, G. (1978). Estimating the dimension of a model. *The Annals of Statistics*, 6(2), 461--464. \url{https://doi.org/10.1214/aos/1176344136}
