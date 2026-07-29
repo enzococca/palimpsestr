@@ -57,6 +57,39 @@ test_that("export_sef_report narrative differs between Italian and English", {
   expect_false(identical(it_md, en_md))
 })
 
+test_that("the report template is staged in a temporary directory, never rendered in place", {
+  skip_if_not_installed("rmarkdown")
+  staged <- palimpsestr:::.stage_report_template()
+  on.exit(unlink(dirname(staged), recursive = TRUE), add = TRUE)
+  expect_true(file.exists(staged))
+  # rmarkdown::render() writes its intermediates next to the input file, so the
+  # staged copy must live under tempdir() and outside the installed package
+  # (the library is read-only on the CRAN check machines).
+  expect_true(startsWith(normalizePath(staged), normalizePath(tempdir())))
+  expect_false(startsWith(normalizePath(staged),
+                          normalizePath(system.file(package = "palimpsestr"))))
+})
+
+test_that("export_sef_report renders the staged copy, not the installed template", {
+  skip_if_not_installed("rmarkdown")
+  pkg <- normalizePath(system.file(package = "palimpsestr"))
+  seen <- NULL
+  testthat::local_mocked_bindings(
+    render = function(input, ..., output_file, output_dir) {
+      seen <<- normalizePath(input)
+      target <- file.path(output_dir, output_file)
+      writeLines("stub", target)
+      target
+    },
+    .package = "rmarkdown"
+  )
+  fit <- .small_fit()
+  suppressWarnings(suppressMessages(
+    export_sef_report(fit, tempfile(), format = "docx", lang = "it")))
+  expect_true(startsWith(seen, normalizePath(tempdir())))
+  expect_false(startsWith(seen, pkg))
+})
+
 test_that("export_sef_report errors clearly without rmarkdown is not triggered here", {
   # guard: the function must validate its input type
   expect_error(export_sef_report(list(), tempfile()), "sef_fit")

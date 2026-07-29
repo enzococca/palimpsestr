@@ -29,6 +29,20 @@
   stop("Could not locate sef_report.Rmd template.", call. = FALSE)
 }
 
+# Copy the shipped template into a fresh temporary directory and return the
+# copy. rmarkdown::render() writes its intermediates (`*.knit.md`, figure
+# directories) next to the input file, so rendering the template where it is
+# installed would write inside the R library: forbidden by CRAN policy, and
+# an outright failure when the library is mounted read-only.
+.stage_report_template <- function(dir = tempfile("sef_report_")) {
+  tmpl <- .sef_report_template()
+  dir.create(dir, showWarnings = FALSE, recursive = TRUE)
+  staged <- file.path(dir, basename(tmpl))
+  if (!file.copy(tmpl, staged, overwrite = TRUE))
+    stop("Could not copy sef_report.Rmd to a temporary directory.", call. = FALSE)
+  staged
+}
+
 # Build every report plot, skipping the ones that do not apply to this fit
 # (e.g. phase composition needs a categorical model, outliers need a noise
 # component) instead of erroring.
@@ -160,7 +174,9 @@ export_sef_report <- function(fit, file,
     return(invisible(unique(c(written, .write_fallback(payload, base)))))
   }
 
-  tmpl <- .sef_report_template()
+  stage_dir <- tempfile("sef_report_")
+  tmpl <- .stage_report_template(stage_dir)
+  on.exit(unlink(stage_dir, recursive = TRUE), add = TRUE)
   rds <- tempfile(fileext = ".rds")
   saveRDS(list(payload = payload), rds)
   on.exit(unlink(rds), add = TRUE)

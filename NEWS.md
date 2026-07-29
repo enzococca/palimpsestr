@@ -1,3 +1,16 @@
+# palimpsestr 0.24.1
+
+## Bug fixes
+
+- `export_sef_report()` no longer renders the bundled RMarkdown template in
+  place. `rmarkdown::render()` writes its intermediate files (`*.knit.md`,
+  figure directories) next to the input document, which meant the installed
+  package directory was written to during rendering. The template is now
+  copied into a per-call temporary directory and rendered there, so nothing is
+  written outside the R session's temporary directory (CRAN Policy). This also
+  fixes PDF/DOCX rendering failing outright when the R library is read-only,
+  as on the CRAN Debian check machines.
+
 # palimpsestr 0.24.0
 
 ## PCI Archaeo revision (round 1)
