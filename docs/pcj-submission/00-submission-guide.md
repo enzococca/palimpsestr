@@ -14,7 +14,7 @@ Diamond open access, **no fees**. PCJ adds the cover page + headers/footers in p
 | PCI recommendation DOI | **10.24072/pci.archaeo.101019** |
 | Recommendation page | https://archaeo.peercommunityin.org/articles/rec?id=1019 |
 | Recommender | Alessio Palmisano — cite as **Palmisano, 2026** *(confirm on rec page "Cite this recommendation as")* |
-| Software / data / code (perennial DOI) | 10.5281/zenodo.19881542 |
+| Software / data / code (perennial DOI) | 10.5281/zenodo.19881541 |
 
 ## The submission already exists
 The portal reported *"Submission with this Preprint id already exists"* — so the submission is
@@ -50,11 +50,13 @@ already created. **Do not click Create again.** Go to peercommunityjournal.org �
 - [x] Mandatory sections present: Acknowledgements · Funding · Conflict of interest disclosure ·
       Data, script, code, and supplementary information availability · References
 - [x] PCJ recommendation sentence added to Acknowledgements
-- [ ] **Perennial DOI for data/scripts/code + a README** describing them — the Zenodo software
-      record (`…19881542`) still points to **v0.12.0**. Recommended: archive **v0.24.0**
-      (`palimpsestr_0.24.0.tar.gz` in repo root) as a "New version", and make sure the repo has a
-      README describing data/scripts/code. The code reference (Cocca 2026) is already in
+- [x] **Perennial DOI for data/scripts/code + a README** describing them — concept DOI
+      **10.5281/zenodo.19881541**, which resolves to the latest version. The GitHub→Zenodo
+      integration archives every release automatically (v0.24.1 = record 21670989,
+      29 Jul 2026), so no manual deposit is needed. The code reference (Cocca 2026) is in
       `references.bib` and cited in the data-availability section.
+      **Careful:** `…19881542` is *not* the concept DOI, it is the version DOI of v0.12.0.
+      It was cited by mistake in the files sent on 28 Jul and corrected by errata on 29 Jul.
 - [ ] Recommendation PDF exported (step 7)
 
 ## Production round 1 — reference corrections (27–28 Jul 2026)

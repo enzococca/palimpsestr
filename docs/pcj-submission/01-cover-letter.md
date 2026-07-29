@@ -36,7 +36,7 @@ and the research received **no specific funding**.
 
 The software described in the article is openly available under the MIT licence
 (https://github.com/enzococca/palimpsestr) and permanently archived on Zenodo
-(concept DOI 10.5281/zenodo.19881542). The `villa_romana` case-study dataset is bundled with
+(concept DOI 10.5281/zenodo.19881541). The `villa_romana` case-study dataset is bundled with
 the package.
 
 We are happy to provide the manuscript source files (LaTeX generated from the R Markdown

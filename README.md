@@ -2,7 +2,7 @@
 
 <!-- badges: start -->
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![Software DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19881542.svg)](https://doi.org/10.5281/zenodo.19881542)
+[![Software DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19881541.svg)](https://doi.org/10.5281/zenodo.19881541)
 [![Preprint DOI](https://img.shields.io/badge/Preprint-10.5281%2Fzenodo.19969277-blue)](https://doi.org/10.5281/zenodo.19969277)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- badges: end -->
@@ -13,7 +13,10 @@ Probabilistic decomposition of archaeological palimpsests using Stratigraphic En
 
 If you use `palimpsestr` in your research, please cite the software:
 
-> Cocca, E. (2026). *palimpsestr: Probabilistic Decomposition of Archaeological Palimpsests*. R package version 0.12.0. Zenodo. https://doi.org/10.5281/zenodo.19881542
+> Cocca, E. (2026). *palimpsestr: Probabilistic Decomposition of Archaeological Palimpsests*. R package version 0.24.1. Zenodo. https://doi.org/10.5281/zenodo.19881541
+
+(The DOI above is the *concept* DOI and always resolves to the latest version; every
+release is also archived under its own version DOI.)
 
 If you refer to the methodological framework, please cite the preprint:
 

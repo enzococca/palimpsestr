@@ -86,6 +86,51 @@ on behalf of Enzo Cocca, Roberto Montagnetti and Maurizio Cattani
 
 ---
 
+# Errata — round 1b (29 July 2026)
+
+Sent as a follow-up to the same thread, after the files above had already gone out.
+
+Subject: Re: Peer Community Journal — errata: one DOI correction (palimpsestR)
+
+Dear Elisa,
+
+My apologies for writing twice. While verifying the archive record after sending you the
+corrected files, I found one further error of my own, in the very reference we discussed
+yesterday. Since the proofs have not been prepared yet, I hope it is not too late to have
+it fixed in the same round.
+
+**The Zenodo DOI of the software must read 10.5281/zenodo.19881541, not
+10.5281/zenodo.19881542.**
+
+`…19881542` is the *version* DOI of an early release (v0.12.0, April 2026); `…19881541`
+is the *concept* DOI, which resolves to all versions and always to the latest one. The
+article describes version 0.24.0, so the DOI as previously written sent the reader to the
+wrong (and outdated) deposit, and it is not a perennial identifier in the sense required
+by the journal.
+
+The corrected DOI replaces the previous one in three places in the manuscript, and in the
+bibliography:
+
+1. Section "Software overview" — "permanently archived on Zenodo (concept DOI: …)". The
+   word "concept" has been added here, for consistency with the other two occurrences.
+2. Section "Data, script, code, and supplementary information availability" — "…archived
+   on Zenodo with concept DOI https://doi.org/10.5281/zenodo.19881541 (Cocca 2026)".
+3. The reference-list entry Cocca, E. (2026).
+4. `references.bib`, entry `cocca2026`: `doi = {10.5281/zenodo.19881541}`.
+
+Nothing else has been changed: the four corrections from my previous message are
+unaffected. The attached `palimpsestr-paper-PCJ.tex`, `references.bib` and
+`palimpsestr-paper-PCJ.pdf` **supersede** the ones I sent yesterday — please discard those.
+
+Thank you for your patience, and again for the careful check that started this.
+
+With best regards,
+
+Enzo Cocca
+on behalf of Enzo Cocca, Roberto Montagnetti and Maurizio Cattani
+
+---
+
 ## Change log (internal)
 
 | # | Request | Action | Files |
@@ -100,3 +145,12 @@ Applied to **both** manuscript sources so they do not diverge:
 
 Post-edit verification: 18/18 references cited, 0 orphans; PDF = 40 pages, starts at
 "1 Introduction", no page numbers, no headers/footers.
+
+### Round 1b (errata, 29 Jul 2026)
+
+| # | Request | Action | Files |
+|---|---------|--------|-------|
+| 5 | Wrong Zenodo DOI (our own error, found after sending) | `10.5281/zenodo.19881542` (version DOI of v0.12.0) → `10.5281/zenodo.19881541` (concept DOI, verified via `zenodo.org/api/records/19881542` → `conceptdoi`). Added the word "concept" in the Software overview section | `references.bib`, both `.Rmd`, `.tex`, `.pdf`, plus `README.md`, `01-cover-letter.md`, `02-portal-metadata.md`, `00-submission-guide.md` |
+
+Post-edit verification: PDF = 40 pages, 3 occurrences of `19881541`, 0 of `19881542`;
+`.tex` likewise 3 / 0.

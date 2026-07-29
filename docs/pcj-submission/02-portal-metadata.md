@@ -20,7 +20,7 @@ This paper presents palimpsestr, an R package and Shiny application dedicated to
 ## Statements
 - **Funding:** This research received no specific grant from any funding agency in the public, commercial, or not-for-profit sectors.
 - **Conflict of interest:** The authors declare no conflict of interest relating to the content of this article.
-- **Data and code availability:** palimpsestr (v0.24.0) is available at https://github.com/enzococca/palimpsestr (MIT licence) and archived on Zenodo, concept DOI 10.5281/zenodo.19881542. The villa_romana case-study dataset is bundled with the package.
+- **Data and code availability:** palimpsestr (v0.24.0) is available at https://github.com/enzococca/palimpsestr (MIT licence) and archived on Zenodo, concept DOI 10.5281/zenodo.19881541. The villa_romana case-study dataset is bundled with the package.
 
 ## Author contributions
 E.C. designed and implemented the palimpsestr package, the Stratigraphic Entanglement Field framework, and the Shiny dashboard, and wrote the manuscript. R.M. directed the archaeological excavations at Poggio Gramignano (Lugnano in Teverina), provided the dataset and the taphonomic scores per stratigraphic unit, validated the model output against on-site stratigraphic interpretation, and contributed to the discussion of methodological limitations and feature-space improvements. M.C. provided methodological supervision throughout the development of the framework, contributed to the archaeological interpretation of the diagnostics, highlighted the implicit assumption of horizontal stratigraphy, introduced the residual vs. latent-feature intrusion distinction, and identified the future dendrochronological validation context.

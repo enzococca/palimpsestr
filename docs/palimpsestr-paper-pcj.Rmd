@@ -150,7 +150,7 @@ where $\bar{H}$ is the mean entropy across finds. PDI ranges from $0$ (complete 
 
 # Software overview
 
-\texttt{palimpsestr} is an R package distributed under the MIT licence. It is freely available on GitHub at \url{https://github.com/enzococca/palimpsestr} and permanently archived on Zenodo (DOI: \url{https://doi.org/10.5281/zenodo.19881542}). Installation requires R $\geq$ 4.1.0 and can be performed directly from the GitHub source via the \texttt{remotes} package:
+\texttt{palimpsestr} is an R package distributed under the MIT licence. It is freely available on GitHub at \url{https://github.com/enzococca/palimpsestr} and permanently archived on Zenodo (concept DOI: \url{https://doi.org/10.5281/zenodo.19881541}). Installation requires R $\geq$ 4.1.0 and can be performed directly from the GitHub source via the \texttt{remotes} package:
 
 \bigskip
 
@@ -502,7 +502,7 @@ knitr::include_graphics("figs-v017/map_intrusion.png")
 
 # Data, script, code, and supplementary information availability
 
-The \texttt{palimpsestr} package (version 0.24.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881542} (Cocca 2026). The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures were produced with the reproducibility script available in the repository (\texttt{docs/regen\_casestudy\_v017.R}); the SEF model is unchanged since version 0.17.1, so they reproduce identically under 0.24.0. From version 0.20.0, \texttt{read\_pyarchinit()} ingests pyArchInit databases directly, and a set of QGIS Processing algorithms with a self-installing pyArchInit tab runs the full pipeline --- fitting, intrusion detection, and a narrated PDF/DOCX report (\texttt{export\_sef\_report()}) --- from within QGIS (\texttt{qgis/} folder).
+The \texttt{palimpsestr} package (version 0.24.0 used in this paper) is publicly available at \url{https://github.com/enzococca/palimpsestr} under the MIT licence and permanently archived on Zenodo with concept DOI \url{https://doi.org/10.5281/zenodo.19881541} (Cocca 2026). The \texttt{villa\_romana} dataset, derived from the Poggio Gramignano excavation, is bundled with the package. The case-study figures were produced with the reproducibility script available in the repository (\texttt{docs/regen\_casestudy\_v017.R}); the SEF model is unchanged since version 0.17.1, so they reproduce identically under 0.24.0. From version 0.20.0, \texttt{read\_pyarchinit()} ingests pyArchInit databases directly, and a set of QGIS Processing algorithms with a self-installing pyArchInit tab runs the full pipeline --- fitting, intrusion detection, and a narrated PDF/DOCX report (\texttt{export\_sef\_report()}) --- from within QGIS (\texttt{qgis/} folder).
 
 # Author contributions
 
@@ -535,7 +535,7 @@ Biernacki, C., Celeux, G., & Govaert, G. (2000). Assessing a mixture model for c
 Bronk Ramsey, C. (2009). Bayesian analysis of radiocarbon dates. *Radiocarbon*, 51(1), 337--360. \url{https://doi.org/10.1017/S0033822200033865}
 
 \noindent
-Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.24.0. Zenodo. \url{https://doi.org/10.5281/zenodo.19881542}
+Cocca, E. (2026). \texttt{palimpsestr}: Probabilistic Decomposition of Archaeological Palimpsests. R package version 0.24.0. Zenodo. \url{https://doi.org/10.5281/zenodo.19881541}
 
 \noindent
 Conolly, J., & Lake, M. (2006). *Geographical Information Systems in Archaeology*. Cambridge Manuals in Archaeology. Cambridge: Cambridge University Press. ISBN 978-0-521-79744-3. \url{https://doi.org/10.1017/CBO9780511807459}
